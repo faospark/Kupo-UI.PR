@@ -1,0 +1,75 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net472</TargetFramework>
+    <OutputType>Library</OutputType>
+    <AssemblyName>DarkerUI.PR</AssemblyName>
+    <RootNamespace>DarkerUI.PR</RootNamespace>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="src\**\*.cs" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <BepInExDir Condition="'$(BepInExDir)' == ''">$(BepInExDir)</BepInExDir>
+    <UnityInteropDir Condition="'$(UnityInteropDir)' == '' and '$(BepInExDir)' != ''">$(BepInExDir)\interop</UnityInteropDir>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(BepInExDir)' != ''">
+    <Reference Include="BepInEx">
+      <HintPath>$(BepInExDir)\core\BepInEx.Core.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="BepInEx.Unity.IL2CPP">
+      <HintPath>$(BepInExDir)\core\BepInEx.Unity.IL2CPP.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>$(BepInExDir)\core\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppInterop.Runtime">
+      <HintPath>$(BepInExDir)\core\Il2CppInterop.Runtime.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(UnityInteropDir)' != ''">
+    <Reference Include="Assembly-CSharp">
+      <HintPath>$(UnityInteropDir)\Assembly-CSharp.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2CppSystem" Condition="Exists('$(UnityInteropDir)\Il2CppSystem.dll')">
+      <HintPath>$(UnityInteropDir)\Il2CppSystem.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="Il2Cppmscorlib">
+      <HintPath>$(UnityInteropDir)\Il2Cppmscorlib.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.CoreModule">
+      <HintPath>$(UnityInteropDir)\UnityEngine.CoreModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.ImageConversionModule" Condition="Exists('$(UnityInteropDir)\UnityEngine.ImageConversionModule.dll')">
+      <HintPath>$(UnityInteropDir)\UnityEngine.ImageConversionModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UI" Condition="Exists('$(UnityInteropDir)\UnityEngine.UI.dll')">
+      <HintPath>$(UnityInteropDir)\UnityEngine.UI.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="UnityEngine.UIModule" Condition="Exists('$(UnityInteropDir)\UnityEngine.UIModule.dll')">
+      <HintPath>$(UnityInteropDir)\UnityEngine.UIModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="FailIfBepInExDirMissing" BeforeTargets="BeforeBuild" Condition="'$(BepInExDir)' == ''">
+    <Error Text="Set BepInExDir to your FFPR BepInEx folder path. Example: dotnet build -p:BepInExDir=&quot;D:\Games\FFPR\BepInEx&quot;" />
+  </Target>
+</Project>
