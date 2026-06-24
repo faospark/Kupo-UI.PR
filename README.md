@@ -51,6 +51,7 @@ to:
 Generated on first run in `BepInEx/config`:
 
 - `General.DisableMouseCursor` (default: `true`)
+- `UI.SaveHighlightColor` (default: `DarkNavy`; options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`)
 - `Textures.EnableCustomTextures` (default: `true`)
 - `Textures.TextureRootFolder` (default: `DarkerUI.PR\Textures`)
 - `Textures.GameTagOverride` (default: empty, auto-detect)

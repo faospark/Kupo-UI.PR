@@ -19,6 +19,7 @@ public sealed class DarkerUIPRPlugin : BasePlugin
     internal static ManualLogSource PluginLog { get; private set; } = null!;
     internal static ConfigEntry<bool> DisableMouseCursorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ForceVSyncConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> SaveHighlightColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableCustomTexturesConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureRootFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> GameTagOverrideConfig { get; private set; } = null!;
@@ -46,6 +47,12 @@ public sealed class DarkerUIPRPlugin : BasePlugin
             "ForceVSync",
             true,
             "If true, forces V-Sync on and keeps it from being disabled by the game.");
+
+        SaveHighlightColorConfig = Config.Bind(
+            "UI",
+            "SaveHighlightColor",
+            "DarkNavy",
+            "Save slot highlight color override for image_blue. Options: Original, DarkNavy, DarkGreen, DarkViolet, DarkYellow, DarkOrange, Disable.");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
@@ -133,6 +140,7 @@ public sealed class DarkerUIPRPlugin : BasePlugin
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");
         Log.LogInfo($"ForceVSync = {ForceVSyncConfig.Value}");
+        Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
         Log.LogInfo($"EnableCustomTextures = {EnableCustomTexturesConfig.Value}");
     }
 }
