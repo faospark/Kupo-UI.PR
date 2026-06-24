@@ -10,6 +10,9 @@ internal static class SaveHighlightColorPatch
 {
     private const float SaveHighlightAlpha = 0.698f;
     private const string SaveHighlightPathFragment = "/ui_root/loadGame(Clone)/save_info/menu/content_list/Scroll View/Viewport/Content/save_slot(Clone)/image_blue";
+    private const string SaveHighlightLeafPathFragment = "/save_slot(Clone)/image_blue";
+    private const string SaveHighlightLoadInfoPathFragment = "/load_info(Clone)/menu/content_list/Scroll View/Viewport/Content/";
+    
 
     private static readonly Color DarkNavyColor = new(0.0500f, 0.1000f, 0.2500f, SaveHighlightAlpha);
     private static readonly Color DarkGreenColor = new(0.0500f, 0.3000f, 0.1400f, SaveHighlightAlpha);
@@ -216,8 +219,15 @@ internal static class SaveHighlightColorPatch
             return false;
         }
 
-        return TryBuildTransformPath(graphic.transform, out var path)
-            && path.IndexOf(SaveHighlightPathFragment, StringComparison.OrdinalIgnoreCase) >= 0;
+        if (!TryBuildTransformPath(graphic.transform, out var path))
+        {
+            return false;
+        }
+
+        return path.IndexOf(SaveHighlightPathFragment, StringComparison.OrdinalIgnoreCase) >= 0
+            || path.IndexOf(SaveHighlightLeafPathFragment, StringComparison.OrdinalIgnoreCase) >= 0
+            || (path.IndexOf(SaveHighlightLoadInfoPathFragment, StringComparison.OrdinalIgnoreCase) >= 0
+                && path.IndexOf("/image_blue", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     private static bool TryBuildTransformPath(Transform transform, out string path)
