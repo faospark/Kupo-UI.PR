@@ -223,13 +223,7 @@ internal static class TextureResolver
             return false;
         }
 
-        var rect = original.rect;
-        if (rect.x < 0f || rect.y < 0f || rect.width <= 0f || rect.height <= 0f
-            || rect.xMax > customTexture.width || rect.yMax > customTexture.height)
-        {
-            // Fallback for standalone replacement textures that do not match original atlas coordinates.
-            rect = new Rect(0f, 0f, customTexture.width, customTexture.height);
-        }
+        var rect = ResolveReplacementRect(original, customTexture, metadata);
 
         var pivot = original.rect.width > 0f && original.rect.height > 0f
             ? new Vector2(original.pivot.x / original.rect.width, original.pivot.y / original.rect.height)
@@ -252,9 +246,11 @@ internal static class TextureResolver
 
         SpriteCache[originalId] = replacement;
 
-        if (_verboseLogs)
+        var shouldLogDiagnostics = _verboseLogs || DarkerUIPRPlugin.IsTextureLoggerEnabled;
+        if (shouldLogDiagnostics)
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Sprite replacement: {spriteName} / {textureName}");
+            DarkerUIPRPlugin.PluginLog.LogInfo(
+                $"[TextureResolver] Sprite replacement: {spriteName} / {textureName} | rect=({rect.x:0.##},{rect.y:0.##},{rect.width:0.##},{rect.height:0.##}) ppu={replacementPixelsPerUnit:0.###} filter={customTexture.filterMode} meta={DescribeMetadata(metadata)}");
         }
 
         return true;
@@ -265,6 +261,11 @@ internal static class TextureResolver
         if (original == null)
         {
             return 100f;
+        }
+
+        if (metadata != null && metadata.PixelsPerUnit > 0f)
+        {
+            return metadata.PixelsPerUnit;
         }
 
         var originalPixelsPerUnit = original.pixelsPerUnit > 0f ? original.pixelsPerUnit : 100f;
@@ -290,6 +291,46 @@ internal static class TextureResolver
         }
 
         return originalPixelsPerUnit * dominantRatio;
+    }
+
+    private static Rect ResolveReplacementRect(Sprite original, Texture2D replacementTexture, TextureOverrideMetadata metadata)
+    {
+        var rect = original.rect;
+        if (rect.x < 0f || rect.y < 0f || rect.width <= 0f || rect.height <= 0f
+            || rect.xMax > replacementTexture.width || rect.yMax > replacementTexture.height)
+        {
+            // Fallback for standalone replacement textures that do not match original atlas coordinates.
+            rect = new Rect(0f, 0f, replacementTexture.width, replacementTexture.height);
+        }
+
+        if (metadata == null || (metadata.Width <= 0 && metadata.Height <= 0))
+        {
+            return rect;
+        }
+
+        var targetWidth = metadata.Width > 0 ? metadata.Width : rect.width;
+        var targetHeight = metadata.Height > 0 ? metadata.Height : rect.height;
+
+        if (targetWidth <= 0f || targetHeight <= 0f)
+        {
+            return rect;
+        }
+
+        // Prefer preserving atlas origin when the requested size fits there.
+        if (rect.x >= 0f
+            && rect.y >= 0f
+            && rect.x + targetWidth <= replacementTexture.width
+            && rect.y + targetHeight <= replacementTexture.height)
+        {
+            return new Rect(rect.x, rect.y, targetWidth, targetHeight);
+        }
+
+        // Otherwise use the requested size from origin, clamped to texture bounds.
+        return new Rect(
+            0f,
+            0f,
+            Mathf.Min(targetWidth, replacementTexture.width),
+            Mathf.Min(targetHeight, replacementTexture.height));
     }
 
     private static Texture2D LoadTexture(string textureName, string assetAddressHint, out TextureOverrideMetadata metadata)
@@ -631,8 +672,10 @@ internal static class TextureResolver
             {
                 Width = ReadInt(json, "width"),
                 Height = ReadInt(json, "height"),
+                PixelsPerUnit = ReadFloat(json, "pixelsPerUnit"),
                 PointFilter = ReadBool(json, "pointFilter"),
-                FilterMode = ReadString(json, "filterMode")
+                FilterMode = ReadString(json, "filterMode"),
+                FilterType = ReadString(json, "filterType")
             };
 
             MetadataCache[texturePath] = metadata;
@@ -650,19 +693,21 @@ internal static class TextureResolver
     {
         if (metadata != null)
         {
-            if (!string.IsNullOrEmpty(metadata.FilterMode))
+            var requestedFilter = !string.IsNullOrEmpty(metadata.FilterMode) ? metadata.FilterMode : metadata.FilterType;
+            if (!string.IsNullOrEmpty(requestedFilter))
             {
-                if (metadata.FilterMode.Equals("Point", StringComparison.OrdinalIgnoreCase))
+                if (requestedFilter.Equals("Point", StringComparison.OrdinalIgnoreCase))
                 {
                     return FilterMode.Point;
                 }
 
-                if (metadata.FilterMode.Equals("Trilinear", StringComparison.OrdinalIgnoreCase))
+                if (requestedFilter.Equals("Trilinear", StringComparison.OrdinalIgnoreCase))
                 {
                     return FilterMode.Trilinear;
                 }
 
-                if (metadata.FilterMode.Equals("Bilinear", StringComparison.OrdinalIgnoreCase))
+                if (requestedFilter.Equals("Bilinear", StringComparison.OrdinalIgnoreCase)
+                    || requestedFilter.Equals("Linear", StringComparison.OrdinalIgnoreCase))
                 {
                     return FilterMode.Bilinear;
                 }
@@ -681,6 +726,12 @@ internal static class TextureResolver
     {
         var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
         return match.Success && int.TryParse(match.Groups[1].Value, out var value) ? value : 0;
+    }
+
+    private static float ReadFloat(string json, string propertyName)
+    {
+        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+        return match.Success && float.TryParse(match.Groups[1].Value, out var value) ? value : 0f;
     }
 
     private static bool? ReadBool(string json, string propertyName)
@@ -842,11 +893,33 @@ internal static class TextureResolver
             || message.IndexOf("texture memory can not be accessed", StringComparison.OrdinalIgnoreCase) >= 0;
     }
 
+    private static string DescribeMetadata(TextureOverrideMetadata metadata)
+    {
+        if (metadata == null)
+        {
+            return "none";
+        }
+
+        var width = metadata.Width > 0 ? metadata.Width.ToString() : "-";
+        var height = metadata.Height > 0 ? metadata.Height.ToString() : "-";
+        var ppu = metadata.PixelsPerUnit > 0f ? metadata.PixelsPerUnit.ToString("0.###") : "-";
+        var mode = !string.IsNullOrEmpty(metadata.FilterMode)
+            ? metadata.FilterMode
+            : !string.IsNullOrEmpty(metadata.FilterType)
+                ? metadata.FilterType
+                : "-";
+        var point = metadata.PointFilter.HasValue ? metadata.PointFilter.Value.ToString() : "-";
+
+        return $"w={width},h={height},ppu={ppu},mode={mode},point={point}";
+    }
+
     private sealed class TextureOverrideMetadata
     {
         internal int Width { get; set; }
         internal int Height { get; set; }
+        internal float PixelsPerUnit { get; set; }
         internal bool? PointFilter { get; set; }
         internal string FilterMode { get; set; }
+        internal string FilterType { get; set; }
     }
 }

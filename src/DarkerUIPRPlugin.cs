@@ -29,7 +29,7 @@ public sealed class DarkerUIPRPlugin : BasePlugin
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
-
+    internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
     {
         PluginLog = Log;
@@ -101,6 +101,8 @@ public sealed class DarkerUIPRPlugin : BasePlugin
             "Combined texture logger setting. Use comma-separated values: Discoveries, Resolutions, Misses. Use All to log all categories or None to disable logger.");
 
         var (loggerEnabled, logDiscoveries, logResolutions, logMisses) = ResolveTextureLoggerConfig(TextureLoggerConfig.Value);
+
+        IsTextureLoggerEnabled = loggerEnabled;
 
         TextureLogger.Initialize(
             loggerEnabled,

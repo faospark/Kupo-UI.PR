@@ -59,10 +59,7 @@ Generated on first run in `BepInEx/config`:
 - `Textures.EnableTextureHotReload` (default: `true`)
 - `Textures.TextureHotReloadDebounceMs` (default: `350`)
 - `Textures.EnableDDSTextures` (default: `true`)
-- `Textures.EnableTextureLogger` (default: `true`)
-- `Textures.LogTextureDiscoveries` (default: `true`)
-- `Textures.LogTextureResolutions` (default: `true`)
-- `Textures.LogTextureMisses` (default: `false`)
+- `Textures.TextureLogger` (default: `Discoveries,Resolutions`; options: `All`, `None`, or comma-separated categories: `Discoveries`, `Resolutions`, `Misses`)
 
 Set to `false` to disable this initial patch while keeping the plugin active.
 
@@ -121,6 +118,7 @@ Example JSON:
 {
   "width": 112,
   "height": 144,
+  "pixelsPerUnit": 100,
   "filterMode": "Point"
 }
 ```
@@ -129,10 +127,14 @@ Supported fields:
 
 - `width`: logical source width used when calculating replacement sprite scale
 - `height`: logical source height used when calculating replacement sprite scale
+- `pixelsPerUnit`: optional direct sprite PPU override (takes priority over auto scale calculation)
 - `filterMode`: Unity-style filter override, one of `Point`, `Bilinear`, or `Trilinear`
+- `filterType`: alias for `filterMode` (same accepted values)
 - `pointFilter`: legacy boolean shorthand, `true` = `Point`, `false` = `Bilinear`
 
-If both `filterMode` and `pointFilter` are present, `filterMode` takes priority.
+If both `filterMode`/`filterType` and `pointFilter` are present, the string mode takes priority.
+
+If `width` and/or `height` are provided, sprite creation uses those values to override replacement rect sizing when possible; when values do not fit atlas coordinates, fallback uses origin-clamped sizing.
 
 Supported texture formats:
 
