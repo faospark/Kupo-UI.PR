@@ -1,3 +1,4 @@
+using System;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -27,10 +28,7 @@ public sealed class DarkerUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> EnableTextureLoggerConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> LogTextureDiscoveriesConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> LogTextureResolutionsConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> LogTextureMissesConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
 
     public override void Load()
     {
@@ -96,35 +94,19 @@ public sealed class DarkerUIPRPlugin : BasePlugin
             true,
             "If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32)." );
 
-        EnableTextureLoggerConfig = Config.Bind(
+        TextureLoggerConfig = Config.Bind(
             "Textures",
-            "EnableTextureLogger",
-            true,
-            "If true, emits texture discovery/resolution logs for replacement debugging.");
+            "TextureLogger",
+            "Discoveries,Resolutions",
+            "Combined texture logger setting. Use comma-separated values: Discoveries, Resolutions, Misses. Use All to log all categories or None to disable logger.");
 
-        LogTextureDiscoveriesConfig = Config.Bind(
-            "Textures",
-            "LogTextureDiscoveries",
-            true,
-            "If true, logs texture names discovered at runtime (deduplicated).");
-
-        LogTextureResolutionsConfig = Config.Bind(
-            "Textures",
-            "LogTextureResolutions",
-            true,
-            "If true, logs texture names that successfully resolve to replacement files (deduplicated).");
-
-        LogTextureMissesConfig = Config.Bind(
-            "Textures",
-            "LogTextureMisses",
-            false,
-            "If true, logs texture names that did not resolve to replacement files (deduplicated).");
+        var (loggerEnabled, logDiscoveries, logResolutions, logMisses) = ResolveTextureLoggerConfig(TextureLoggerConfig.Value);
 
         TextureLogger.Initialize(
-            EnableTextureLoggerConfig.Value,
-            LogTextureDiscoveriesConfig.Value,
-            LogTextureResolutionsConfig.Value,
-            LogTextureMissesConfig.Value);
+            loggerEnabled,
+            logDiscoveries,
+            logResolutions,
+            logMisses);
 
         TextureResolver.Initialize(
             TextureRootFolderConfig.Value,
@@ -142,5 +124,66 @@ public sealed class DarkerUIPRPlugin : BasePlugin
         Log.LogInfo($"ForceVSync = {ForceVSyncConfig.Value}");
         Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
         Log.LogInfo($"EnableCustomTextures = {EnableCustomTexturesConfig.Value}");
+    }
+
+    private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
+    {
+        if (string.IsNullOrWhiteSpace(configValue))
+        {
+            return (false, false, false, false);
+        }
+
+        var enabled = true;
+        var logDiscoveries = false;
+        var logResolutions = false;
+        var logMisses = false;
+
+        var tokens = configValue.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var rawToken in tokens)
+        {
+            var token = rawToken.Trim();
+            if (token.Equals("all", StringComparison.OrdinalIgnoreCase))
+            {
+                return (true, true, true, true);
+            }
+
+            if (token.Equals("none", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("off", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("disabled", StringComparison.OrdinalIgnoreCase)
+                || token.Equals("false", StringComparison.OrdinalIgnoreCase))
+            {
+                return (false, false, false, false);
+            }
+
+            if (token.Equals("discoveries", StringComparison.OrdinalIgnoreCase) || token.Equals("discovery", StringComparison.OrdinalIgnoreCase))
+            {
+                logDiscoveries = true;
+                continue;
+            }
+
+            if (token.Equals("resolutions", StringComparison.OrdinalIgnoreCase) || token.Equals("resolution", StringComparison.OrdinalIgnoreCase))
+            {
+                logResolutions = true;
+                continue;
+            }
+
+            if (token.Equals("misses", StringComparison.OrdinalIgnoreCase) || token.Equals("missing", StringComparison.OrdinalIgnoreCase))
+            {
+                logMisses = true;
+                continue;
+            }
+
+            if (token.Equals("enabled", StringComparison.OrdinalIgnoreCase) || token.Equals("true", StringComparison.OrdinalIgnoreCase))
+            {
+                enabled = true;
+            }
+        }
+
+        if (!logDiscoveries && !logResolutions && !logMisses)
+        {
+            return (false, false, false, false);
+        }
+
+        return (enabled, logDiscoveries, logResolutions, logMisses);
     }
 }
