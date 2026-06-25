@@ -1,7 +1,7 @@
 using HarmonyLib;
 using UnityEngine;
 
-namespace DarkerUI.PR.Patches;
+namespace KupoUI.PR.Patches;
 
 [HarmonyPatch(typeof(Cursor))]
 internal static class DisableMouseCursorPatch
@@ -10,7 +10,7 @@ internal static class DisableMouseCursorPatch
     [HarmonyPrefix]
     private static void CursorVisiblePrefix(ref bool value)
     {
-        if (!DarkerUIPRPlugin.DisableMouseCursorConfig.Value)
+        if (!KupoUIPRPlugin.DisableMouseCursorConfig.Value)
         {
             return;
         }
@@ -22,7 +22,7 @@ internal static class DisableMouseCursorPatch
     [HarmonyPostfix]
     private static void CursorVisiblePostfix(ref bool __result)
     {
-        if (!DarkerUIPRPlugin.DisableMouseCursorConfig.Value)
+        if (!KupoUIPRPlugin.DisableMouseCursorConfig.Value)
         {
             return;
         }

@@ -4,7 +4,7 @@ using HarmonyLib;
 using Last.Management;
 using UnityEngine;
 
-namespace DarkerUI.PR.Textures;
+namespace KupoUI.PR.Textures;
 
 /// <summary>
 /// Tracks Unity addressable asset addresses by their IL2CPP native pointer.

@@ -1,14 +1,14 @@
 using HarmonyLib;
 using UnityEngine;
 
-namespace DarkerUI.PR.Patches;
+namespace KupoUI.PR.Patches;
 
 [HarmonyPatch]
 internal static class ForceVSyncPatch
 {
     internal static void ApplyNow()
     {
-        if (!DarkerUIPRPlugin.ForceVSyncConfig.Value)
+        if (!KupoUIPRPlugin.ForceVSyncConfig.Value)
         {
             return;
         }
@@ -22,7 +22,7 @@ internal static class ForceVSyncPatch
     [HarmonyPrefix]
     private static void VSyncCountSetterPrefix(ref int value)
     {
-        if (!DarkerUIPRPlugin.ForceVSyncConfig.Value)
+        if (!KupoUIPRPlugin.ForceVSyncConfig.Value)
         {
             return;
         }
@@ -34,7 +34,7 @@ internal static class ForceVSyncPatch
     [HarmonyPostfix]
     private static void VSyncCountGetterPostfix(ref int __result)
     {
-        if (!DarkerUIPRPlugin.ForceVSyncConfig.Value)
+        if (!KupoUIPRPlugin.ForceVSyncConfig.Value)
         {
             return;
         }
@@ -46,7 +46,7 @@ internal static class ForceVSyncPatch
     [HarmonyPrefix]
     private static void TargetFrameRateSetterPrefix(ref int value)
     {
-        if (!DarkerUIPRPlugin.ForceVSyncConfig.Value)
+        if (!KupoUIPRPlugin.ForceVSyncConfig.Value)
         {
             return;
         }

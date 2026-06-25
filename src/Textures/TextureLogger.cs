@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace DarkerUI.PR.Textures;
+namespace KupoUI.PR.Textures;
 
 internal static class TextureLogger
 {
@@ -27,7 +27,7 @@ internal static class TextureLogger
 
         if (_enabled)
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureLogger] Enabled (Discoveries={_logDiscoveries}, Resolutions={_logResolutions}, Misses={_logMisses})");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextureLogger] Enabled (Discoveries={_logDiscoveries}, Resolutions={_logResolutions}, Misses={_logMisses})");
         }
     }
 
@@ -46,7 +46,7 @@ internal static class TextureLogger
 
         if (SeenTextures.Add(key))
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureLogger][Seen:{source}] {key}");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextureLogger][Seen:{source}] {key}");
         }
     }
 
@@ -65,7 +65,7 @@ internal static class TextureLogger
 
         if (ResolvedTextures.Add(key))
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureLogger][Resolved:{source}] {key} <= {sourcePath}");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextureLogger][Resolved:{source}] {key} <= {sourcePath}");
         }
     }
 
@@ -84,7 +84,7 @@ internal static class TextureLogger
 
         if (MissingTextures.Add(key))
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureLogger][Missing:{source}] {key}");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextureLogger][Missing:{source}] {key}");
         }
     }
 }

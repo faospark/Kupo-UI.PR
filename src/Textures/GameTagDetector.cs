@@ -1,7 +1,7 @@
 using System;
 using BepInEx;
 
-namespace DarkerUI.PR.Textures;
+namespace KupoUI.PR.Textures;
 
 internal static class GameTagDetector
 {
@@ -39,7 +39,7 @@ internal static class GameTagDetector
             return "FF2";
         }
 
-        if (ContainsAny(source, "ff1", "final fantasy i", "final fantasy 1", "pixel remaster i", "final fantasy"))
+        if (ContainsAny(source, "ff1", "final fantasy", "final fantasy", "pixel remaster", "final fantasy"))
         {
             return "FF1";
         }

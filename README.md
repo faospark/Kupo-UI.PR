@@ -1,4 +1,4 @@
-# DarkerUI.PR
+# KupoUI.PR
 
 A BepInEx IL2CPP plugin scaffold for Final Fantasy Pixel Remaster (FF1-FF6).
 
@@ -16,8 +16,8 @@ This plugin includes runtime patches for UI cleanup and custom texture replaceme
 
 ## Project Layout
 
-- `DarkerUI.PR.csproj` - .NET Framework 4.7.2 class library project
-- `src/DarkerUIPRPlugin.cs` - plugin entry point
+- `KupoUI.PR.csproj` - .NET Framework 4.7.2 class library project
+- `src/KupoUIPRPlugin.cs` - plugin entry point
 - `src/Patches/DisableMouseCursorPatch.cs` - first runtime patch
 - `src/Patches/CustomTexturePatch.cs` - sprite/UI texture replacement patches
 - `src/Compatibility/ExternalModDetector.cs` - optional mod detection helper
@@ -33,18 +33,18 @@ This plugin includes runtime patches for UI cleanup and custom texture replaceme
 Example:
 
 ```powershell
-dotnet build .\DarkerUI.PR.csproj -c Release -p:BepInExDir="D:\Games\FINAL FANTASY II PR\BepInEx"
+dotnet build .\KupoUI.PR.csproj -c Release -p:BepInExDir="D:\Games\FINAL FANTASY II PR\BepInEx"
 ```
 
 ## Install
 
 Copy output DLL from:
 
-- `bin/Release/net472/DarkerUI.PR.dll`
+- `bin/Release/net472/KupoUI.PR.dll`
 
 to:
 
-- `BepInEx/plugins/DarkerUI.PR/`
+- `BepInEx/plugins/KupoUI.PR/`
 
 ## Config
 
@@ -53,7 +53,7 @@ Generated on first run in `BepInEx/config`:
 - `General.DisableMouseCursor` (default: `true`)
 - `UI.SaveHighlightColor` (default: `DarkNavy`; options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`)
 - `Textures.EnableCustomTextures` (default: `true`)
-- `Textures.TextureRootFolder` (default: `DarkerUI.PR\Textures`)
+- `Textures.TextureRootFolder` (default: `KupoUI.PR\Textures`)
 - `Textures.GameTagOverride` (default: empty, auto-detect)
 - `Textures.LogTextureResolution` (default: `false`)
 - `Textures.EnableTextureHotReload` (default: `true`)
@@ -67,7 +67,7 @@ Set to `false` to disable this initial patch while keeping the plugin active.
 
 Default root:
 
-- `BepInEx/plugins/DarkerUI.PR/Textures/`
+- `BepInEx/plugins/KupoUI.PR/Textures/`
 
 Supported layers:
 
@@ -87,19 +87,19 @@ Use file names without extension to match in-game texture/sprite names (for exam
 
 ### Path-based overrides (recommended for collisions)
 
-Many FFPR assets reuse the same file names in different bundles. To avoid collisions, DarkerUI.PR also supports path-based resolution for files placed under a `GameAssets` folder.
+Many FFPR assets reuse the same file names in different bundles. To avoid collisions, KupoUI.PR also supports path-based resolution for files placed under a `GameAssets` folder.
 
 How it works:
 
 - If a replacement file path contains a `GameAssets/...` segment, the resolver indexes it by full relative path (without extension), not only by file name.
-- At runtime, when the game loads an address like `Assets/GameAssets/...`, DarkerUI.PR can resolve to the exact matching replacement path first.
+- At runtime, when the game loads an address like `Assets/GameAssets/...`, KupoUI.PR can resolve to the exact matching replacement path first.
 - Name-only matching still works as a fallback for existing setups.
 
 Example (FF2 portrait):
 
 - In-game address: `Assets/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 - Replacement file location:
-  - `BepInEx/plugins/DarkerUI.PR/Textures/FF2/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
+  - `BepInEx/plugins/KupoUI.PR/Textures/FF2/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 
 This allows `Default_00.png` files from different portrait folders/bundles to be replaced independently.
 

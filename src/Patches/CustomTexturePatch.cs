@@ -1,10 +1,10 @@
 using System;
 using HarmonyLib;
-using DarkerUI.PR.Textures;
+using KupoUI.PR.Textures;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace DarkerUI.PR.Patches;
+namespace KupoUI.PR.Patches;
 
 [HarmonyPatch]
 internal static class CustomTexturePatch
@@ -15,7 +15,7 @@ internal static class CustomTexturePatch
     [HarmonyPostfix]
     private static void SpriteTexturePostfix(Sprite __instance, ref Texture2D __result)
     {
-        if (!DarkerUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
         {
             return;
         }
@@ -51,7 +51,7 @@ internal static class CustomTexturePatch
     [HarmonyPrefix]
     private static void SpriteRendererSpritePrefix(ref Sprite value)
     {
-        if (!DarkerUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
         {
             return;
         }
@@ -83,7 +83,7 @@ internal static class CustomTexturePatch
     [HarmonyPrefix]
     private static void UIImageSpritePrefix(Image __instance, ref Sprite value)
     {
-        if (!DarkerUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
         {
             return;
         }
@@ -120,7 +120,7 @@ internal static class CustomTexturePatch
     [HarmonyPrefix]
     private static bool UIImageSetNativeSizePrefix(Image __instance)
     {
-        if (!DarkerUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
         {
             return true;
         }

@@ -2,8 +2,8 @@
   <PropertyGroup>
     <TargetFramework>net472</TargetFramework>
     <OutputType>Library</OutputType>
-    <AssemblyName>DarkerUI.PR</AssemblyName>
-    <RootNamespace>DarkerUI.PR</RootNamespace>
+    <AssemblyName>KupoUI.PR</AssemblyName>
+    <RootNamespace>KupoUI.PR</RootNamespace>
     <LangVersion>latest</LangVersion>
     <Nullable>disable</Nullable>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>

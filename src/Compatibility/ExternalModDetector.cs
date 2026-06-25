@@ -3,7 +3,7 @@ using System.Linq;
 using System.Reflection;
 using BepInEx.Logging;
 
-namespace DarkerUI.PR.Compatibility;
+namespace KupoUI.PR.Compatibility;
 
 internal static class ExternalModDetector
 {

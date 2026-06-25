@@ -3,7 +3,7 @@ using HarmonyLib;
 using UnityEngine;
 using UnityEngine.UI;
 
-namespace DarkerUI.PR.Patches;
+namespace KupoUI.PR.Patches;
 
 [HarmonyPatch]
 internal static class SaveHighlightColorPatch
@@ -147,7 +147,7 @@ internal static class SaveHighlightColorPatch
 
     private static bool ShouldDisableTarget()
     {
-        var configured = DarkerUIPRPlugin.SaveHighlightColorConfig.Value ?? string.Empty;
+        var configured = KupoUIPRPlugin.SaveHighlightColorConfig.Value ?? string.Empty;
         var normalized = configured.Trim();
         return normalized.Equals("Disable", StringComparison.OrdinalIgnoreCase)
             || normalized.Equals("Disabled", StringComparison.OrdinalIgnoreCase)
@@ -159,7 +159,7 @@ internal static class SaveHighlightColorPatch
     {
         color = default;
 
-        var configured = DarkerUIPRPlugin.SaveHighlightColorConfig.Value ?? string.Empty;
+        var configured = KupoUIPRPlugin.SaveHighlightColorConfig.Value ?? string.Empty;
         var normalized = configured.Trim();
 
         if (normalized.Length == 0 || normalized.Equals("Original", StringComparison.OrdinalIgnoreCase))

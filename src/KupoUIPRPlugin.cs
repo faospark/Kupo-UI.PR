@@ -4,17 +4,17 @@ using BepInEx.Configuration;
 using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
-using DarkerUI.PR.Compatibility;
-using DarkerUI.PR.Patches;
-using DarkerUI.PR.Textures;
+using KupoUI.PR.Compatibility;
+using KupoUI.PR.Patches;
+using KupoUI.PR.Textures;
 
-namespace DarkerUI.PR;
+namespace KupoUI.PR;
 
 [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
-public sealed class DarkerUIPRPlugin : BasePlugin
+public sealed class KupoUIPRPlugin : BasePlugin
 {
-    public const string PluginGuid = "com.faospark.darkerui.pr";
-    public const string PluginName = "DarkerUI.PR";
+    public const string PluginGuid = "com.faospark.kupoui.pr";
+    public const string PluginName = "KupoUI.PR";
     public const string PluginVersion = "1.0.0";
 
     internal static ManualLogSource PluginLog { get; private set; } = null!;
@@ -61,7 +61,7 @@ public sealed class DarkerUIPRPlugin : BasePlugin
         TextureRootFolderConfig = Config.Bind(
             "Textures",
             "TextureRootFolder",
-            "DarkerUI.PR\\Textures",
+            "KupoUI.PR\\Textures",
             "Texture root folder. Relative paths resolve under BepInEx/plugins.");
 
         GameTagOverrideConfig = Config.Bind(

@@ -7,7 +7,7 @@ using System.Threading;
 using BepInEx;
 using UnityEngine;
 
-namespace DarkerUI.PR.Textures;
+namespace KupoUI.PR.Textures;
 
 internal static class TextureResolver
 {
@@ -44,7 +44,7 @@ internal static class TextureResolver
 
         _initialized = true;
 
-        DarkerUIPRPlugin.PluginLog.LogInfo($"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}");
+        KupoUIPRPlugin.PluginLog.LogInfo($"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}");
     }
 
     internal static string NormalizeName(string textureName)
@@ -129,7 +129,7 @@ internal static class TextureResolver
             var extension = Path.GetExtension(path);
             if (extension.Equals(".dds", StringComparison.OrdinalIgnoreCase))
             {
-                if (!DarkerUIPRPlugin.EnableDDSTexturesConfig.Value)
+                if (!KupoUIPRPlugin.EnableDDSTexturesConfig.Value)
                 {
                     return false;
                 }
@@ -162,7 +162,7 @@ internal static class TextureResolver
 
             if (_verboseLogs)
             {
-                DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] In-place replacement: {key} -> {path}");
+                KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] In-place replacement: {key} -> {path}");
             }
 
             TextureLogger.LogResolvedTexture(key, path, "TryReplaceTextureInPlace");
@@ -177,14 +177,14 @@ internal static class TextureResolver
                 {
                     if (_verboseLogs)
                     {
-                        DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Skipping in-place replacement for non-readable texture: {key}");
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Skipping in-place replacement for non-readable texture: {key}");
                     }
                 }
 
                 return false;
             }
 
-            DarkerUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Failed in-place replacement for {key}: {ex.Message}");
+            KupoUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Failed in-place replacement for {key}: {ex.Message}");
             return false;
         }
     }
@@ -246,10 +246,10 @@ internal static class TextureResolver
 
         SpriteCache[originalId] = replacement;
 
-        var shouldLogDiagnostics = _verboseLogs || DarkerUIPRPlugin.IsTextureLoggerEnabled;
+        var shouldLogDiagnostics = _verboseLogs || KupoUIPRPlugin.IsTextureLoggerEnabled;
         if (shouldLogDiagnostics)
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo(
+            KupoUIPRPlugin.PluginLog.LogInfo(
                 $"[TextureResolver] Sprite replacement: {spriteName} / {textureName} | rect=({rect.x:0.##},{rect.y:0.##},{rect.width:0.##},{rect.height:0.##}) ppu={replacementPixelsPerUnit:0.###} filter={customTexture.filterMode} meta={DescribeMetadata(metadata)}");
         }
 
@@ -371,7 +371,7 @@ internal static class TextureResolver
 
             if (extension.Equals(".dds", StringComparison.OrdinalIgnoreCase))
             {
-                if (!DarkerUIPRPlugin.EnableDDSTexturesConfig.Value)
+                if (!KupoUIPRPlugin.EnableDDSTexturesConfig.Value)
                 {
                     return null;
                 }
@@ -400,7 +400,7 @@ internal static class TextureResolver
         }
         catch (Exception ex)
         {
-            DarkerUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Failed texture load for {textureName}: {ex.Message}");
+            KupoUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Failed texture load for {textureName}: {ex.Message}");
             return null;
         }
     }
@@ -409,7 +409,7 @@ internal static class TextureResolver
     {
         if (string.IsNullOrWhiteSpace(configuredRootPath))
         {
-            return Path.Combine(Paths.PluginPath, "DarkerUI.PR", "Textures");
+            return Path.Combine(Paths.PluginPath, "KupoUI.PR", "Textures");
         }
 
         if (Path.IsPathRooted(configuredRootPath))
@@ -468,7 +468,7 @@ internal static class TextureResolver
         watch.Stop();
         if (_verboseLogs)
         {
-            DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Indexed {TexturePathIndex.Count} textures in {watch.ElapsedMilliseconds} ms");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Indexed {TexturePathIndex.Count} textures in {watch.ElapsedMilliseconds} ms");
         }
     }
 
@@ -478,12 +478,12 @@ internal static class TextureResolver
         {
             DisposeWatcher();
 
-            if (!DarkerUIPRPlugin.EnableTextureHotReloadConfig.Value)
+            if (!KupoUIPRPlugin.EnableTextureHotReloadConfig.Value)
             {
                 return;
             }
 
-            _hotReloadDebounceMs = Math.Max(50, DarkerUIPRPlugin.TextureHotReloadDebounceMsConfig.Value);
+            _hotReloadDebounceMs = Math.Max(50, KupoUIPRPlugin.TextureHotReloadDebounceMsConfig.Value);
 
             _watcher = new FileSystemWatcher(_textureRootPath)
             {
@@ -499,12 +499,12 @@ internal static class TextureResolver
 
             if (_verboseLogs)
             {
-                DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Hot-reload watcher active. Debounce={_hotReloadDebounceMs}ms");
+                KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Hot-reload watcher active. Debounce={_hotReloadDebounceMs}ms");
             }
         }
         catch (Exception ex)
         {
-            DarkerUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Could not start texture watcher: {ex.Message}");
+            KupoUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Could not start texture watcher: {ex.Message}");
         }
     }
 
@@ -565,7 +565,7 @@ internal static class TextureResolver
 
             if (_verboseLogs)
             {
-                DarkerUIPRPlugin.PluginLog.LogInfo("[TextureResolver] Texture index reloaded after file change.");
+                KupoUIPRPlugin.PluginLog.LogInfo("[TextureResolver] Texture index reloaded after file change.");
             }
         }
     }
@@ -637,7 +637,7 @@ internal static class TextureResolver
         {
             if (_verboseLogs)
             {
-                DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Skipping ambiguous basename fallback for {key}; path-based match required.");
+                KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Skipping ambiguous basename fallback for {key}; path-based match required.");
             }
 
             return false;
@@ -683,7 +683,7 @@ internal static class TextureResolver
         }
         catch (Exception ex)
         {
-            DarkerUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Failed to parse metadata for {texturePath}: {ex.Message}");
+            KupoUIPRPlugin.PluginLog.LogWarning($"[TextureResolver] Failed to parse metadata for {texturePath}: {ex.Message}");
             MetadataCache[texturePath] = null;
             return null;
         }
@@ -792,7 +792,7 @@ internal static class TextureResolver
 
                 if (_verboseLogs)
                 {
-                    DarkerUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Path-indexed: {pathKey} -> {file}");
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Path-indexed: {pathKey} -> {file}");
                 }
             }
         }

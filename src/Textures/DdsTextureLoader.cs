@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace DarkerUI.PR.Textures;
+namespace KupoUI.PR.Textures;
 
 internal static class DdsTextureLoader
 {
