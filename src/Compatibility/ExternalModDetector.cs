@@ -9,29 +9,60 @@ internal static class ExternalModDetector
 {
     private const string MemoriaAssemblyName = "Memoria.FFPR";
     private const string MagiciteAssemblyName = "Magicite";
+    private static readonly string[] MemoriaAssemblyNames =
+    {
+        MemoriaAssemblyName,
+        "Memoria FF PR",
+        "Memoria.FF1",
+        "Memoria.FF2",
+        "Memoria.FF3",
+        "Memoria.FF4",
+        "Memoria.FF5",
+        "Memoria.FF6"
+    };
 
-    public static bool IsMemoriaLoaded => TryGetAssembly(MemoriaAssemblyName, out _);
-    public static bool IsMagiciteLoaded => TryGetAssembly(MagiciteAssemblyName, out _);
+    private static readonly string[] MagiciteAssemblyNames =
+    {
+        MagiciteAssemblyName,
+        "Magicite Loader"
+    };
+
+    public static bool IsMemoriaLoaded => TryGetAssembly(MemoriaAssemblyNames, out _);
+    public static bool IsMagiciteLoaded => TryGetAssembly(MagiciteAssemblyNames, out _);
 
     public static void LogLoadedOptionalMods(ManualLogSource log)
     {
-        if (TryGetAssembly(MemoriaAssemblyName, out var memoriaAssembly))
+        if (TryGetAssembly(MemoriaAssemblyNames, out var memoriaAssembly))
         {
-            log.LogInfo($"Optional dependency detected: {MemoriaAssemblyName} ({memoriaAssembly.GetName().Version})");
+            log.LogInfo($"Optional dependency detected: {memoriaAssembly.GetName().Name} ({memoriaAssembly.GetName().Version})");
         }
         else
         {
-            log.LogInfo($"Optional dependency not found: {MemoriaAssemblyName}");
+            log.LogInfo($"Optional dependency not found: {string.Join(", ", MemoriaAssemblyNames)}");
         }
 
-        if (TryGetAssembly(MagiciteAssemblyName, out var magiciteAssembly))
+        if (TryGetAssembly(MagiciteAssemblyNames, out var magiciteAssembly))
         {
-            log.LogInfo($"Optional dependency detected: {MagiciteAssemblyName} ({magiciteAssembly.GetName().Version})");
+            log.LogInfo($"Optional dependency detected: {magiciteAssembly.GetName().Name} ({magiciteAssembly.GetName().Version})");
         }
         else
         {
-            log.LogInfo($"Optional dependency not found: {MagiciteAssemblyName}");
+            log.LogInfo($"Optional dependency not found: {string.Join(", ", MagiciteAssemblyNames)}");
         }
+    }
+
+    private static bool TryGetAssembly(string[] simpleNames, out Assembly assembly)
+    {
+        foreach (var simpleName in simpleNames)
+        {
+            if (TryGetAssembly(simpleName, out assembly))
+            {
+                return true;
+            }
+        }
+
+        assembly = null;
+        return false;
     }
 
     private static bool TryGetAssembly(string simpleName, out Assembly assembly)

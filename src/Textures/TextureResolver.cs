@@ -27,16 +27,31 @@ internal static class TextureResolver
     private static bool _verboseLogs;
     private static string _currentGameTag = "Shared";
     private static string _textureRootPath = string.Empty;
+    private static string _uiFramesPack = "Default";
+    private static string _uiBgColorPack = "Default";
+    private static string _cursorsPack = "Default";
+    private static string _buttonPromptsPack = "Default";
     private static FileSystemWatcher _watcher;
     private static int _reindexRequested;
     private static long _lastChangeUtcTicks;
     private static int _hotReloadDebounceMs = 350;
 
-    internal static void Initialize(string configuredRootPath, string gameTagOverride, bool verboseLogs)
+    internal static void Initialize(
+        string configuredRootPath,
+        string gameTagOverride,
+        string uiFramesPack,
+        string uiBgColorPack,
+        string cursorsPack,
+        string buttonPromptsPack,
+        bool verboseLogs)
     {
         _verboseLogs = verboseLogs;
         _currentGameTag = GameTagDetector.Detect(gameTagOverride);
         _textureRootPath = ResolveTextureRootPath(configuredRootPath);
+        _uiFramesPack = NormalizePackFolderName(uiFramesPack);
+        _uiBgColorPack = NormalizePackFolderName(uiBgColorPack);
+        _cursorsPack = NormalizePackFolderName(cursorsPack);
+        _buttonPromptsPack = NormalizePackFolderName(buttonPromptsPack);
 
         EnsureFolderSkeleton(_textureRootPath);
         BuildIndex(_textureRootPath, _currentGameTag);
@@ -44,7 +59,8 @@ internal static class TextureResolver
 
         _initialized = true;
 
-        KupoUIPRPlugin.PluginLog.LogInfo($"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}");
+        KupoUIPRPlugin.PluginLog.LogInfo(
+            $"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}, UIFrames={_uiFramesPack}, UIBackground={_uiBgColorPack}, Cursors={_cursorsPack}, ButtonPrompts={_buttonPromptsPack}");
     }
 
     internal static string NormalizeName(string textureName)
@@ -409,7 +425,7 @@ internal static class TextureResolver
     {
         if (string.IsNullOrWhiteSpace(configuredRootPath))
         {
-            return Path.Combine(Paths.PluginPath, "KupoUI.PR", "Textures");
+            return Path.Combine(Paths.GameRootPath, "KupoMods");
         }
 
         if (Path.IsPathRooted(configuredRootPath))
@@ -417,35 +433,21 @@ internal static class TextureResolver
             return configuredRootPath;
         }
 
-        return Path.Combine(Paths.PluginPath, configuredRootPath);
+        return Path.Combine(Paths.GameRootPath, configuredRootPath);
     }
 
     private static void EnsureFolderSkeleton(string root)
     {
         Directory.CreateDirectory(root);
 
-        CreateGameFolder(root, "Shared");
-        CreateGameFolder(root, "FF1");
-        CreateGameFolder(root, "FF2");
-        CreateGameFolder(root, "FF3");
-        CreateGameFolder(root, "FF4");
-        CreateGameFolder(root, "FF5");
-        CreateGameFolder(root, "FF6");
+        Directory.CreateDirectory(Path.Combine(root, "00-Mods"));
+        Directory.CreateDirectory(Path.Combine(root, "01-UI-Frames", "Default"));
+        Directory.CreateDirectory(Path.Combine(root, "02-UI-Background", "Default"));
+        Directory.CreateDirectory(Path.Combine(root, "03-Cursors", "Default"));
+        Directory.CreateDirectory(Path.Combine(root, "04-Button-Prompts", "Default"));
 
-        var modsRoot = Path.Combine(root, "00-Mods");
-        Directory.CreateDirectory(modsRoot);
-        CreateGameFolder(modsRoot, "Shared");
-        CreateGameFolder(modsRoot, "FF1");
-        CreateGameFolder(modsRoot, "FF2");
-        CreateGameFolder(modsRoot, "FF3");
-        CreateGameFolder(modsRoot, "FF4");
-        CreateGameFolder(modsRoot, "FF5");
-        CreateGameFolder(modsRoot, "FF6");
-    }
-
-    private static void CreateGameFolder(string parent, string folder)
-    {
-        Directory.CreateDirectory(Path.Combine(parent, folder));
+        // Keep old directory layouts optional for backward compatibility.
+        // We do not auto-create them anymore to avoid confusing new users.
     }
 
     private static void BuildIndex(string root, string gameTag)
@@ -460,10 +462,20 @@ internal static class TextureResolver
 
         var watch = Stopwatch.StartNew();
 
+        // Legacy layout support (lowest priority): Shared/FFx and 00-Mods/Shared/FFx.
         IndexLayer(Path.Combine(root, "Shared"));
         IndexLayer(Path.Combine(root, gameTag));
         IndexLayer(Path.Combine(root, "00-Mods", "Shared"));
         IndexLayer(Path.Combine(root, "00-Mods", gameTag));
+
+        // New layout: general overrides.
+        IndexLayer(Path.Combine(root, "00-Mods"));
+
+        // New layout: selected packs override general layer.
+        IndexLayer(Path.Combine(root, "01-UI-Frames", _uiFramesPack));
+        IndexLayer(Path.Combine(root, "02-UI-Background", _uiBgColorPack));
+        IndexLayer(Path.Combine(root, "03-Cursors", _cursorsPack));
+        IndexLayer(Path.Combine(root, "04-Button-Prompts", _buttonPromptsPack));
 
         watch.Stop();
         if (_verboseLogs)
@@ -758,6 +770,7 @@ internal static class TextureResolver
             return;
         }
 
+        var layerSeenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var files = Directory.GetFiles(layerPath, "*.*", SearchOption.AllDirectories);
         foreach (var file in files)
         {
@@ -773,10 +786,15 @@ internal static class TextureResolver
                 continue;
             }
 
-            if (TexturePathIndex.TryGetValue(key, out var existingPath)
-                && !string.Equals(existingPath, file, StringComparison.OrdinalIgnoreCase))
+            if (!layerSeenKeys.Add(key))
             {
                 AmbiguousTextureNames.Add(key);
+            }
+            else
+            {
+                // A unique file in a higher-priority layer should override lower layers,
+                // even if that basename was ambiguous somewhere else previously.
+                AmbiguousTextureNames.Remove(key);
             }
 
             TexturePathIndex[key] = file;
@@ -796,6 +814,27 @@ internal static class TextureResolver
                 }
             }
         }
+    }
+
+    private static string NormalizePackFolderName(string configuredValue)
+    {
+        if (string.IsNullOrWhiteSpace(configuredValue))
+        {
+            return "Default";
+        }
+
+        var value = configuredValue.Trim();
+        if (value.Equals("default", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Default";
+        }
+
+        if (value.IndexOfAny(new[] { '/', '\\', ':' }) >= 0)
+        {
+            return "Default";
+        }
+
+        return value;
     }
 
     /// <summary>

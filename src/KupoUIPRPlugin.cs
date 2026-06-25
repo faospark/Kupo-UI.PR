@@ -28,6 +28,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> UiFramesFolderConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> UIBackgroundFolderConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> CursorsFolderConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
@@ -61,8 +65,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
         TextureRootFolderConfig = Config.Bind(
             "Textures",
             "TextureRootFolder",
-            "KupoUI.PR\\Textures",
-            "Texture root folder. Relative paths resolve under BepInEx/plugins.");
+            "KupoMods",
+            "Texture root folder. Relative paths resolve under game root.");
 
         GameTagOverrideConfig = Config.Bind(
             "Textures",
@@ -94,6 +98,30 @@ public sealed class KupoUIPRPlugin : BasePlugin
             true,
             "If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32)." );
 
+        UiFramesFolderConfig = Config.Bind(
+            "Textures",
+            "UIFramesFolder",
+            "Default",
+            "Optional pack folder under 01-UI-Frames. Default = use only 00-Mods/general layers.");
+
+        UIBackgroundFolderConfig = Config.Bind(
+            "Textures",
+            "UIBackgroundFolder",
+            "Default",
+            "Optional pack folder under 02-UI-Background. Default = use only 00-Mods/general layers.");
+
+        CursorsFolderConfig = Config.Bind(
+            "Textures",
+            "CursorsFolder",
+            "Default",
+            "Optional pack folder under 03-Cursors. Default = use only 00-Mods/general layers.");
+
+        ButtonPromptsFolderConfig = Config.Bind(
+            "Textures",
+            "ButtonPromptsFolder",
+            "Default",
+            "Optional pack folder under 04-Button-Prompts. Default = use only 00-Mods/general layers.");
+
         TextureLoggerConfig = Config.Bind(
             "Textures",
             "TextureLogger",
@@ -113,6 +141,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
         TextureResolver.Initialize(
             TextureRootFolderConfig.Value,
             GameTagOverrideConfig.Value,
+            UiFramesFolderConfig.Value,
+            UIBackgroundFolderConfig.Value,
+            CursorsFolderConfig.Value,
+            ButtonPromptsFolderConfig.Value,
             LogTextureResolutionConfig.Value);
 
         ExternalModDetector.LogLoadedOptionalMods(Log);

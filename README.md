@@ -12,7 +12,7 @@ This plugin includes runtime patches for UI cleanup and custom texture replaceme
   - `Memoria.FFPR`
   - `Magicite`
 - Cross-game-safe first patch using Unity API (`UnityEngine.Cursor`)
-- Layered custom texture system with shared and per-game folders
+- Layered custom texture system with general and category pack folders
 
 ## Project Layout
 
@@ -53,12 +53,16 @@ Generated on first run in `BepInEx/config`:
 - `General.DisableMouseCursor` (default: `true`)
 - `UI.SaveHighlightColor` (default: `DarkNavy`; options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`)
 - `Textures.EnableCustomTextures` (default: `true`)
-- `Textures.TextureRootFolder` (default: `KupoUI.PR\Textures`)
+- `Textures.TextureRootFolder` (default: `KupoMods`, under game root)
 - `Textures.GameTagOverride` (default: empty, auto-detect)
 - `Textures.LogTextureResolution` (default: `false`)
 - `Textures.EnableTextureHotReload` (default: `true`)
 - `Textures.TextureHotReloadDebounceMs` (default: `350`)
 - `Textures.EnableDDSTextures` (default: `true`)
+- `Textures.UIFramesFolder` (default: `Default`; selects a folder under `01-UI-Frames`)
+- `Textures.UIBackgroundFolder` (default: `Default`; selects a folder under `02-UI-Background`)
+- `Textures.CursorsFolder` (default: `Default`; selects a folder under `03-Cursors`)
+- `Textures.ButtonPromptsFolder` (default: `Default`; selects a folder under `04-Button-Prompts`)
 - `Textures.TextureLogger` (default: `Discoveries,Resolutions`; options: `All`, `None`, or comma-separated categories: `Discoveries`, `Resolutions`, `Misses`)
 
 Set to `false` to disable this initial patch while keeping the plugin active.
@@ -67,21 +71,32 @@ Set to `false` to disable this initial patch while keeping the plugin active.
 
 Default root:
 
-- `BepInEx/plugins/KupoUI.PR/Textures/`
+- `<GameRoot>/KupoMods/`
 
-Supported layers:
+Recommended folders created automatically:
 
-- `Shared/` (all games)
-- `FF1/` .. `FF6/` (game-specific)
-- `00-Mods/Shared/` (override shared)
-- `00-Mods/FF1/` .. `00-Mods/FF6/` (highest priority per-game override)
+- `00-Mods/` (general shared overrides)
+- `01-UI-Frames/Default/`
+- `02-UI-Background/Default/`
+- `03-Cursors/Default/`
+- `04-Button-Prompts/Default/`
+
+Pack selection behavior:
+
+- `Textures.UIFramesFolder` selects `01-UI-Frames/<value>/`
+- `Textures.UIBackgroundFolder` selects `02-UI-Background/<value>/`
+- `Textures.CursorsFolder` selects `03-Cursors/<value>/`
+- `Textures.ButtonPromptsFolder` selects `04-Button-Prompts/<value>/`
+- `Default` means no special pack selected; only files you place in those folders apply.
 
 Lookup priority (highest to lowest):
 
-1. `00-Mods/<CurrentGame>`
-2. `00-Mods/Shared`
-3. `<CurrentGame>`
-4. `Shared`
+1. `04-Button-Prompts/<SelectedPack>`
+2. `03-Cursors/<SelectedPack>`
+3. `02-UI-Background/<SelectedPack>`
+4. `01-UI-Frames/<SelectedPack>`
+5. `00-Mods/`
+6. Legacy compatibility folders (`Shared`, `FF1`..`FF6`, `00-Mods/Shared`, `00-Mods/FF1`..`FF6`) if present
 
 Use file names without extension to match in-game texture/sprite names (for example `window_frame.png` to replace `window_frame`).
 
@@ -99,7 +114,7 @@ Example (FF2 portrait):
 
 - In-game address: `Assets/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 - Replacement file location:
-  - `BepInEx/plugins/KupoUI.PR/Textures/FF2/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
+  - `<GameRoot>/KupoMods/00-Mods/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 
 This allows `Default_00.png` files from different portrait folders/bundles to be replaced independently.
 
