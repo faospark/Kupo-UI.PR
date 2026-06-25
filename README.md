@@ -53,7 +53,7 @@ Generated on first run in `BepInEx/config`:
 - `General.DisableMouseCursor` (default: `true`)
 - `UI.SaveHighlightColor` (default: `DarkNavy`; options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`)
 - `Textures.EnableCustomTextures` (default: `true`)
-- `Textures.TextureRootFolder` (default: `KupoMods`, under game root)
+- `Textures.TextureRootFolder` (default: `Modules`, under game root)
 - `Textures.GameTagOverride` (default: empty, auto-detect)
 - `Textures.LogTextureResolution` (default: `false`)
 - `Textures.EnableTextureHotReload` (default: `true`)
@@ -71,7 +71,7 @@ Set to `false` to disable this initial patch while keeping the plugin active.
 
 Default root:
 
-- `<GameRoot>/KupoMods/`
+- `<GameRoot>/Modules/`
 
 Recommended folders created automatically:
 
@@ -114,7 +114,7 @@ Example (FF2 portrait):
 
 - In-game address: `Assets/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 - Replacement file location:
-  - `<GameRoot>/KupoMods/00-Mods/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
+  - `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 
 This allows `Default_00.png` files from different portrait folders/bundles to be replaced independently.
 

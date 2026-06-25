@@ -425,7 +425,7 @@ internal static class TextureResolver
     {
         if (string.IsNullOrWhiteSpace(configuredRootPath))
         {
-            return Path.Combine(Paths.GameRootPath, "KupoMods");
+            return Path.Combine(Paths.GameRootPath, "Modules");
         }
 
         if (Path.IsPathRooted(configuredRootPath))

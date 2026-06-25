@@ -13,7 +13,7 @@ namespace KupoUI.PR;
 [BepInPlugin(PluginGuid, PluginName, PluginVersion)]
 public sealed class KupoUIPRPlugin : BasePlugin
 {
-    public const string PluginGuid = "com.faospark.kupoui.pr";
+    public const string PluginGuid = "faospark.kupoui.pr";
     public const string PluginName = "KupoUI.PR";
     public const string PluginVersion = "1.0.0";
 
@@ -65,7 +65,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         TextureRootFolderConfig = Config.Bind(
             "Textures",
             "TextureRootFolder",
-            "KupoMods",
+            "Modules",
             "Texture root folder. Relative paths resolve under game root.");
 
         GameTagOverrideConfig = Config.Bind(
