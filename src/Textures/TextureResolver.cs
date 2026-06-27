@@ -38,15 +38,13 @@ internal static class TextureResolver
 
     internal static void Initialize(
         string configuredRootPath,
-        string gameTagOverride,
         string uiFramesPack,
         string uiBgColorPack,
         string cursorsPack,
-        string buttonPromptsPack,
-        bool verboseLogs)
+        string buttonPromptsPack)
     {
-        _verboseLogs = verboseLogs;
-        _currentGameTag = GameTagDetector.Detect(gameTagOverride);
+        _verboseLogs = KupoUIPRPlugin.IsTextureLoggerEnabled;
+        _currentGameTag = GameTagDetector.Detect();
         _textureRootPath = ResolveTextureRootPath(configuredRootPath);
         _uiFramesPack = NormalizePackFolderName(uiFramesPack);
         _uiBgColorPack = NormalizePackFolderName(uiBgColorPack);
@@ -60,7 +58,7 @@ internal static class TextureResolver
         _initialized = true;
 
         KupoUIPRPlugin.PluginLog.LogInfo(
-            $"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}, UIFrames={_uiFramesPack}, UIBackground={_uiBgColorPack}, Cursors={_cursorsPack}, ButtonPrompts={_buttonPromptsPack}");
+            $"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}, UIFrames={_uiFramesPack}, UIComponents={_uiBgColorPack}, Cursors={_cursorsPack}, ButtonPrompts={_buttonPromptsPack}");
     }
 
     internal static string NormalizeName(string textureName)
@@ -647,11 +645,6 @@ internal static class TextureResolver
 
         if (AmbiguousTextureNames.Contains(key))
         {
-            if (_verboseLogs)
-            {
-                KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Skipping ambiguous basename fallback for {key}; path-based match required.");
-            }
-
             return false;
         }
 

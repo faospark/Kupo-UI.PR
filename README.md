@@ -53,14 +53,12 @@ Generated on first run in `BepInEx/config`:
 - `General.DisableMouseCursor` (default: `true`)
 - `UI.SaveHighlightColor` (default: `DarkNavy`; options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`)
 - `Textures.EnableCustomTextures` (default: `true`)
-- `Textures.TextureRootFolder` (default: `Modules`, under game root)
-- `Textures.GameTagOverride` (default: empty, auto-detect)
-- `Textures.LogTextureResolution` (default: `false`)
+- Texture root folder is fixed to `<GameRoot>/Modules/`
 - `Textures.EnableTextureHotReload` (default: `true`)
 - `Textures.TextureHotReloadDebounceMs` (default: `350`)
 - `Textures.EnableDDSTextures` (default: `true`)
 - `Textures.UIFramesFolder` (default: `Default`; selects a folder under `01-UI-Frames`)
-- `Textures.UIBackgroundFolder` (default: `Default`; selects a folder under `02-UI-Background`)
+- `Textures.UIComponentsFolder` (default: `Default`; selects a folder under `02-UI-Background`)
 - `Textures.CursorsFolder` (default: `Default`; selects a folder under `03-Cursors`)
 - `Textures.ButtonPromptsFolder` (default: `Default`; selects a folder under `04-Button-Prompts`)
 - `Textures.TextureLogger` (default: `Discoveries,Resolutions`; options: `All`, `None`, or comma-separated categories: `Discoveries`, `Resolutions`, `Misses`)
@@ -84,7 +82,7 @@ Recommended folders created automatically:
 Pack selection behavior:
 
 - `Textures.UIFramesFolder` selects `01-UI-Frames/<value>/`
-- `Textures.UIBackgroundFolder` selects `02-UI-Background/<value>/`
+- `Textures.UIComponentsFolder` selects `02-UI-Background/<value>/`
 - `Textures.CursorsFolder` selects `03-Cursors/<value>/`
 - `Textures.ButtonPromptsFolder` selects `04-Button-Prompts/<value>/`
 - `Default` means no special pack selected; only files you place in those folders apply.

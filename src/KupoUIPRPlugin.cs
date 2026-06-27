@@ -16,20 +16,18 @@ public sealed class KupoUIPRPlugin : BasePlugin
     public const string PluginGuid = "faospark.kupoui.pr";
     public const string PluginName = "KupoUI.PR";
     public const string PluginVersion = "1.0.0";
+    private const string TextureRootFolder = "Modules";
 
     internal static ManualLogSource PluginLog { get; private set; } = null!;
     internal static ConfigEntry<bool> DisableMouseCursorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ForceVSyncConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SaveHighlightColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableCustomTexturesConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> TextureRootFolderConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> GameTagOverrideConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> LogTextureResolutionConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
     internal static ConfigEntry<string> UiFramesFolderConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> UIBackgroundFolderConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> UIComponentsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> CursorsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
@@ -37,18 +35,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
     public override void Load()
     {
         PluginLog = Log;
-
-        DisableMouseCursorConfig = Config.Bind(
-            "General",
-            "DisableMouseCursor",
-            true,
-            "If true, forces the game cursor to remain hidden.");
-
-        ForceVSyncConfig = Config.Bind(
-            "General",
-            "ForceVSync",
-            true,
-            "If true, forces V-Sync on and keeps it from being disabled by the game.");
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
@@ -61,24 +47,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "EnableCustomTextures",
             true,
             "If true, enables custom texture loading and replacement.");
-
-        TextureRootFolderConfig = Config.Bind(
-            "Textures",
-            "TextureRootFolder",
-            "Modules",
-            "Texture root folder. Relative paths resolve under game root.");
-
-        GameTagOverrideConfig = Config.Bind(
-            "Textures",
-            "GameTagOverride",
-            string.Empty,
-            "Optional override for game folder tag (FF1..FF6). Empty = auto-detect.");
-
-        LogTextureResolutionConfig = Config.Bind(
-            "Textures",
-            "LogTextureResolution",
-            false,
-            "If true, logs texture indexing and replacement resolution details.");
 
         EnableTextureHotReloadConfig = Config.Bind(
             "Textures",
@@ -104,11 +72,11 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "Default",
             "Optional pack folder under 01-UI-Frames. Default = use only 00-Mods/general layers.");
 
-        UIBackgroundFolderConfig = Config.Bind(
+        UIComponentsFolderConfig = Config.Bind(
             "Textures",
-            "UIBackgroundFolder",
+            "UIComponentsFolder",
             "Default",
-            "Optional pack folder under 02-UI-Background. Default = use only 00-Mods/general layers.");
+            "Optional pack folder under 02-UI-Components. Default = use only 00-Mods/general layers.");
 
         CursorsFolderConfig = Config.Bind(
             "Textures",
@@ -122,8 +90,20 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "Default",
             "Optional pack folder under 04-Button-Prompts. Default = use only 00-Mods/general layers.");
 
+        DisableMouseCursorConfig = Config.Bind(
+            "Utility",
+            "DisableMouseCursor",
+            true,
+            "If true, forces the game cursor to remain hidden.");
+
+        ForceVSyncConfig = Config.Bind(
+            "Utility",
+            "ForceVSync",
+            true,
+            "If true, forces V-Sync on and keeps it from being disabled by the game.");
+
         TextureLoggerConfig = Config.Bind(
-            "Textures",
+            "Utility",
             "TextureLogger",
             "Discoveries,Resolutions",
             "Combined texture logger setting. Use comma-separated values: Discoveries, Resolutions, Misses. Use All to log all categories or None to disable logger.");
@@ -139,13 +119,11 @@ public sealed class KupoUIPRPlugin : BasePlugin
             logMisses);
 
         TextureResolver.Initialize(
-            TextureRootFolderConfig.Value,
-            GameTagOverrideConfig.Value,
+            TextureRootFolder,
             UiFramesFolderConfig.Value,
-            UIBackgroundFolderConfig.Value,
+            UIComponentsFolderConfig.Value,
             CursorsFolderConfig.Value,
-            ButtonPromptsFolderConfig.Value,
-            LogTextureResolutionConfig.Value);
+            ButtonPromptsFolderConfig.Value);
 
         ExternalModDetector.LogLoadedOptionalMods(Log);
 

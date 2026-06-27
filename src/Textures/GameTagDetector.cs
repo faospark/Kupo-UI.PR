@@ -5,13 +5,8 @@ namespace KupoUI.PR.Textures;
 
 internal static class GameTagDetector
 {
-    internal static string Detect(string gameTagOverride)
+    internal static string Detect()
     {
-        if (!string.IsNullOrWhiteSpace(gameTagOverride))
-        {
-            return NormalizeTag(gameTagOverride);
-        }
-
         var source = (Paths.GameRootPath ?? string.Empty).ToLowerInvariant();
 
         if (ContainsAny(source, "ff6", "final fantasy vi", "final fantasy 6", "pixel remaster vi"))
@@ -39,7 +34,7 @@ internal static class GameTagDetector
             return "FF2";
         }
 
-        if (ContainsAny(source, "ff1", "final fantasy", "final fantasy", "pixel remaster", "final fantasy"))
+        if (ContainsAny(source, "ff1", "final fantasy", "pixel remaster"))
         {
             return "FF1";
         }
@@ -58,16 +53,5 @@ internal static class GameTagDetector
         }
 
         return false;
-    }
-
-    private static string NormalizeTag(string rawTag)
-    {
-        var value = rawTag.Trim().ToUpperInvariant();
-        if (value is "FF1" or "FF2" or "FF3" or "FF4" or "FF5" or "FF6" or "SHARED")
-        {
-            return value == "SHARED" ? "Shared" : value;
-        }
-
-        return "Shared";
     }
 }
