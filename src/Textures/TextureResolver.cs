@@ -405,7 +405,7 @@ internal static class TextureResolver
             }
 
             texture.filterMode = ResolveFilterMode(path, metadata);
-            texture.wrapMode = TextureWrapMode.Clamp;
+            texture.wrapMode = ResolveWrapMode(path, metadata);
             texture.name = textureName + "_Custom";
 
             TextureCache[cacheKey] = texture;
@@ -680,7 +680,8 @@ internal static class TextureResolver
                 PixelsPerUnit = ReadFloat(json, "pixelsPerUnit"),
                 PointFilter = ReadBool(json, "pointFilter"),
                 FilterMode = ReadString(json, "filterMode"),
-                FilterType = ReadString(json, "filterType")
+                FilterType = ReadString(json, "filterType"),
+                WrapMode = ReadString(json, "wrapMode")
             };
 
             MetadataCache[texturePath] = metadata;
@@ -725,6 +726,35 @@ internal static class TextureResolver
         }
 
         return ShouldUsePointFilter(texturePath) ? FilterMode.Point : FilterMode.Bilinear;
+    }
+
+    private static TextureWrapMode ResolveWrapMode(string texturePath, TextureOverrideMetadata metadata)
+    {
+        if (metadata != null && !string.IsNullOrEmpty(metadata.WrapMode))
+        {
+            var requestedWrap = metadata.WrapMode;
+            if (requestedWrap.Equals("Repeat", StringComparison.OrdinalIgnoreCase))
+            {
+                return TextureWrapMode.Repeat;
+            }
+
+            if (requestedWrap.Equals("Mirror", StringComparison.OrdinalIgnoreCase))
+            {
+                return TextureWrapMode.Mirror;
+            }
+
+            if (requestedWrap.Equals("MirrorOnce", StringComparison.OrdinalIgnoreCase))
+            {
+                return TextureWrapMode.MirrorOnce;
+            }
+
+            if (requestedWrap.Equals("Clamp", StringComparison.OrdinalIgnoreCase))
+            {
+                return TextureWrapMode.Clamp;
+            }
+        }
+
+        return TextureWrapMode.Clamp;
     }
 
     private static int ReadInt(string json, string propertyName)
@@ -953,5 +983,6 @@ internal static class TextureResolver
         internal bool? PointFilter { get; set; }
         internal string FilterMode { get; set; }
         internal string FilterType { get; set; }
+        internal string WrapMode { get; set; }
     }
 }
