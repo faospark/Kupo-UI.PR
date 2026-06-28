@@ -31,6 +31,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> CursorsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
     {
@@ -41,6 +42,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "SaveHighlightColor",
             "DarkNavy",
             "Save slot highlight color override for image_blue. Options: Original, DarkNavy, DarkGreen, DarkViolet, DarkYellow, DarkOrange, Disable.");
+
+        ScaledDownMenuConfig = Config.Bind(
+            "UI",
+            "ScaledDownMenu",
+            true,
+            "If true, scales RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone) to (0.9, 0.9, 1) when it becomes active.");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
@@ -136,6 +143,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"ForceVSync = {ForceVSyncConfig.Value}");
         Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
         Log.LogInfo($"EnableCustomTextures = {EnableCustomTexturesConfig.Value}");
+        Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
