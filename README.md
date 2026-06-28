@@ -58,8 +58,8 @@ Generated on first run in `BepInEx/config`:
 - `Textures.TextureHotReloadDebounceMs` (default: `350`)
 - `Textures.EnableDDSTextures` (default: `true`)
 - `Textures.UIFramesFolder` (default: `Default`; selects a folder under `01-UI-Frames`)
-- `Textures.UIComponentsFolder` (default: `Default`; selects a folder under `02-UI-Background`)
-- `Textures.CursorsFolder` (default: `Default`; selects a folder under `03-Cursors`)
+- `Textures.UIBgColorFolder` (default: `Default`; selects a folder under `02-UI-BgColor`)
+- `Textures.CursorsFolder` (default: `Default`; selects a folder under `03-UI-Cursors`)
 - `Textures.ButtonPromptsFolder` (default: `Default`; selects a folder under `04-Button-Prompts`)
 - `Textures.TextureLogger` (default: `Discoveries,Resolutions`; options: `All`, `None`, or comma-separated categories: `Discoveries`, `Resolutions`, `Misses`)
 
@@ -75,23 +75,23 @@ Recommended folders created automatically:
 
 - `00-Mods/` (general shared overrides)
 - `01-UI-Frames/Default/`
-- `02-UI-Background/Default/`
-- `03-Cursors/Default/`
+- `02-UI-BgColor/Default/`
+- `03-UI-Cursors/Default/`
 - `04-Button-Prompts/Default/`
 
 Pack selection behavior:
 
 - `Textures.UIFramesFolder` selects `01-UI-Frames/<value>/`
-- `Textures.UIComponentsFolder` selects `02-UI-Background/<value>/`
-- `Textures.CursorsFolder` selects `03-Cursors/<value>/`
+- `Textures.UIBgColorFolder` selects `02-UI-BgColor/<value>/`
+- `Textures.CursorsFolder` selects `03-UI-Cursors/<value>/`
 - `Textures.ButtonPromptsFolder` selects `04-Button-Prompts/<value>/`
 - `Default` means no special pack selected; only files you place in those folders apply.
 
 Lookup priority (highest to lowest):
 
 1. `04-Button-Prompts/<SelectedPack>`
-2. `03-Cursors/<SelectedPack>`
-3. `02-UI-Background/<SelectedPack>`
+2. `03-UI-Cursors/<SelectedPack>`
+3. `02-UI-BgColor/<SelectedPack>`
 4. `01-UI-Frames/<SelectedPack>`
 5. `00-Mods/`
 6. Legacy compatibility folders (`Shared`, `FF1`..`FF6`, `00-Mods/Shared`, `00-Mods/FF1`..`FF6`) if present

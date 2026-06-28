@@ -58,7 +58,7 @@ internal static class TextureResolver
         _initialized = true;
 
         KupoUIPRPlugin.PluginLog.LogInfo(
-            $"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}, UIFrames={_uiFramesPack}, UIComponents={_uiBgColorPack}, Cursors={_cursorsPack}, ButtonPrompts={_buttonPromptsPack}");
+            $"Texture resolver ready. GameTag={_currentGameTag}, Root={_textureRootPath}, Indexed={TexturePathIndex.Count}, UIFrames={_uiFramesPack}, UIBgColor={_uiBgColorPack}, Cursors={_cursorsPack}, ButtonPrompts={_buttonPromptsPack}");
     }
 
     internal static string NormalizeName(string textureName)
@@ -226,8 +226,13 @@ internal static class TextureResolver
         TextureLogger.LogObservedTextureName(spriteName, "TryCreateReplacementSprite:sprite");
         TextureLogger.LogObservedTextureName(textureName, "TryCreateReplacementSprite:texture");
 
-        var customTexture = LoadTexture(spriteName, assetAddressHint, out var metadata);
-        if (customTexture == null && !IsLikelyAtlasTextureName(textureName))
+        // For the sprite-name lookup, do not forward the atlas asset address as a hint:
+        // the address belongs to the atlas texture, not the individual sprite, so passing it
+        // would cause LoadTexture to resolve to the atlas file instead of the per-sprite file.
+        var isAtlasSprite = IsLikelyAtlasTextureName(textureName);
+        var spriteAddressHint = isAtlasSprite ? null : assetAddressHint;
+        var customTexture = LoadTexture(spriteName, spriteAddressHint, out var metadata);
+        if (customTexture == null && !isAtlasSprite)
         {
             customTexture = LoadTexture(textureName, assetAddressHint, out metadata);
         }
@@ -439,10 +444,10 @@ internal static class TextureResolver
         Directory.CreateDirectory(root);
 
         Directory.CreateDirectory(Path.Combine(root, "00-Mods"));
-        Directory.CreateDirectory(Path.Combine(root, "01-UI-Frames", "Default"));
-        Directory.CreateDirectory(Path.Combine(root, "02-UI-Background", "Default"));
-        Directory.CreateDirectory(Path.Combine(root, "03-Cursors", "Default"));
-        Directory.CreateDirectory(Path.Combine(root, "04-Button-Prompts", "Default"));
+        Directory.CreateDirectory(Path.Combine(root, "01-UI-Frames"));
+        Directory.CreateDirectory(Path.Combine(root, "02-UI-BgColor"));
+        Directory.CreateDirectory(Path.Combine(root, "03-UI-Cursors"));
+        Directory.CreateDirectory(Path.Combine(root, "04-Button-Prompts"));
 
         // Keep old directory layouts optional for backward compatibility.
         // We do not auto-create them anymore to avoid confusing new users.
@@ -471,8 +476,8 @@ internal static class TextureResolver
 
         // New layout: selected packs override general layer.
         IndexLayer(Path.Combine(root, "01-UI-Frames", _uiFramesPack));
-        IndexLayer(Path.Combine(root, "02-UI-Background", _uiBgColorPack));
-        IndexLayer(Path.Combine(root, "03-Cursors", _cursorsPack));
+        IndexLayer(Path.Combine(root, "02-UI-BgColor", _uiBgColorPack));
+        IndexLayer(Path.Combine(root, "03-UI-Cursors", _cursorsPack));
         IndexLayer(Path.Combine(root, "04-Button-Prompts", _buttonPromptsPack));
 
         watch.Stop();

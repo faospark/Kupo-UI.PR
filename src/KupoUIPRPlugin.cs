@@ -27,7 +27,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
     internal static ConfigEntry<string> UiFramesFolderConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> UIComponentsFolderConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> UIBgColorFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> CursorsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
@@ -70,25 +70,25 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "Textures",
             "UIFramesFolder",
             "Default",
-            "Optional pack folder under 01-UI-Frames. Default = use only 00-Mods/general layers.");
+            "Specify Folder to Override UI Frames 01-UI-Frames. Default = means it will do nothing.");
 
-        UIComponentsFolderConfig = Config.Bind(
+        UIBgColorFolderConfig = Config.Bind(
             "Textures",
-            "UIComponentsFolder",
+            "UIBgColorFolder",
             "Default",
-            "Optional pack folder under 02-UI-Components. Default = use only 00-Mods/general layers.");
+            "Specify Folder to Override UI Background Colors 02-UI-BgColor. Default = means it will do nothing.");
 
         CursorsFolderConfig = Config.Bind(
             "Textures",
             "CursorsFolder",
             "Default",
-            "Optional pack folder under 03-Cursors. Default = use only 00-Mods/general layers.");
+            "Specify Folder to Override Cursors 03-UI-Cursors. Default = means it will do nothing.");
 
         ButtonPromptsFolderConfig = Config.Bind(
             "Textures",
             "ButtonPromptsFolder",
             "Default",
-            "Optional pack folder under 04-Button-Prompts. Default = use only 00-Mods/general layers.");
+            "Specify Folder to Override Button Prompts 04-Button-Prompts. Default = means it will do nothing.");
 
         DisableMouseCursorConfig = Config.Bind(
             "Utility",
@@ -121,7 +121,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         TextureResolver.Initialize(
             TextureRootFolder,
             UiFramesFolderConfig.Value,
-            UIComponentsFolderConfig.Value,
+            UIBgColorFolderConfig.Value,
             CursorsFolderConfig.Value,
             ButtonPromptsFolderConfig.Value);
 
