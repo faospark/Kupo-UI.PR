@@ -75,31 +75,13 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "UI",
             "TitleScreenTextDisableShadow",
             true,
-            "If true, disables the Shadow component on the title screen menu text (last_text).");
+            "If true, disables the Shadow component on the title screen menu text.");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
             "EnableCustomTextures",
             true,
             "If true, enables custom texture loading and replacement.");
-
-        EnableTextureHotReloadConfig = Config.Bind(
-            "Textures",
-            "EnableTextureHotReload",
-            true,
-            "If true, watches texture folders and reloads index when files change.");
-
-        TextureHotReloadDebounceMsConfig = Config.Bind(
-            "Textures",
-            "TextureHotReloadDebounceMs",
-            350,
-            "Debounce window in milliseconds before rebuilding texture index after file changes.");
-
-        EnableDDSTexturesConfig = Config.Bind(
-            "Textures",
-            "EnableDDSTextures",
-            true,
-            "If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32)." );
 
         UiFramesFolderConfig = Config.Bind(
             "Textures",
@@ -142,6 +124,24 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "TextureLogger",
             "Discoveries,Resolutions",
             "Combined texture logger setting. Use comma-separated values: Discoveries, Resolutions, Misses. Use All to log all categories or None to disable logger.");
+        
+        EnableTextureHotReloadConfig = Config.Bind(
+            "Utility",
+            "EnableTextureHotReload",
+            true,
+            "If true, watches texture folders and reloads index when files change.");
+
+        TextureHotReloadDebounceMsConfig = Config.Bind(
+            "Utility",
+            "TextureHotReloadDebounceMs",
+            350,
+            "Debounce window in milliseconds before rebuilding texture index after file changes.");
+
+        EnableDDSTexturesConfig = Config.Bind(
+            "Utility",
+            "EnableDDSTextures",
+            true,
+            "Experimenta - If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32)." );
 
         var (loggerEnabled, logDiscoveries, logResolutions, logMisses) = ResolveTextureLoggerConfig(TextureLoggerConfig.Value);
 
