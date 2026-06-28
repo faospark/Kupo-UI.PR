@@ -129,7 +129,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         TextureLoggerConfig = Config.Bind(
             "Utility",
             "TextureLogger",
-            "Discoveries,Resolutions",
+            "None",
             "Combined texture logger setting. Use comma-separated values: Discoveries, Resolutions, Misses. Use All to log all categories or None to disable logger.");
         
         EnableTextureHotReloadConfig = Config.Bind(
