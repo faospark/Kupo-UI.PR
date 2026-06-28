@@ -118,7 +118,7 @@ This allows `Default_00.png` files from different portrait folders/bundles to be
 
 ### Optional sidecar metadata
 
-You can add a JSON file next to a replacement texture with the same base name to override logical size and filtering.
+You can add a JSON file next to a replacement texture with the same base name to override any combination of logical size, filtering, pivot, 9-slice border, and source rect. All fields are optional — only include what you need to override.
 
 Example:
 
@@ -132,9 +132,16 @@ Example JSON:
   "width": 112,
   "height": 144,
   "pixelsPerUnit": 100,
-  "filterMode": "Point"
+  "filterMode": "Point",
+  "wrapMode": "Clamp",
+  "pivot": "0.5,0.5",
+  "border": "4,4,4,4",
+  "rectX": 0,
+  "rectY": 16
 }
 ```
+
+> **Note:** All fields are optional. Only include the ones relevant to your replacement.
 
 Supported fields:
 
@@ -144,6 +151,11 @@ Supported fields:
 - `filterMode`: Unity-style filter override, one of `Point`, `Bilinear`, or `Trilinear`
 - `filterType`: alias for `filterMode` (same accepted values)
 - `pointFilter`: legacy boolean shorthand, `true` = `Point`, `false` = `Bilinear`
+- `wrapMode`: Unity-style wrap mode override, one of `Clamp`, `Repeat`, `Mirror`, or `MirrorOnce` (default: `Clamp`)
+- `pivot`: normalized sprite anchor point as `"x,y"` (each value 0–1). Examples: `"0.5,0.5"` = center, `"0,0"` = bottom-left, `"0.5,0"` = bottom-center. Overrides the original sprite's pivot. Values are clamped to 0–1.
+- `border`: 9-slice border in pixels as `"left,bottom,right,top"`. Example: `"4,4,4,4"`. Overrides the original sprite's border; use `"0,0,0,0"` to strip an inherited border.
+- `rectX`: pixel X offset within the replacement texture to start sampling from. When omitted, inherits from the original sprite's rect x position. Clamped to valid texture bounds. Note: this controls **source UV position** inside the replacement image, not the sprite's position on screen.
+- `rectY`: pixel Y offset within the replacement texture to start sampling from. Same rules as `rectX`. Useful when a single replacement image contains multiple sprites at known offsets.
 
 If both `filterMode`/`filterType` and `pointFilter` are present, the string mode takes priority.
 

@@ -251,6 +251,19 @@ internal static class TextureResolver
             ? new Vector2(original.pivot.x / original.rect.width, original.pivot.y / original.rect.height)
             : new Vector2(0.5f, 0.5f);
 
+        var metadataPivot = ParsePivot(metadata);
+        if (metadataPivot.HasValue)
+        {
+            pivot = metadataPivot.Value;
+        }
+
+        var border = original.border;
+        var metadataBorder = ParseBorder(metadata);
+        if (metadataBorder.HasValue)
+        {
+            border = metadataBorder.Value;
+        }
+
         var replacementPixelsPerUnit = CalculateReplacementPixelsPerUnit(original, rect, metadata);
 
         replacement = Sprite.Create(
@@ -260,7 +273,7 @@ internal static class TextureResolver
             replacementPixelsPerUnit,
             0,
             SpriteMeshType.FullRect,
-            original.border);
+            border);
 
         replacement.name = spriteName + "_Custom";
         UnityEngine.Object.DontDestroyOnLoad(customTexture);
@@ -325,34 +338,45 @@ internal static class TextureResolver
             rect = new Rect(0f, 0f, replacementTexture.width, replacementTexture.height);
         }
 
-        if (metadata == null || (metadata.Width <= 0 && metadata.Height <= 0))
+        if (metadata != null && (metadata.Width > 0 || metadata.Height > 0))
         {
-            return rect;
+            var targetWidth = metadata.Width > 0 ? metadata.Width : rect.width;
+            var targetHeight = metadata.Height > 0 ? metadata.Height : rect.height;
+
+            if (targetWidth > 0f && targetHeight > 0f)
+            {
+                // Prefer preserving atlas origin when the requested size fits there.
+                if (rect.x >= 0f
+                    && rect.y >= 0f
+                    && rect.x + targetWidth <= replacementTexture.width
+                    && rect.y + targetHeight <= replacementTexture.height)
+                {
+                    rect = new Rect(rect.x, rect.y, targetWidth, targetHeight);
+                }
+                else
+                {
+                    // Otherwise use the requested size from origin, clamped to texture bounds.
+                    rect = new Rect(
+                        0f,
+                        0f,
+                        Mathf.Min(targetWidth, replacementTexture.width),
+                        Mathf.Min(targetHeight, replacementTexture.height));
+                }
+            }
         }
 
-        var targetWidth = metadata.Width > 0 ? metadata.Width : rect.width;
-        var targetHeight = metadata.Height > 0 ? metadata.Height : rect.height;
-
-        if (targetWidth <= 0f || targetHeight <= 0f)
+        // Apply explicit rect origin overrides after size resolution.
+        // rectX/rectY specify the pixel offset within the replacement texture to start sampling from.
+        if (metadata != null && (metadata.RectX.HasValue || metadata.RectY.HasValue))
         {
-            return rect;
+            var overrideX = metadata.RectX.HasValue ? (float)metadata.RectX.Value : rect.x;
+            var overrideY = metadata.RectY.HasValue ? (float)metadata.RectY.Value : rect.y;
+            overrideX = Mathf.Clamp(overrideX, 0f, Mathf.Max(0f, replacementTexture.width - rect.width));
+            overrideY = Mathf.Clamp(overrideY, 0f, Mathf.Max(0f, replacementTexture.height - rect.height));
+            rect = new Rect(overrideX, overrideY, rect.width, rect.height);
         }
 
-        // Prefer preserving atlas origin when the requested size fits there.
-        if (rect.x >= 0f
-            && rect.y >= 0f
-            && rect.x + targetWidth <= replacementTexture.width
-            && rect.y + targetHeight <= replacementTexture.height)
-        {
-            return new Rect(rect.x, rect.y, targetWidth, targetHeight);
-        }
-
-        // Otherwise use the requested size from origin, clamped to texture bounds.
-        return new Rect(
-            0f,
-            0f,
-            Mathf.Min(targetWidth, replacementTexture.width),
-            Mathf.Min(targetHeight, replacementTexture.height));
+        return rect;
     }
 
     private static Texture2D LoadTexture(string textureName, string assetAddressHint, out TextureOverrideMetadata metadata)
@@ -693,7 +717,11 @@ internal static class TextureResolver
                 PointFilter = ReadBool(json, "pointFilter"),
                 FilterMode = ReadString(json, "filterMode"),
                 FilterType = ReadString(json, "filterType"),
-                WrapMode = ReadString(json, "wrapMode")
+                WrapMode = ReadString(json, "wrapMode"),
+                Pivot = ReadString(json, "pivot"),
+                Border = ReadString(json, "border"),
+                RectX = ReadNullableInt(json, "rectX"),
+                RectY = ReadNullableInt(json, "rectY")
             };
 
             MetadataCache[texturePath] = metadata;
@@ -775,6 +803,15 @@ internal static class TextureResolver
         return match.Success && int.TryParse(match.Groups[1].Value, out var value) ? value : 0;
     }
 
+    /// <summary>
+    /// Like ReadInt but returns null when the property is absent, allowing 0 to be a valid explicit value.
+    /// </summary>
+    private static int? ReadNullableInt(string json, string propertyName)
+    {
+        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
+        return match.Success && int.TryParse(match.Groups[1].Value, out var value) ? value : (int?)null;
+    }
+
     private static float ReadFloat(string json, string propertyName)
     {
         var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
@@ -796,6 +833,63 @@ internal static class TextureResolver
     {
         var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*\"([^\"]*)\"", RegexOptions.IgnoreCase);
         return match.Success ? match.Groups[1].Value : null;
+    }
+
+    /// <summary>
+    /// Parses a "x,y" normalized pivot string from metadata. Returns null if absent or malformed.
+    /// </summary>
+    private static Vector2? ParsePivot(TextureOverrideMetadata metadata)
+    {
+        if (metadata == null || string.IsNullOrEmpty(metadata.Pivot))
+        {
+            return null;
+        }
+
+        var parts = metadata.Pivot.Split(',');
+        if (parts.Length != 2)
+        {
+            return null;
+        }
+
+        if (float.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var x)
+            && float.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var y))
+        {
+            return new Vector2(Mathf.Clamp01(x), Mathf.Clamp01(y));
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Parses a "left,bottom,right,top" 9-slice border string from metadata. Returns null if absent or malformed.
+    /// Values are pixel counts and must be non-negative.
+    /// </summary>
+    private static Vector4? ParseBorder(TextureOverrideMetadata metadata)
+    {
+        if (metadata == null || string.IsNullOrEmpty(metadata.Border))
+        {
+            return null;
+        }
+
+        var parts = metadata.Border.Split(',');
+        if (parts.Length != 4)
+        {
+            return null;
+        }
+
+        if (float.TryParse(parts[0].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var left)
+            && float.TryParse(parts[1].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var bottom)
+            && float.TryParse(parts[2].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var right)
+            && float.TryParse(parts[3].Trim(), System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var top))
+        {
+            return new Vector4(
+                Mathf.Max(0f, left),
+                Mathf.Max(0f, bottom),
+                Mathf.Max(0f, right),
+                Mathf.Max(0f, top));
+        }
+
+        return null;
     }
 
     private static void IndexLayer(string layerPath)
@@ -983,8 +1077,13 @@ internal static class TextureResolver
                 ? metadata.FilterType
                 : "-";
         var point = metadata.PointFilter.HasValue ? metadata.PointFilter.Value.ToString() : "-";
+        var wrap = !string.IsNullOrEmpty(metadata.WrapMode) ? metadata.WrapMode : "-";
+        var pivot = !string.IsNullOrEmpty(metadata.Pivot) ? metadata.Pivot : "-";
+        var border = !string.IsNullOrEmpty(metadata.Border) ? metadata.Border : "-";
+        var rectX = metadata.RectX.HasValue ? metadata.RectX.Value.ToString() : "-";
+        var rectY = metadata.RectY.HasValue ? metadata.RectY.Value.ToString() : "-";
 
-        return $"w={width},h={height},ppu={ppu},mode={mode},point={point}";
+        return $"w={width},h={height},ppu={ppu},mode={mode},point={point},wrap={wrap},pivot={pivot},border={border},rectX={rectX},rectY={rectY}";
     }
 
     private sealed class TextureOverrideMetadata
@@ -996,5 +1095,13 @@ internal static class TextureResolver
         internal string FilterMode { get; set; }
         internal string FilterType { get; set; }
         internal string WrapMode { get; set; }
+        /// <summary>Normalized pivot "x,y" (0-1 each). E.g. "0.5,0.5" = center, "0,0" = bottom-left.</summary>
+        internal string Pivot { get; set; }
+        /// <summary>9-slice border in pixels "left,bottom,right,top". E.g. "4,4,4,4".</summary>
+        internal string Border { get; set; }
+        /// <summary>Explicit X pixel offset into the replacement texture rect. Null = inherit from original sprite rect.</summary>
+        internal int? RectX { get; set; }
+        /// <summary>Explicit Y pixel offset into the replacement texture rect. Null = inherit from original sprite rect.</summary>
+        internal int? RectY { get; set; }
     }
 }
