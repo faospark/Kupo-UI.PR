@@ -32,6 +32,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> TitleScreenTextWhiteConfig { get; private set; } = null!;
+    internal static ConfigEntry<int> TitleScreenTextFontSizeConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> TitleScreenTextDisableShadowConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
     {
@@ -48,6 +52,30 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "ScaledDownMenu",
             true,
             "If true, scales RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone) to (0.9, 0.9, 1) when it becomes active.");
+
+        TitleScreenTextWhiteConfig = Config.Bind(
+            "UI",
+            "TitleScreenTextWhite",
+            true,
+            "If true, forces the title screen menu text color to white.");
+
+        TitleScreenTextFontSizeConfig = Config.Bind(
+            "UI",
+            "TitleScreenTextFontSize",
+            40,
+            "Font size for the title screen menu text.");
+
+        TitleScreenBgColorConfig = Config.Bind(
+            "UI",
+            "TitleScreenBgColor",
+            "black",
+            "Color for the title screen background. Options: original, white, black, navy, crimson, violet.");
+
+        TitleScreenTextDisableShadowConfig = Config.Bind(
+            "UI",
+            "TitleScreenTextDisableShadow",
+            true,
+            "If true, disables the Shadow component on the title screen menu text (last_text).");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
@@ -144,6 +172,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
         Log.LogInfo($"EnableCustomTextures = {EnableCustomTexturesConfig.Value}");
         Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
+        Log.LogInfo($"TitleScreenTextWhite = {TitleScreenTextWhiteConfig.Value}");
+        Log.LogInfo($"TitleScreenTextFontSize = {TitleScreenTextFontSizeConfig.Value}");
+        Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
+        Log.LogInfo($"TitleScreenTextDisableShadow = {TitleScreenTextDisableShadowConfig.Value}");
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
