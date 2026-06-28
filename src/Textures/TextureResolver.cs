@@ -28,6 +28,7 @@ internal static class TextureResolver
     private static string _currentGameTag = "Shared";
     private static string _textureRootPath = string.Empty;
     private static string _uiFramesPack = "Default";
+    private static string _uiThemesPack = "Default";
     private static string _uiBgColorPack = "Default";
     private static string _cursorsPack = "Default";
     private static string _buttonPromptsPack = "Default";
@@ -39,6 +40,7 @@ internal static class TextureResolver
     internal static void Initialize(
         string configuredRootPath,
         string uiFramesPack,
+        string uiThemesPack,
         string uiBgColorPack,
         string cursorsPack,
         string buttonPromptsPack)
@@ -47,6 +49,7 @@ internal static class TextureResolver
         _currentGameTag = GameTagDetector.Detect();
         _textureRootPath = ResolveTextureRootPath(configuredRootPath);
         _uiFramesPack = NormalizePackFolderName(uiFramesPack);
+        _uiThemesPack = NormalizePackFolderName(uiThemesPack);
         _uiBgColorPack = NormalizePackFolderName(uiBgColorPack);
         _cursorsPack = NormalizePackFolderName(cursorsPack);
         _buttonPromptsPack = NormalizePackFolderName(buttonPromptsPack);
@@ -444,10 +447,11 @@ internal static class TextureResolver
         Directory.CreateDirectory(root);
 
         Directory.CreateDirectory(Path.Combine(root, "00-Mods"));
-        Directory.CreateDirectory(Path.Combine(root, "01-UI-Frames"));
-        Directory.CreateDirectory(Path.Combine(root, "02-UI-BgColor"));
-        Directory.CreateDirectory(Path.Combine(root, "03-UI-Cursors"));
-        Directory.CreateDirectory(Path.Combine(root, "04-Button-Prompts"));
+        Directory.CreateDirectory(Path.Combine(root, "01-UI-Themes"));
+        Directory.CreateDirectory(Path.Combine(root, "02-UI-Frames"));
+        Directory.CreateDirectory(Path.Combine(root, "03-UI-BgColor"));
+        Directory.CreateDirectory(Path.Combine(root, "04-UI-Cursors"));
+        Directory.CreateDirectory(Path.Combine(root, "05-Button-Prompts"));
 
         // Keep old directory layouts optional for backward compatibility.
         // We do not auto-create them anymore to avoid confusing new users.
@@ -474,11 +478,14 @@ internal static class TextureResolver
         // New layout: general overrides.
         IndexLayer(Path.Combine(root, "00-Mods"));
 
+        // UI Themes: override 00-Mods but are overridden by specific pack folders.
+        IndexLayer(Path.Combine(root, "01-UI-Themes", _uiThemesPack));
+
         // New layout: selected packs override general layer.
-        IndexLayer(Path.Combine(root, "01-UI-Frames", _uiFramesPack));
-        IndexLayer(Path.Combine(root, "02-UI-BgColor", _uiBgColorPack));
-        IndexLayer(Path.Combine(root, "03-UI-Cursors", _cursorsPack));
-        IndexLayer(Path.Combine(root, "04-Button-Prompts", _buttonPromptsPack));
+        IndexLayer(Path.Combine(root, "02-UI-Frames", _uiFramesPack));
+        IndexLayer(Path.Combine(root, "03-UI-BgColor", _uiBgColorPack));
+        IndexLayer(Path.Combine(root, "04-UI-Cursors", _cursorsPack));
+        IndexLayer(Path.Combine(root, "05-Button-Prompts", _buttonPromptsPack));
 
         watch.Stop();
         if (_verboseLogs)
