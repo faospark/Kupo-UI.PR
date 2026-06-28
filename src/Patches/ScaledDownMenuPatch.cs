@@ -9,6 +9,9 @@ internal static class ScaledDownMenuPatch
     private const string TargetObjectName = "menu_base(Clone)";
     private const string TargetPath = "Canvas/aspect_parent/menu_parent/menu_base(Clone)";
 
+    private const string TargetObjectName2 = "ui_root";
+    private const string TargetPath2 = "RootObject/sab_canvas/root/ui_root";
+
     private static readonly Vector3 ScaledDownScale = new(0.9f, 0.9f, 1f);
 
     [HarmonyPostfix]
@@ -24,13 +27,10 @@ internal static class ScaledDownMenuPatch
             return;
         }
 
-        if (__instance.name != TargetObjectName)
-        {
-            return;
-        }
+        bool isFirstTarget = __instance.name == TargetObjectName && MatchesHierarchyPath(__instance, TargetPath);
+        bool isSecondTarget = __instance.name == TargetObjectName2 && MatchesHierarchyPath(__instance, TargetPath2);
 
-        // Verify the full hierarchy path to avoid hitting unrelated objects with the same name.
-        if (!MatchesHierarchyPath(__instance, TargetPath))
+        if (!isFirstTarget && !isSecondTarget)
         {
             return;
         }
