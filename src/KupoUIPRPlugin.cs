@@ -55,27 +55,27 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "If true, scales RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone) to (0.9, 0.9, 1) when it becomes active.");
 
         TitleScreenTextWhiteConfig = Config.Bind(
-            "UI",
+            "UI-Title-Screen",
             "TitleScreenTextWhite",
-            true,
+            false,
             "If true, forces the title screen menu text color to white.");
 
         TitleScreenTextFontSizeConfig = Config.Bind(
-            "UI",
+            "UI-Title-Screen",
             "TitleScreenTextFontSize",
             40,
             "Font size for the title screen menu text.");
 
         TitleScreenBgColorConfig = Config.Bind(
-            "UI",
+            "UI-Title-Screen",
             "TitleScreenBgColor",
-            "black",
+            "original",
             "Color for the title screen background. Options: original, white, black, navy, crimson, violet.");
 
         TitleScreenTextDisableShadowConfig = Config.Bind(
-            "UI",
+            "UI-Title-Screen",
             "TitleScreenTextDisableShadow",
-            true,
+            false,
             "If true, disables the Shadow component on the title screen menu text.");
 
         EnableCustomTexturesConfig = Config.Bind(
@@ -84,32 +84,32 @@ public sealed class KupoUIPRPlugin : BasePlugin
             true,
             "If true, enables custom texture loading and replacement.");
 
-        UiFramesFolderConfig = Config.Bind(
-            "Textures",
-            "UIFramesFolder",
-            "Default",
-            "Specify Folder to Override UI Frames 02-UI-Frames. Default = means it will do nothing.");
-
         UIThemesFolderConfig = Config.Bind(
-            "Textures",
+            "Modules",
             "UIThemesFolder",
             "Default",
             "Specify a theme pack under 01-UI-Themes. Overrides 00-Mods but is overridden by specific pack folders. Default = means it will do nothing.");
 
+        UiFramesFolderConfig = Config.Bind(
+            "Modules",
+            "UIFramesFolder",
+            "Default",
+            "Specify Folder to Override UI Frames 02-UI-Frames. Default = means it will do nothing.");
+
         UIBgColorFolderConfig = Config.Bind(
-            "Textures",
+            "Modules",
             "UIBgColorFolder",
             "Default",
             "Specify Folder to Override UI Background Colors 03-UI-BgColor. Default = means it will do nothing.");
 
         CursorsFolderConfig = Config.Bind(
-            "Textures",
+            "Modules",
             "CursorsFolder",
             "Default",
             "Specify Folder to Override Cursors 04-UI-Cursors. Default = means it will do nothing.");
 
         ButtonPromptsFolderConfig = Config.Bind(
-            "Textures",
+            "Modules",
             "ButtonPromptsFolder",
             "Default",
             "Specify Folder to Override Button Prompts 05-Button-Prompts. Default = means it will do nothing.");
