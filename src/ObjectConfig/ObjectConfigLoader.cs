@@ -112,9 +112,10 @@ internal static class ObjectConfigLoader
         var entry = new ObjectConfigEntry
         {
             TargetObjectName = name.Trim(),
-            TargetPath       = ReadString(block, "TargetPath"),
-            SceneName        = ReadString(block, "SceneName"),
+            TargetPath       = ReadString(block, "TargetPath")?.Trim(),
+            SceneName        = ReadString(block, "SceneName")?.Trim(),
             SetActive        = ReadBool(block, "SetActive"),
+            TextAlignment    = ReadString(block, "TextAlignment")?.Trim(),
             SourceFile       = sourceFile,
         };
 

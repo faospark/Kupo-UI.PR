@@ -221,7 +221,8 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
       "Position": { "x": 0, "y": -50, "z": 0 },
       "Rotation": { "x": 0, "y": 0,   "z": 0 },
       "Scale":    { "x": 0.9, "y": 0.9, "z": 1.0 },
-      "SetActive": true
+      "SetActive": true,
+      "TextAlignment": "MiddleCenter"
     }
   ]
 }
@@ -240,6 +241,7 @@ The `objects` array can contain as many entries as you need, across one file or 
 | `Rotation` | No | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`. |
 | `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
 | `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
+| `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [text alignment values](#text-alignment-values) below. |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 
@@ -278,7 +280,35 @@ The path is matched by walking up the transform hierarchy from the object, so it
 }
 ```
 
-> **Note on `SetActive: false` behaviour:** The rule fires inside the `SetActive(true)` postfix hook, so setting `SetActive: false` means every time the game tries to activate the object, it is immediately deactivated again. This is the correct way to permanently suppress an object — just be aware the object is briefly activated before being hidden on each game attempt to show it.
+> **Note on `SetActive: false` behaviour:** The rule uses a Harmony prefix that intercepts every `SetActive(true)` call and flips it to `false` before Unity processes it. This permanently prevents the object from becoming active — no flicker, no one-frame delay.
+
+### Changing text alignment
+
+If the target object has a `UnityEngine.UI.Text` component, you can set its horizontal and vertical alignment:
+
+```json
+{
+  "TargetObjectName": "some_label",
+  "TargetPath": "Canvas/panel/some_label",
+  "TextAlignment": "MiddleCenter"
+}
+```
+
+#### Text alignment values
+
+| Value | Description |
+|---|---|
+| `UpperLeft` | Top-left corner |
+| `UpperCenter` | Top-center |
+| `UpperRight` | Top-right corner |
+| `MiddleLeft` | Vertically centered, left-aligned |
+| `MiddleCenter` | Fully centered |
+| `MiddleRight` | Vertically centered, right-aligned |
+| `LowerLeft` | Bottom-left corner |
+| `LowerCenter` | Bottom-center |
+| `LowerRight` | Bottom-right corner |
+
+Values are case-insensitive. If the object has no `Text` component, or the value is unrecognized, a warning is written to the BepInEx log and the rule is skipped.
 
 ### Combining multiple rules
 

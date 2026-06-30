@@ -47,6 +47,14 @@ internal sealed class ObjectConfigEntry
     internal bool? SetActive { get; set; }
 
     /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.UI.Text</c> component,
+    /// sets <c>Text.alignment</c> to the specified <see cref="UnityEngine.TextAnchor"/> value.
+    /// Accepted values (case-insensitive): UpperLeft, UpperCenter, UpperRight,
+    /// MiddleLeft, MiddleCenter, MiddleRight, LowerLeft, LowerCenter, LowerRight.
+    /// </summary>
+    internal string TextAlignment { get; set; }
+
+    /// <summary>
     /// The disk path of the <c>ObjectConfig.json</c> file this entry was loaded from.
     /// Used for log messages.
     /// </summary>

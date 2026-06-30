@@ -67,6 +67,11 @@
       <HintPath>$(UnityInteropDir)\UnityEngine.UIModule.dll</HintPath>
       <Private>false</Private>
     </Reference>
+    <Reference Include="UnityEngine.TextRenderingModule" Condition="Exists('$(UnityInteropDir)\UnityEngine.TextRenderingModule.dll')">
+      <HintPath>$(UnityInteropDir)\UnityEngine.TextRenderingModule.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+
   </ItemGroup>
 
   <Target Name="FailIfBepInExDirMissing" BeforeTargets="BeforeBuild" Condition="'$(BepInExDir)' == ''">

@@ -3,6 +3,7 @@ using HarmonyLib;
 using KupoUI.PR.ObjectConfig;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace KupoUI.PR.Patches;
 
@@ -10,10 +11,14 @@ namespace KupoUI.PR.Patches;
 /// Applies data-driven GameObject transform overrides defined in <c>ObjectConfig.json</c>
 /// files found recursively under <c>Modules/00-Mods/</c>.
 /// <para>
-/// Rules are applied at two points:
+/// <c>SetActive: false</c> rules are enforced at three levels:
 /// <list type="bullet">
-///   <item><description>When a scene finishes loading — catches objects active from the start.</description></item>
-///   <item><description>When <see cref="GameObject.SetActive"/> is called with <c>true</c> — catches objects enabled later.</description></item>
+///   <item><description>Prefix on <see cref="GameObject.SetActive"/> — flips any direct
+///   <c>SetActive(true)</c> call on the target to <c>false</c> before Unity processes it.</description></item>
+///   <item><description>Postfix on <see cref="GameObject.SetActive"/> — when a <em>parent</em> is
+///   activated Unity propagates active-state to children without calling SetActive on them;
+///   the postfix scans the hierarchy and explicitly disables matching children.</description></item>
+///   <item><description>Postfix on <c>Internal_SceneLoaded</c> — initial sweep when a scene loads.</description></item>
 /// </list>
 /// </para>
 /// </summary>
@@ -39,12 +44,13 @@ internal static class ObjectConfigPatch
             {
                 KupoUIPRPlugin.PluginLog.LogInfo(
                     $"[ObjectConfig]   name='{e.TargetObjectName}'"
-                    + (string.IsNullOrEmpty(e.SceneName)  ? "" : $" scene='{e.SceneName}'")
-                    + (string.IsNullOrEmpty(e.TargetPath) ? "" : $" path='{e.TargetPath}'")
+                    + (string.IsNullOrEmpty(e.SceneName)     ? "" : $" scene='{e.SceneName}'")
+                    + (string.IsNullOrEmpty(e.TargetPath)    ? "" : $" path='{e.TargetPath}'")
                     + (e.Position.HasValue  ? $" pos=({e.Position.Value.X},{e.Position.Value.Y},{e.Position.Value.Z})"    : "")
                     + (e.Rotation.HasValue  ? $" rot=({e.Rotation.Value.X},{e.Rotation.Value.Y},{e.Rotation.Value.Z})"    : "")
                     + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
-                    + (e.SetActive.HasValue ? $" setActive={e.SetActive.Value}"                                           : ""));
+                    + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
+                    + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}"));
             }
         }
 
@@ -52,9 +58,64 @@ internal static class ObjectConfigPatch
     }
 
     // -------------------------------------------------------------------------
-    // Harmony hook 1 — fires on every GameObject.SetActive(true) call
+    // Harmony hook 1 — PREFIX: blocks SetActive(true) on SetActive:false targets
     // -------------------------------------------------------------------------
 
+    /// <summary>
+    /// Intercepts every <c>SetActive(true)</c> call. If the target GameObject
+    /// matches a <c>SetActive: false</c> rule the parameter is redirected to
+    /// <c>false</c> <em>before</em> Unity processes it, so the object is never
+    /// actually activated regardless of what game code requests.
+    /// </summary>
+    [HarmonyPatch(typeof(GameObject), nameof(GameObject.SetActive))]
+    [HarmonyPrefix]
+    private static void SetActivePrefix(GameObject __instance, ref bool value)
+    {
+        // Only intercept activation attempts.
+        if (!value || __instance == null) return;
+
+        var entries = ObjectConfigLoader.Entries;
+        if (entries.Count == 0) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        foreach (var entry in entries)
+        {
+            // Only care about rules that want the object kept inactive.
+            if (!entry.SetActive.HasValue || entry.SetActive.Value) continue;
+
+            if (__instance.name != entry.TargetObjectName) continue;
+
+            if (!string.IsNullOrEmpty(entry.SceneName)
+                && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            if (!string.IsNullOrEmpty(entry.TargetPath)
+                && !MatchesHierarchyPath(__instance, entry.TargetPath))
+            {
+                continue;
+            }
+
+            // Redirect: the original SetActive will receive false instead of true.
+            value = false;
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[ObjectConfig] Blocked SetActive(true) on '{__instance.name}' — rule keeps it inactive.");
+            return;
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // Harmony hook 2 — POSTFIX: hierarchy scan when a parent is activated
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// When a parent has <c>SetActive(true)</c> called, Unity propagates the
+    /// active state to all children internally — without calling <c>SetActive</c>
+    /// on each child. This postfix scans the full hierarchy after any activation
+    /// so that matching children are explicitly disabled.
+    /// </summary>
     [HarmonyPatch(typeof(GameObject), nameof(GameObject.SetActive))]
     [HarmonyPostfix]
     private static void SetActivePostfix(GameObject __instance, bool value)
@@ -65,12 +126,6 @@ internal static class ObjectConfigPatch
         }
 
         var sceneName = SceneManager.GetActiveScene().name;
-
-        // Scan __instance AND its full child hierarchy.
-        // This catches cases where a target object (e.g. main_menu) is already
-        // active inside a parent (e.g. title(Clone)) that gets instantiated or
-        // set active — Unity never calls SetActive on the children in that flow,
-        // so checking only __instance would miss them.
         ApplyToHierarchy(__instance, sceneName);
     }
 
@@ -101,7 +156,15 @@ internal static class ObjectConfigPatch
     // -------------------------------------------------------------------------
 
     /// <summary>
-    /// Recursively walks the transform hierarchy and applies all matching rules.
+    /// Walks the entire transform hierarchy (including inactive objects) and
+    /// applies all matching rules.
+    /// <para>
+    /// <see cref="Transform.GetChild"/> only iterates <em>direct</em> children
+    /// and does not surface inactive objects in all Unity/IL2CPP builds.
+    /// Using <c>GetComponentsInChildren&lt;Transform&gt;(true)</c> guarantees that
+    /// objects with <c>SetActive: false</c> — which may already be inactive at
+    /// scene-load time — are still reached.
+    /// </para>
     /// </summary>
     private static void ApplyToHierarchy(GameObject go, string sceneName)
     {
@@ -110,15 +173,15 @@ internal static class ObjectConfigPatch
             return;
         }
 
-        ApplyMatchingRules(go, sceneName);
-
-        var transform = go.transform;
-        for (var i = 0; i < transform.childCount; i++)
+        // includeInactive: true is critical — without it, GameObjects that are
+        // already inactive are skipped entirely, so "SetActive": false rules
+        // would never fire on objects that start inactive.
+        var allTransforms = go.GetComponentsInChildren<Transform>(includeInactive: true);
+        foreach (var t in allTransforms)
         {
-            var child = transform.GetChild(i);
-            if (child != null)
+            if (t != null && t.gameObject != null)
             {
-                ApplyToHierarchy(child.gameObject, sceneName);
+                ApplyMatchingRules(t.gameObject, sceneName);
             }
         }
     }
@@ -149,7 +212,7 @@ internal static class ObjectConfigPatch
                 if (!string.IsNullOrEmpty(entry.SceneName)
                     && !entry.SceneName.Equals(currentScene, StringComparison.OrdinalIgnoreCase))
                 {
-                    KupoUIPRPlugin.PluginLog.LogInfo(
+                    KupoUIPRPlugin.PluginLog.LogDebug(
                         $"[ObjectConfig] Name match '{go.name}' — scene MISMATCH: config='{entry.SceneName}' actual='{currentScene}'");
                     continue;
                 }
@@ -157,7 +220,7 @@ internal static class ObjectConfigPatch
                 if (!string.IsNullOrEmpty(entry.TargetPath)
                     && !MatchesHierarchyPath(go, entry.TargetPath))
                 {
-                    KupoUIPRPlugin.PluginLog.LogInfo(
+                    KupoUIPRPlugin.PluginLog.LogDebug(
                         $"[ObjectConfig] Name match '{go.name}' — path MISMATCH: expected='{entry.TargetPath}' actual='{BuildTransformPath(go)}'");
                     continue;
                 }
@@ -191,7 +254,37 @@ internal static class ObjectConfigPatch
 
         if (entry.SetActive.HasValue)
         {
+            // For false: the prefix will block any future SetActive(true) on this
+            // object. Calling SetActive(false) here handles the current state
+            // (the object may be active right now from a parent activation or
+            // scene-load scan). The prefix re-enforces this on every subsequent
+            // SetActive(true) attempt — no deferred component needed.
             go.SetActive(entry.SetActive.Value);
+        }
+
+        if (!string.IsNullOrEmpty(entry.TextAlignment))
+        {
+            var textComp = go.GetComponent<Text>();
+            if (textComp != null)
+            {
+                if (System.Enum.TryParse(entry.TextAlignment, ignoreCase: true, out TextAnchor anchor))
+                {
+                    textComp.alignment = anchor;
+                }
+                else
+                {
+                    KupoUIPRPlugin.PluginLog.LogWarning(
+                        $"[ObjectConfig] Unknown TextAlignment '{entry.TextAlignment}' on '{go.name}'. "
+                        + "Valid values: UpperLeft, UpperCenter, UpperRight, "
+                        + "MiddleLeft, MiddleCenter, MiddleRight, "
+                        + "LowerLeft, LowerCenter, LowerRight.");
+                }
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] TextAlignment specified for '{go.name}' but no Text component found.");
+            }
         }
 
         KupoUIPRPlugin.PluginLog.LogInfo(
@@ -214,7 +307,8 @@ internal static class ObjectConfigPatch
         var current = target.transform;
         for (var i = parts.Length - 1; i >= 0; i--)
         {
-            if (current == null || current.name != parts[i])
+            var segment = parts[i].Trim();
+            if (current == null || !string.Equals(current.name, segment, StringComparison.Ordinal))
             {
                 return false;
             }
