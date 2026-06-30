@@ -5,6 +5,7 @@ using BepInEx.Logging;
 using BepInEx.Unity.IL2CPP;
 using HarmonyLib;
 using KupoUI.PR.Compatibility;
+using KupoUI.PR.ObjectConfig;
 using KupoUI.PR.Patches;
 using KupoUI.PR.Textures;
 
@@ -17,6 +18,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     public const string PluginName = "KupoUI.PR";
     public const string PluginVersion = "1.0.0";
     private const string TextureRootFolder = "Modules";
+    internal static string ModulesRootPath { get; private set; }
 
     internal static ManualLogSource PluginLog { get; private set; } = null!;
     internal static ConfigEntry<bool> DisableMouseCursorConfig { get; private set; } = null!;
@@ -160,6 +162,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
             logResolutions,
             logMisses);
 
+        ModulesRootPath = System.IO.Path.Combine(Paths.GameRootPath, TextureRootFolder);
+
         TextureResolver.Initialize(
             TextureRootFolder,
             UiFramesFolderConfig.Value,
@@ -173,6 +177,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         var harmony = new Harmony(PluginGuid);
         harmony.PatchAll();
         ForceVSyncPatch.ApplyNow();
+        ObjectConfigPatch.Initialize(ModulesRootPath);
 
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");

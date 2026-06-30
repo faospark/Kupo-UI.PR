@@ -188,3 +188,155 @@ Texture logger notes:
 This plugin does not hard-reference `Memoria.FFPR` or `Magicite` yet.
 
 At runtime, it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.
+
+---
+
+## ObjectConfig.json — Data-driven GameObject Tweaks
+
+You can manipulate Unity GameObjects at runtime (position, rotation, scale, active state) without writing any C# — just drop an `ObjectConfig.json` file inside any mod folder under `Modules/00-Mods/`.
+
+The plugin scans **all** `ObjectConfig.json` files found recursively under `Modules/00-Mods/` when the game starts.
+
+### Folder placement
+
+```
+<GameRoot>/
+  Modules/
+    00-Mods/
+      MyMod/
+        ObjectConfig.json   ← picked up automatically
+      AnotherMod/
+        ObjectConfig.json   ← also picked up
+```
+
+### File format
+
+```json
+{
+  "objects": [
+    {
+      "TargetObjectName": "menu_base(Clone)",
+      "TargetPath": "Canvas/aspect_parent/menu_parent/menu_base(Clone)",
+      "SceneName": "Title",
+      "Position": { "x": 0, "y": -50, "z": 0 },
+      "Rotation": { "x": 0, "y": 0,   "z": 0 },
+      "Scale":    { "x": 0.9, "y": 0.9, "z": 1.0 },
+      "SetActive": true
+    }
+  ]
+}
+```
+
+The `objects` array can contain as many entries as you need, across one file or spread across multiple files in different mod folders.
+
+### Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `TargetObjectName` | **Yes** | Exact `GameObject` name to match (e.g. `"menu_base(Clone)"`). |
+| `TargetPath` | No | Hierarchy path suffix to disambiguate objects with the same name. Forward-slash notation, matched from the object upward. E.g. `"Canvas/aspect_parent/menu_base(Clone)"`. |
+| `SceneName` | No | Only apply this rule while this scene is active. Omit to apply in every scene. Case-insensitive. |
+| `Position` | No | Sets `transform.localPosition`. Provide `x`, `y`, `z` as floats. |
+| `Rotation` | No | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`. |
+| `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
+| `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
+
+> **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
+
+### When rules are applied
+
+Rules fire at two moments:
+
+1. **Scene load** — when a scene finishes loading, all GameObjects in the scene are scanned and matching rules are applied. This covers objects that are already active from the start.
+2. **SetActive(true)** — when any GameObject is enabled at runtime, matching rules are applied immediately. This covers UI panels and objects toggled on after load.
+
+### Using `TargetPath` to avoid wrong matches
+
+If multiple objects share the same name (common in FFPR), add `TargetPath` to target only the one you want:
+
+```json
+{
+  "TargetObjectName": "menu_base(Clone)",
+  "TargetPath": "RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone)",
+  "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
+}
+```
+
+The path is matched by walking up the transform hierarchy from the object, so it does not need to start from the scene root — a suffix is enough.
+
+> **Important:** Two common mistakes to avoid:
+> - The **last segment of `TargetPath` must match `TargetObjectName`** exactly. The matcher walks upward from the object itself, so the object's own name must appear at the end of the path.
+> - **No trailing slash.** A path ending with `/` produces an empty final segment that will never match any GameObject name, causing the rule to silently do nothing.
+
+### Hiding an object
+
+```json
+{
+  "TargetObjectName": "some_ui_element",
+  "SceneName": "MainMenu",
+  "SetActive": false
+}
+```
+
+> **Note on `SetActive: false` behaviour:** The rule fires inside the `SetActive(true)` postfix hook, so setting `SetActive: false` means every time the game tries to activate the object, it is immediately deactivated again. This is the correct way to permanently suppress an object — just be aware the object is briefly activated before being hidden on each game attempt to show it.
+
+### Combining multiple rules
+
+```json
+{
+  "objects": [
+    {
+      "TargetObjectName": "ui_root",
+      "TargetPath": "RootObject/sab_canvas/root/ui_root",
+      "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
+    },
+    {
+      "TargetObjectName": "title_logo",
+      "SceneName": "Title",
+      "Position": { "x": 0, "y": 80, "z": 0 }
+    }
+  ]
+}
+```
+
+---
+
+## Title Screen Full Background Image (`TitlescreenFullBG`)
+
+You can inject a custom full-screen background image on the title screen by placing a texture file named `TitlescreenFullBG` in any mod folder. No config entry is required — if the file is absent nothing happens.
+
+### How it works
+
+The patch watches for the title screen's internal `background` object at:
+
+```
+background_canvas/ui_root/backgrou_root/background
+```
+
+When that object activates, a new `fullbg` GameObject is injected as a sibling immediately above it in the hierarchy:
+
+```
+background_canvas/ui_root/backgrou_root/
+  ├── background   ← original solid-color background (unchanged)
+  └── fullbg       ← injected — renders on top of background
+```
+
+`fullbg` is a `RawImage` stretched to fill its parent, so it completely covers `background`. The solid-color background underneath is still tinted by `UI-Title-Screen.TitleScreenBgColor` if configured — `fullbg` simply covers it.
+
+### Installation
+
+Drop any supported image file named `TitlescreenFullBG` into any mod folder:
+
+```
+<GameRoot>/Modules/00-Mods/MyMod/TitlescreenFullBG.png
+```
+
+Supported formats: `png`, `jpg`, `jpeg`, `tga`, `dds`.
+
+### Notes
+
+- If no `TitlescreenFullBG` file is found in the index, the patch is a complete no-op — no object is created, no log entries are written.
+- The object is only created once per activation cycle. Re-activating the title screen background does not create duplicates.
+- The image is stretched to fill its parent rect. For best results, use an image sized to your target resolution (e.g. 1920×1080).
+- The texture is kept alive with `DontDestroyOnLoad` so it survives any additive scene reloads on the title screen.
+

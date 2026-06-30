@@ -1,0 +1,309 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Text.RegularExpressions;
+using BepInEx;
+
+namespace KupoUI.PR.ObjectConfig;
+
+/// <summary>
+/// Scans every <c>ObjectConfig.json</c> file found recursively under
+/// <c>&lt;GameRoot&gt;/Modules/00-Mods/</c> and exposes the merged list of
+/// <see cref="ObjectConfigEntry"/> objects.
+/// </summary>
+internal static class ObjectConfigLoader
+{
+    private const string ConfigFileName = "ObjectConfig.json";
+    private const string ModsSubFolder  = "00-Mods";
+
+    private static readonly List<ObjectConfigEntry> _entries = new();
+
+    /// <summary>All loaded transform rules, across every discovered mod folder.</summary>
+    internal static IReadOnlyList<ObjectConfigEntry> Entries => _entries;
+
+    /// <summary>
+    /// Discovers and parses all <c>ObjectConfig.json</c> files.
+    /// Safe to call multiple times; previous entries are cleared on each call.
+    /// </summary>
+    /// <param name="modulesRootPath">
+    /// Absolute path to the <c>Modules</c> folder (i.e. <c>Paths.GameRootPath + "/Modules"</c>).
+    /// </param>
+    internal static void Load(string modulesRootPath)
+    {
+        _entries.Clear();
+
+        var modsRoot = Path.Combine(modulesRootPath, ModsSubFolder);
+        if (!Directory.Exists(modsRoot))
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Mods root not found, skipping: {modsRoot}");
+            return;
+        }
+
+        var files = Directory.GetFiles(modsRoot, ConfigFileName, SearchOption.AllDirectories);
+        if (files.Length == 0)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo("[ObjectConfig] No ObjectConfig.json files found.");
+            return;
+        }
+
+        var totalLoaded = 0;
+        foreach (var file in files)
+        {
+            var loaded = ParseFile(file);
+            _entries.AddRange(loaded);
+            totalLoaded += loaded.Count;
+        }
+
+        KupoUIPRPlugin.PluginLog.LogInfo(
+            $"[ObjectConfig] Loaded {totalLoaded} rule(s) from {files.Length} file(s).");
+    }
+
+    // -------------------------------------------------------------------------
+    // JSON parsing (hand-rolled to match the project's existing pattern and
+    // avoid adding a JSON library dependency)
+    // -------------------------------------------------------------------------
+
+    private static List<ObjectConfigEntry> ParseFile(string filePath)
+    {
+        var result = new List<ObjectConfigEntry>();
+        try
+        {
+            var json = File.ReadAllText(filePath);
+
+            // Extract the "objects" array content.
+            var arrayContent = ExtractArrayContent(json, "objects");
+            if (arrayContent == null)
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] No 'objects' array found in: {filePath}");
+                return result;
+            }
+
+            // Split array into individual object blocks.
+            var objectBlocks = SplitObjectBlocks(arrayContent);
+            foreach (var block in objectBlocks)
+            {
+                var entry = ParseEntry(block, filePath);
+                if (entry != null)
+                {
+                    result.Add(entry);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            KupoUIPRPlugin.PluginLog.LogWarning(
+                $"[ObjectConfig] Failed to parse '{filePath}': {ex.Message}");
+        }
+
+        return result;
+    }
+
+    private static ObjectConfigEntry ParseEntry(string block, string sourceFile)
+    {
+        var name = ReadString(block, "TargetObjectName");
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            KupoUIPRPlugin.PluginLog.LogWarning(
+                $"[ObjectConfig] Skipping entry without 'TargetObjectName' in: {sourceFile}");
+            return null;
+        }
+
+        var entry = new ObjectConfigEntry
+        {
+            TargetObjectName = name.Trim(),
+            TargetPath       = ReadString(block, "TargetPath"),
+            SceneName        = ReadString(block, "SceneName"),
+            SetActive        = ReadBool(block, "SetActive"),
+            SourceFile       = sourceFile,
+        };
+
+        // Position
+        var posBlock = ReadSubObject(block, "Position");
+        if (posBlock != null)
+        {
+            entry.Position = new Vec3
+            {
+                X = ReadFloat(posBlock, "x"),
+                Y = ReadFloat(posBlock, "y"),
+                Z = ReadFloat(posBlock, "z"),
+            };
+        }
+
+        // Rotation
+        var rotBlock = ReadSubObject(block, "Rotation");
+        if (rotBlock != null)
+        {
+            entry.Rotation = new Vec3
+            {
+                X = ReadFloat(rotBlock, "x"),
+                Y = ReadFloat(rotBlock, "y"),
+                Z = ReadFloat(rotBlock, "z"),
+            };
+        }
+
+        // Scale
+        var scaleBlock = ReadSubObject(block, "Scale");
+        if (scaleBlock != null)
+        {
+            entry.Scale = new Vec3
+            {
+                X = ReadFloat(scaleBlock, "x"),
+                Y = ReadFloat(scaleBlock, "y"),
+                Z = ReadFloat(scaleBlock, "z"),
+            };
+        }
+
+        return entry;
+    }
+
+    // ---- Primitive readers --------------------------------------------------
+
+    private static string ReadString(string json, string key)
+    {
+        var match = Regex.Match(
+            json,
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*\"([^\"]*)\"",
+            RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    private static float ReadFloat(string json, string key)
+    {
+        var match = Regex.Match(
+            json,
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)",
+            RegexOptions.IgnoreCase);
+        return match.Success
+            && float.TryParse(
+                match.Groups[1].Value,
+                System.Globalization.NumberStyles.Float,
+                System.Globalization.CultureInfo.InvariantCulture,
+                out var value)
+            ? value
+            : 0f;
+    }
+
+    private static bool? ReadBool(string json, string key)
+    {
+        var match = Regex.Match(
+            json,
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*(true|false)",
+            RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return bool.TryParse(match.Groups[1].Value, out var v) ? v : (bool?)null;
+    }
+
+    /// <summary>
+    /// Extracts the content of a named sub-object block, e.g. <c>"Position": { ... }</c>
+    /// returns the text between the braces.
+    /// </summary>
+    private static string ReadSubObject(string json, string key)
+    {
+        var keyPattern = $"\"{Regex.Escape(key)}\"\\s*:\\s*\\{{";
+        var match = Regex.Match(json, keyPattern, RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return ExtractBalancedBraces(json, match.Index + match.Length - 1);
+    }
+
+    // ---- Structural helpers -------------------------------------------------
+
+    /// <summary>
+    /// Extracts the raw string content of a JSON array property, e.g.
+    /// <c>"objects": [ ... ]</c> returns the text between the brackets.
+    /// </summary>
+    private static string ExtractArrayContent(string json, string arrayKey)
+    {
+        var keyPattern = $"\"{Regex.Escape(arrayKey)}\"\\s*:\\s*\\[";
+        var match = Regex.Match(json, keyPattern, RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var start = match.Index + match.Length - 1; // position of '['
+        var depth = 0;
+        for (var i = start; i < json.Length; i++)
+        {
+            if (json[i] == '[') depth++;
+            else if (json[i] == ']')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    // Return content between '[' and ']'
+                    return json.Substring(start + 1, i - start - 1);
+                }
+            }
+        }
+
+        return null; // Malformed JSON
+    }
+
+    /// <summary>
+    /// Returns the content between the opening brace at <paramref name="openBraceIndex"/>
+    /// and its matching closing brace (inclusive of surrounding braces).
+    /// </summary>
+    private static string ExtractBalancedBraces(string json, int openBraceIndex)
+    {
+        var depth = 0;
+        for (var i = openBraceIndex; i < json.Length; i++)
+        {
+            if (json[i] == '{') depth++;
+            else if (json[i] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return json.Substring(openBraceIndex, i - openBraceIndex + 1);
+                }
+            }
+        }
+
+        return null;
+    }
+
+    /// <summary>
+    /// Splits an array body (text between [ and ]) into individual top-level
+    /// <c>{ … }</c> blocks, handling nested objects correctly.
+    /// </summary>
+    private static List<string> SplitObjectBlocks(string arrayBody)
+    {
+        var result = new List<string>();
+        var depth  = 0;
+        var start  = -1;
+
+        for (var i = 0; i < arrayBody.Length; i++)
+        {
+            var c = arrayBody[i];
+            if (c == '{')
+            {
+                if (depth == 0)
+                {
+                    start = i;
+                }
+
+                depth++;
+            }
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0 && start >= 0)
+                {
+                    result.Add(arrayBody.Substring(start, i - start + 1));
+                    start = -1;
+                }
+            }
+        }
+
+        return result;
+    }
+}
