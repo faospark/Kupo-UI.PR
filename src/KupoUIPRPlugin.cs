@@ -39,6 +39,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<int> TitleScreenTextFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> TitleScreenTextDisableShadowConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
     {
@@ -79,6 +80,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "TitleScreenTextDisableShadow",
             false,
             "If true, disables the Shadow component on the title screen menu text.");
+
+        MessageSpeakerPrefixConfig = Config.Bind(
+            "UI",
+            "MessageSpeakerPrefix",
+            false,
+            "If true, prepends the speaker name to every dialogue message (e.g. \"Maria: I have been worried\" instead of \"I have been worried\").");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
@@ -189,6 +196,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"TitleScreenTextFontSize = {TitleScreenTextFontSizeConfig.Value}");
         Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
         Log.LogInfo($"TitleScreenTextDisableShadow = {TitleScreenTextDisableShadowConfig.Value}");
+        Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
