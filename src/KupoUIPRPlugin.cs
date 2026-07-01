@@ -40,6 +40,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> TitleScreenTextDisableShadowConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> MessageSpeakerPrefixFontSizeConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
     {
@@ -86,6 +87,14 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "MessageSpeakerPrefix",
             false,
             "If true, prepends the speaker name to every dialogue message (e.g. \"Maria: I have been worried\" instead of \"I have been worried\").");
+
+        MessageSpeakerPrefixFontSizeConfig = Config.Bind(
+            "UI",
+            "MessageSpeakerPrefixFontSize",
+            "Auto",
+            "Font size applied to both the speaker label and the message text when MessageSpeakerPrefix is enabled. " +
+            "Use 'Auto' to leave the original font sizes untouched. " +
+            "Set a numeric value (e.g. 24) to override both. Recommended starting value if you see overflow: 24.");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
@@ -197,6 +206,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
         Log.LogInfo($"TitleScreenTextDisableShadow = {TitleScreenTextDisableShadowConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
+        Log.LogInfo($"MessageSpeakerPrefixFontSize = {MessageSpeakerPrefixFontSizeConfig.Value}");
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)

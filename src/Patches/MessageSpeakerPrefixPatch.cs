@@ -1,8 +1,6 @@
 using System;
 using HarmonyLib;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
 using Last.Message;
-using UnityEngine;
 using UnityEngine.UI;
 
 namespace KupoUI.PR.Patches;
@@ -17,6 +15,11 @@ namespace KupoUI.PR.Patches;
 /// shim. Instead we intercept <see cref="Text.text"/>'s setter and check
 /// whether the Text being written to is the <c>messageText</c> field of a
 /// <see cref="MessageWindowView"/> living on the same GameObject hierarchy.
+///
+/// OVERFLOW FIX:
+/// A configurable font size is applied to both the speaker Text and the
+/// message Text whenever a speaker is present, keeping everything at a
+/// consistent, readable size that fits the existing UI box.
 /// </summary>
 [HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
 internal static class MessageSpeakerPrefixPatch
@@ -97,6 +100,35 @@ internal static class MessageSpeakerPrefixPatch
             $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
 
         value = prefix + value;
+
+        // Apply the configured font size to both Text components, unless
+        // the user left the setting as "Auto" (meaning: don't touch it).
+        var fontSizeRaw = KupoUIPRPlugin.MessageSpeakerPrefixFontSizeConfig.Value;
+        if (!string.IsNullOrWhiteSpace(fontSizeRaw)
+            && !fontSizeRaw.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(fontSizeRaw.Trim(), out var targetSize)
+            && targetSize > 0)
+        {
+            ApplyFontSize(__instance, targetSize);
+            ApplyFontSize(spekerText, targetSize);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+
+    private static void ApplyFontSize(Text text, int size)
+    {
+        if (text == null)
+        {
+            return;
+        }
+
+        if (text.fontSize != size)
+        {
+            text.fontSize = size;
+            KupoUIPRPlugin.PluginLog.LogDebug(
+                $"[MessageSpeakerPrefix] fontSize set to {size} on '{text.name}'.");
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────
