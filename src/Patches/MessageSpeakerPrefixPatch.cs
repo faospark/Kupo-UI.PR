@@ -1,40 +1,58 @@
 using System;
 using HarmonyLib;
+using Last.Management;
 using Last.Message;
 using UnityEngine.UI;
 
 namespace KupoUI.PR.Patches;
 
 /// <summary>
-/// Prepends the speaker name to every dialogue message so that it reads
-/// "Maria: I have been worried" instead of just "I have been worried".
-///
-/// STRATEGY:
-/// Harmony cannot patch the IL2CPP interop wrapper's SetMessage directly
-/// because the game invokes the underlying native method, not the managed
-/// shim. Instead we intercept <see cref="Text.text"/>'s setter and check
-/// whether the Text being written to is the <c>messageText</c> field of a
-/// <see cref="MessageWindowView"/> living on the same GameObject hierarchy.
-///
-/// OVERFLOW FIX:
-/// A configurable font size is applied to both the speaker Text and the
-/// message Text whenever a speaker is present, keeping everything at a
-/// consistent, readable size that fits the existing UI box.
+/// Intercepts PlayMessageCommon and MessageManager.GetMessage to capture
+/// the internal dialogue ID/Key (e.g. "E0001_00_999_a_01"), and hooks
+/// Text.text setter to prepend the speaker name and log the active dialogue ID.
 /// </summary>
-[HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
+[HarmonyPatch]
 internal static class MessageSpeakerPrefixPatch
 {
     private const string Separator = ": ";
 
     /// <summary>
+    /// Stores the last dialogue ID captured from the game's event interpreter or localization manager.
+    /// </summary>
+    public static string LastDialogueID { get; private set; } = "None";
+
+    /// <summary>
     /// Reentrancy guard: set to <c>true</c> while we are rewriting <c>value</c>
     /// so that the setter we trigger on ourselves does not loop.
     /// </summary>
-#pragma warning disable CS0649 // assigned via direct field write inside prefix
+#pragma warning disable CS0649
     [ThreadStatic]
     private static bool _isApplying;
 #pragma warning restore CS0649
 
+    // ── INTERCEPT PLAYMESSAGECOMMON TO CAPTURE DIALOGUE ID ────────────────
+    [HarmonyPatch(typeof(Last.Interpreter.Instructions.Message), "PlayMessageCommon")]
+    [HarmonyPrefix]
+    private static void PlayMessageCommonPrefix(string messageID)
+    {
+        LastDialogueID = messageID;
+    }
+
+    // ── INTERCEPT GETMESSAGE TO CAPTURE LOCALIZATION ID ──────────────────
+    [HarmonyPatch(typeof(MessageManager), nameof(MessageManager.GetMessage), new[] { typeof(string), typeof(bool) })]
+    [HarmonyPrefix]
+    private static void GetMessagePrefix(string key, bool isReplace)
+    {
+        // Dialogue and menu keys in FFPR typically start with prefixes like 'E' (event), 'M' (menu), 'S' (system), etc.
+        // Caching the last requested key allows us to bind it when Text.text is set immediately after.
+        if (!string.IsNullOrEmpty(key))
+        {
+            LastDialogueID = key;
+        }
+    }
+
+    // ── INTERCEPT TEXT SETTER TO LOG DETAILS AND PREPEND SPEAKER ─────────
+    [HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
     [HarmonyPrefix]
     private static void TextSetterPrefix(Text __instance, ref string value)
     {
@@ -51,7 +69,6 @@ internal static class MessageSpeakerPrefixPatch
         // Only act on non-empty messages.
         if (string.IsNullOrEmpty(value))
         {
-            KupoUIPRPlugin.PluginLog.LogDebug("[MessageSpeakerPrefix] Skipped – empty value.");
             return;
         }
 
@@ -62,16 +79,10 @@ internal static class MessageSpeakerPrefixPatch
             return; // Not a message text we care about.
         }
 
-        KupoUIPRPlugin.PluginLog.LogDebug(
-            $"[MessageSpeakerPrefix] Caught Text.set_text on '{__instance.name}' " +
-            $"under '{__instance.gameObject?.name}', value='{value}'");
-
         // Confirm this Text IS the messageText field (not spekerText itself).
         var msgText = view.messageText;
         if (msgText == null || msgText.Pointer != __instance.Pointer)
         {
-            KupoUIPRPlugin.PluginLog.LogDebug(
-                "[MessageSpeakerPrefix] Skipped – Text is not the messageText field of the view.");
             return;
         }
 
@@ -79,8 +90,19 @@ internal static class MessageSpeakerPrefixPatch
         var spekerText = view.spekerText;
         var speakerName = spekerText != null ? spekerText.text : null;
 
-        KupoUIPRPlugin.PluginLog.LogDebug(
-            $"[MessageSpeakerPrefix] speakerName='{speakerName ?? "(null)"}'");
+        // Log speakerText and messageText IDs (both Instance ID and Native Pointer) along with the Dialogue Key
+        int msgTextId = __instance.GetInstanceID();
+        string msgTextPtr = __instance.Pointer.ToString("X");
+        int speakerTextId = spekerText != null ? spekerText.GetInstanceID() : 0;
+        string speakerTextPtr = spekerText != null ? spekerText.Pointer.ToString("X") : "null";
+
+        KupoUIPRPlugin.PluginLog.LogInfo(
+            $"[MessageSpeakerPrefix] Dialogue matched. " +
+            $"Key: '{LastDialogueID}', " +
+            $"MessageText ID: {msgTextId} (Ptr: {msgTextPtr}), " +
+            $"SpeakerText ID: {speakerTextId} (Ptr: {speakerTextPtr}), " +
+            $"SpeakerName: '{speakerName ?? "(null)"}', " +
+            $"Message: '{value}'");
 
         if (string.IsNullOrWhiteSpace(speakerName))
         {
@@ -92,14 +114,21 @@ internal static class MessageSpeakerPrefixPatch
         // Guard against double-prefix if this fires twice.
         if (value.StartsWith(prefix, StringComparison.Ordinal))
         {
-            KupoUIPRPlugin.PluginLog.LogDebug("[MessageSpeakerPrefix] Already prefixed, skipping.");
             return;
         }
 
         KupoUIPRPlugin.PluginLog.LogInfo(
             $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
 
-        value = prefix + value;
+        _isApplying = true;
+        try
+        {
+            value = prefix + value;
+        }
+        finally
+        {
+            _isApplying = false;
+        }
 
         // Apply the configured font size to both Text components, unless
         // the user left the setting as "Auto" (meaning: don't touch it).
@@ -136,7 +165,6 @@ internal static class MessageSpeakerPrefixPatch
     /// <summary>
     /// Walks from <paramref name="text"/>'s GameObject up the parent chain
     /// looking for a <see cref="MessageWindowView"/> component.
-    /// Returns <c>null</c> if none found within a reasonable depth.
     /// </summary>
     private static MessageWindowView FindMessageWindowView(Text text)
     {
@@ -145,8 +173,6 @@ internal static class MessageSpeakerPrefixPatch
             return null;
         }
 
-        // Check own GameObject first, then parents (the Text is usually a
-        // child of the MessageWindowView's GameObject).
         var current = text.gameObject.transform;
         const int maxDepth = 8;
         for (var depth = 0; depth < maxDepth && current != null; depth++)
