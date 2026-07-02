@@ -63,7 +63,8 @@ internal static class ObjectConfigPatch
                     + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
                     + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
                     + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
-                    + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : ""));
+                    + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
+                    + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : ""));
             }
         }
 
@@ -367,6 +368,26 @@ internal static class ObjectConfigPatch
             {
                 KupoUIPRPlugin.PluginLog.LogWarning(
                     $"[ObjectConfig] TextColorWhite specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (entry.DisableShadow.HasValue && entry.DisableShadow.Value)
+        {
+            var shadows = go.GetComponents<Shadow>();
+            if (shadows.Length > 0)
+            {
+                foreach (var shadow in shadows)
+                {
+                    if (shadow != null && shadow.enabled)
+                    {
+                        shadow.enabled = false;
+                    }
+                }
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] DisableShadow specified for '{go.name}' but no Shadow component found.");
             }
         }
 

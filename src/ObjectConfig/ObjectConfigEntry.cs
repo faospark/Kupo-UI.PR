@@ -85,6 +85,12 @@ internal sealed class ObjectConfigEntry
     internal bool? TextColorWhite { get; set; }
 
     /// <summary>
+    /// When <c>true</c> and the GameObject has one or more
+    /// <c>UnityEngine.UI.Shadow</c> components, disables them all.
+    /// </summary>
+    internal bool? DisableShadow { get; set; }
+
+    /// <summary>
     /// The disk path of the <c>ObjectConfig.json</c> file this entry was loaded from.
     /// Used for log messages.
     /// </summary>
