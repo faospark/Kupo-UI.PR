@@ -15,7 +15,7 @@ internal static class CustomTexturePatch
     [HarmonyPostfix]
     private static void SpriteTexturePostfix(Sprite __instance, ref Texture2D __result)
     {
-        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTextures)
         {
             return;
         }
@@ -51,7 +51,7 @@ internal static class CustomTexturePatch
     [HarmonyPrefix]
     private static void SpriteRendererSpritePrefix(ref Sprite value)
     {
-        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTextures)
         {
             return;
         }
@@ -83,7 +83,7 @@ internal static class CustomTexturePatch
     [HarmonyPrefix]
     private static void UIImageSpritePrefix(Image __instance, ref Sprite value)
     {
-        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTextures)
         {
             return;
         }
@@ -120,7 +120,7 @@ internal static class CustomTexturePatch
     [HarmonyPrefix]
     private static bool UIImageSetNativeSizePrefix(Image __instance)
     {
-        if (!KupoUIPRPlugin.EnableCustomTexturesConfig.Value)
+        if (!KupoUIPRPlugin.EnableCustomTextures)
         {
             return true;
         }

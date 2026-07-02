@@ -55,6 +55,36 @@ internal sealed class ObjectConfigEntry
     internal string TextAlignment { get; set; }
 
     /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.UI.Text</c> component,
+    /// sets <c>Text.fontSize</c> to the specified value.
+    /// </summary>
+    internal int? FontSize { get; set; }
+
+    /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.UI.Text</c> component,
+    /// sets <c>Text.resizeTextForBestFit</c> to the specified value.
+    /// </summary>
+    internal bool? ResizeTextForBestFit { get; set; }
+
+    /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.UI.Text</c> component,
+    /// sets <c>Text.resizeTextMaxSize</c> to the specified value.
+    /// </summary>
+    internal int? ResizeTextMaxSize { get; set; }
+
+    /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.UI.Text</c> component,
+    /// sets <c>Text.resizeTextMinSize</c> to the specified value.
+    /// </summary>
+    internal int? ResizeTextMinSize { get; set; }
+
+    /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.UI.Text</c> component,
+    /// forces its color to white.
+    /// </summary>
+    internal bool? TextColorWhite { get; set; }
+
+    /// <summary>
     /// The disk path of the <c>ObjectConfig.json</c> file this entry was loaded from.
     /// Used for log messages.
     /// </summary>

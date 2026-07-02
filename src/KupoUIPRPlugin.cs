@@ -24,7 +24,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> DisableMouseCursorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ForceVSyncConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SaveHighlightColorConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> EnableCustomTexturesConfig { get; private set; } = null!;
+    internal static bool EnableCustomTextures => true;
     internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
@@ -50,7 +50,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         SaveHighlightColorConfig = Config.Bind(
             "UI",
             "SaveHighlightColor",
-            "DarkNavy",
+            "Disable",
             "Save slot highlight color override for image_blue. Options: Original, DarkNavy, DarkGreen, DarkViolet, DarkYellow, DarkOrange, Disable.");
 
         ScaledDownMenuConfig = Config.Bind(
@@ -84,30 +84,25 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "If true, disables the Shadow component on the title screen menu text.");
 
         MessageSpeakerPrefixConfig = Config.Bind(
-            "UI",
+            "UI-Dialogbox",
             "MessageSpeakerPrefix",
             false,
             "If true, prepends the speaker name to every dialogue message (e.g. \"Maria: I have been worried\" instead of \"I have been worried\").");
 
         MessageSpeakerPrefixFontSizeConfig = Config.Bind(
-            "UI",
+            "UI-Dialogbox",
             "MessageSpeakerPrefixFontSize",
-            "Auto",
+            "36",
             "Font size applied to both the speaker label and the message text when MessageSpeakerPrefix is enabled. " +
             "Use 'Auto' to leave the original font sizes untouched. " +
             "Set a numeric value (e.g. 24) to override both. Recommended starting value if you see overflow: 24.");
 
         MessageSpeakerPrefixLoggingConfig = Config.Bind(
-            "UI",
+            "UI-Dialogbox",
             "MessageSpeakerPrefixLogging",
             true,
             "If true, outputs dialogue match logs to the BepInEx console (helpful for extracting dialogue keys/IDs).");
 
-        EnableCustomTexturesConfig = Config.Bind(
-            "Textures",
-            "EnableCustomTextures",
-            true,
-            "If true, enables custom texture loading and replacement.");
 
         UIThemesFolderConfig = Config.Bind(
             "Modules",
@@ -218,7 +213,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");
         Log.LogInfo($"ForceVSync = {ForceVSyncConfig.Value}");
         Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
-        Log.LogInfo($"EnableCustomTextures = {EnableCustomTexturesConfig.Value}");
+        Log.LogInfo($"EnableCustomTextures = {EnableCustomTextures}");
         Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
         Log.LogInfo($"TitleScreenTextWhite = {TitleScreenTextWhiteConfig.Value}");
         Log.LogInfo($"TitleScreenTextFontSize = {TitleScreenTextFontSizeConfig.Value}");

@@ -128,6 +128,11 @@ internal static class ObjectConfigLoader
             SceneName        = ReadString(block, "SceneName")?.Trim(),
             SetActive        = ReadBool(block, "SetActive"),
             TextAlignment    = ReadString(block, "TextAlignment")?.Trim(),
+            FontSize         = ReadInt(block, "FontSize"),
+            ResizeTextForBestFit = ReadBool(block, "ResizeTextForBestFit"),
+            ResizeTextMaxSize    = ReadInt(block, "ResizeTextMaxSize"),
+            ResizeTextMinSize    = ReadInt(block, "ResizeTextMinSize"),
+            TextColorWhite       = ReadBool(block, "TextColorWhite"),
             SourceFile       = sourceFile,
         };
 
@@ -209,6 +214,20 @@ internal static class ObjectConfigLoader
         }
 
         return bool.TryParse(match.Groups[1].Value, out var v) ? v : (bool?)null;
+    }
+
+    private static int? ReadInt(string json, string key)
+    {
+        var match = Regex.Match(
+            json,
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*(-?\\d+)",
+            RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        return int.TryParse(match.Groups[1].Value, out var v) ? v : (int?)null;
     }
 
     /// <summary>

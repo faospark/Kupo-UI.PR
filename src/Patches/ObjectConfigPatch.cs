@@ -26,6 +26,8 @@ namespace KupoUI.PR.Patches;
 internal static class ObjectConfigPatch
 {
     private static string _modulesRootPath;
+    private static bool _hasTextColorWhiteRules;
+    private static bool _isApplyingColor;
 
     /// <summary>
     /// Called once from <see cref="KupoUIPRPlugin.Load"/> to bootstrap the system.
@@ -35,8 +37,18 @@ internal static class ObjectConfigPatch
         _modulesRootPath = modulesRootPath;
         ObjectConfigLoader.Load(_modulesRootPath);
 
-        // Log a summary of every loaded rule so the user can verify parsing in the BepInEx log.
+        // Check if any rule requires forcing text color to white
+        _hasTextColorWhiteRules = false;
         var entries = ObjectConfigLoader.Entries;
+        foreach (var e in entries)
+        {
+            if (e.TextColorWhite == true)
+            {
+                _hasTextColorWhiteRules = true;
+            }
+        }
+
+        // Log a summary of every loaded rule so the user can verify parsing in the BepInEx log.
         if (entries.Count > 0)
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] {entries.Count} rule(s) ready:");
@@ -50,7 +62,8 @@ internal static class ObjectConfigPatch
                     + (e.Rotation.HasValue  ? $" rot=({e.Rotation.Value.X},{e.Rotation.Value.Y},{e.Rotation.Value.Z})"    : "")
                     + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
                     + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
-                    + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}"));
+                    + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
+                    + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : ""));
             }
         }
 
@@ -287,8 +300,127 @@ internal static class ObjectConfigPatch
             }
         }
 
+        if (entry.FontSize.HasValue)
+        {
+            var textComp = go.GetComponent<Text>();
+            if (textComp != null)
+            {
+                textComp.fontSize = entry.FontSize.Value;
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] FontSize specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (entry.ResizeTextForBestFit.HasValue)
+        {
+            var textComp = go.GetComponent<Text>();
+            if (textComp != null)
+            {
+                textComp.resizeTextForBestFit = entry.ResizeTextForBestFit.Value;
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] ResizeTextForBestFit specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (entry.ResizeTextMaxSize.HasValue)
+        {
+            var textComp = go.GetComponent<Text>();
+            if (textComp != null)
+            {
+                textComp.resizeTextMaxSize = entry.ResizeTextMaxSize.Value;
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] ResizeTextMaxSize specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (entry.ResizeTextMinSize.HasValue)
+        {
+            var textComp = go.GetComponent<Text>();
+            if (textComp != null)
+            {
+                textComp.resizeTextMinSize = entry.ResizeTextMinSize.Value;
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] ResizeTextMinSize specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (entry.TextColorWhite.HasValue && entry.TextColorWhite.Value)
+        {
+            var textComp = go.GetComponent<Text>();
+            if (textComp != null)
+            {
+                EnforceWhiteColor(textComp);
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] TextColorWhite specified for '{go.name}' but no Text component found.");
+            }
+        }
+
         KupoUIPRPlugin.PluginLog.LogInfo(
             $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
+    }
+
+    // -------------------------------------------------------------------------
+    // TextColorWhite enforcement
+    // -------------------------------------------------------------------------
+
+    /// <summary>
+    /// Intercepts every <c>Graphic.color</c> write. If the target has a matching
+    /// <c>TextColorWhite: true</c> rule the color value is overridden to white
+    /// before Unity applies it, preventing the game from resetting it later.
+    /// </summary>
+    [HarmonyPatch(typeof(Graphic), nameof(Graphic.color), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void GraphicColorSetterPrefix(Graphic __instance, ref Color value)
+    {
+        if (!_hasTextColorWhiteRules || _isApplyingColor) return;
+        if (__instance == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+        foreach (var entry in ObjectConfigLoader.Entries)
+        {
+            if (entry.TextColorWhite != true) continue;
+            if (__instance.name != entry.TargetObjectName) continue;
+            if (!string.IsNullOrEmpty(entry.SceneName)
+                && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.IsNullOrEmpty(entry.TargetPath)
+                && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
+
+            value = Color.white;
+            return;
+        }
+    }
+
+    /// <summary>
+    /// Sets the color of a <see cref="Graphic"/> component to white, guarded by
+    /// a re-entrancy flag to prevent infinite loops when Harmony intercepts the setter.
+    /// </summary>
+    private static void EnforceWhiteColor(Text textComp)
+    {
+        if (_isApplyingColor) return;
+        _isApplyingColor = true;
+        try
+        {
+            textComp.color = Color.white;
+        }
+        finally
+        {
+            _isApplyingColor = false;
+        }
     }
 
     // -------------------------------------------------------------------------

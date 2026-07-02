@@ -222,7 +222,12 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
       "Rotation": { "x": 0, "y": 0,   "z": 0 },
       "Scale":    { "x": 0.9, "y": 0.9, "z": 1.0 },
       "SetActive": true,
-      "TextAlignment": "MiddleCenter"
+      "TextAlignment": "MiddleCenter",
+      "FontSize": 24,
+      "ResizeTextForBestFit": true,
+      "ResizeTextMaxSize": 36,
+      "ResizeTextMinSize": 12,
+      "TextColorWhite": true
     }
   ]
 }
@@ -242,6 +247,11 @@ The `objects` array can contain as many entries as you need, across one file or 
 | `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
 | `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
 | `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [text alignment values](#text-alignment-values) below. |
+| `FontSize` | No | Sets `Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
+| `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit` on the `UnityEngine.UI.Text` component (if present). Use `true` or `false`. |
+| `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
+| `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
+| `TextColorWhite` | No | Forces `Text.color` to `Color.white` on the `UnityEngine.UI.Text` component (if present). Re-enforced on every color write to prevent the game from overriding it. Use `true`. |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 
