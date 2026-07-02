@@ -2,6 +2,7 @@ using System;
 using HarmonyLib;
 using Last.Management;
 using Last.Message;
+using UnityEngine;
 using UnityEngine.UI;
 
 namespace KupoUI.PR.Patches;
@@ -10,6 +11,7 @@ namespace KupoUI.PR.Patches;
 /// Intercepts PlayMessageCommon and MessageManager.GetMessage to capture
 /// the internal dialogue ID/Key (e.g. "E0001_00_999_a_01"), and hooks
 /// Text.text setter to prepend the speaker name and log the active dialogue ID.
+/// Also forces the custom font size and locks it during layout / rendering.
 /// </summary>
 [HarmonyPatch]
 internal static class MessageSpeakerPrefixPatch
@@ -29,6 +31,140 @@ internal static class MessageSpeakerPrefixPatch
     [ThreadStatic]
     private static bool _isApplying;
 #pragma warning restore CS0649
+
+    // ── FORCE BEST FIT TO REMAIN FALSE FOR DIALOGUE TEXT ─────────────────
+    [HarmonyPatch(typeof(Text), nameof(Text.resizeTextForBestFit), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void ResizeTextForBestFitSetterPrefix(Text __instance, ref bool value)
+    {
+        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value)
+        {
+            return;
+        }
+
+        var name = __instance.name;
+        if (name == "message_text" && IsInDialogueWindow(__instance.transform))
+        {
+            value = false; // Force it to remain false
+        }
+    }
+
+    // ── FORCE FONT SIZE ON DIALOGUE AND SPEAKER TEXTS ─────────────────────
+    [HarmonyPatch(typeof(Text), nameof(Text.fontSize), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void FontSizeSetterPrefix(Text __instance, ref int value)
+    {
+        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value)
+        {
+            return;
+        }
+
+        var fontSizeRaw = KupoUIPRPlugin.MessageSpeakerPrefixFontSizeConfig.Value;
+        if (!string.IsNullOrWhiteSpace(fontSizeRaw)
+            && !fontSizeRaw.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(fontSizeRaw.Trim(), out var targetSize)
+            && targetSize > 0)
+        {
+            var name = __instance.name;
+            if ((name == "message_text" || name == "speker_text") && IsInDialogueWindow(__instance.transform))
+            {
+                value = targetSize; // Force it to our target size
+            }
+        }
+    }
+
+    // ── OVERRIDE SERIALIZATION RESETS VIA GRAPHIC HOOKS ────────────────────
+    [HarmonyPatch(typeof(Graphic), "OnEnable")]
+    [HarmonyPostfix]
+    private static void GraphicOnEnablePostfix(Graphic __instance)
+    {
+        if (IsDialogueText(__instance, out var textComp, out var targetSize))
+        {
+            if (textComp.fontSize != targetSize)
+            {
+                textComp.fontSize = targetSize;
+            }
+            if (textComp.resizeTextForBestFit)
+            {
+                textComp.resizeTextForBestFit = false;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(Graphic), "UpdateMaterial")]
+    [HarmonyPostfix]
+    private static void GraphicUpdateMaterialPostfix(Graphic __instance)
+    {
+        if (IsDialogueText(__instance, out var textComp, out var targetSize))
+        {
+            if (textComp.fontSize != targetSize)
+            {
+                textComp.fontSize = targetSize;
+            }
+            if (textComp.resizeTextForBestFit)
+            {
+                textComp.resizeTextForBestFit = false;
+            }
+        }
+    }
+
+    private static bool IsDialogueText(Graphic graphic, out Text textComp, out int targetSize)
+    {
+        textComp = null;
+        targetSize = 0;
+
+        if (graphic == null || graphic.gameObject == null)
+        {
+            return false;
+        }
+
+        textComp = graphic.GetComponent<Text>();
+        if (textComp == null)
+        {
+            return false;
+        }
+
+        var name = graphic.name;
+        if (name != "message_text" && name != "speker_text")
+        {
+            return false;
+        }
+
+        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value)
+        {
+            return false;
+        }
+
+        var fontSizeRaw = KupoUIPRPlugin.MessageSpeakerPrefixFontSizeConfig.Value;
+        if (string.IsNullOrWhiteSpace(fontSizeRaw)
+            || fontSizeRaw.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+            || !int.TryParse(fontSizeRaw.Trim(), out targetSize)
+            || targetSize <= 0)
+        {
+            return false;
+        }
+
+        return IsInDialogueWindow(graphic.transform);
+    }
+
+    private static bool IsInDialogueWindow(UnityEngine.Transform t)
+    {
+        if (t == null) return false;
+
+        var current = t;
+        const int maxDepth = 8;
+        for (var depth = 0; depth < maxDepth && current != null; depth++)
+        {
+            var name = current.name;
+            if (name.Contains("message_window") || name.Contains("message_parent") || name.Contains("upper_parent") || name.Contains("lower_parent"))
+            {
+                return true;
+            }
+            current = current.parent;
+        }
+
+        return false;
+    }
 
     // ── INTERCEPT PLAYMESSAGECOMMON TO CAPTURE DIALOGUE ID ────────────────
     [HarmonyPatch(typeof(Last.Interpreter.Instructions.Message), "PlayMessageCommon")]
@@ -107,33 +243,29 @@ internal static class MessageSpeakerPrefixPatch
                 $"Message: '{value}'");
         }
 
-        if (string.IsNullOrWhiteSpace(speakerName))
+        if (!string.IsNullOrWhiteSpace(speakerName))
         {
-            return;
-        }
+            var prefix = speakerName + Separator;
 
-        var prefix = speakerName + Separator;
+            // Guard against double-prefix if this fires twice.
+            if (!value.StartsWith(prefix, StringComparison.Ordinal))
+            {
+                if (KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo(
+                        $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
+                }
 
-        // Guard against double-prefix if this fires twice.
-        if (value.StartsWith(prefix, StringComparison.Ordinal))
-        {
-            return;
-        }
-
-        if (KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
-        {
-            KupoUIPRPlugin.PluginLog.LogInfo(
-                $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
-        }
-
-        _isApplying = true;
-        try
-        {
-            value = prefix + value;
-        }
-        finally
-        {
-            _isApplying = false;
+                _isApplying = true;
+                try
+                {
+                    value = prefix + value;
+                }
+                finally
+                {
+                    _isApplying = false;
+                }
+            }
         }
 
         // Apply the configured font size to both Text components, unless
