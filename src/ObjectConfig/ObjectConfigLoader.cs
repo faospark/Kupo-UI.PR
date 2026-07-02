@@ -58,6 +58,18 @@ internal static class ObjectConfigLoader
             $"[ObjectConfig] Loaded {totalLoaded} rule(s) from {files.Length} file(s).");
     }
 
+    /// <summary>
+    /// Adds a single rule at runtime.
+    /// </summary>
+    internal static void AddEntry(ObjectConfigEntry entry)
+    {
+        if (entry == null) return;
+        _entries.Add(entry);
+        KupoUIPRPlugin.PluginLog.LogInfo(
+            $"[ObjectConfig] Runtime entry added: name='{entry.TargetObjectName}'" +
+            (string.IsNullOrEmpty(entry.TargetPath) ? "" : $" path='{entry.TargetPath}'"));
+    }
+
     // -------------------------------------------------------------------------
     // JSON parsing (hand-rolled to match the project's existing pattern and
     // avoid adding a JSON library dependency)

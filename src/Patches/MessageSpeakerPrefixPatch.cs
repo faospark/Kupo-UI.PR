@@ -96,13 +96,16 @@ internal static class MessageSpeakerPrefixPatch
         int speakerTextId = spekerText != null ? spekerText.GetInstanceID() : 0;
         string speakerTextPtr = spekerText != null ? spekerText.Pointer.ToString("X") : "null";
 
-        KupoUIPRPlugin.PluginLog.LogInfo(
-            $"[MessageSpeakerPrefix] Dialogue matched. " +
-            $"Key: '{LastDialogueID}', " +
-            $"MessageText ID: {msgTextId} (Ptr: {msgTextPtr}), " +
-            $"SpeakerText ID: {speakerTextId} (Ptr: {speakerTextPtr}), " +
-            $"SpeakerName: '{speakerName ?? "(null)"}', " +
-            $"Message: '{value}'");
+        if (KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[MessageSpeakerPrefix] Dialogue matched. " +
+                $"Key: '{LastDialogueID}', " +
+                $"MessageText ID: {msgTextId} (Ptr: {msgTextPtr}), " +
+                $"SpeakerText ID: {speakerTextId} (Ptr: {speakerTextPtr}), " +
+                $"SpeakerName: '{speakerName ?? "(null)"}', " +
+                $"Message: '{value}'");
+        }
 
         if (string.IsNullOrWhiteSpace(speakerName))
         {
@@ -117,8 +120,11 @@ internal static class MessageSpeakerPrefixPatch
             return;
         }
 
-        KupoUIPRPlugin.PluginLog.LogInfo(
-            $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
+        if (KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
+        }
 
         _isApplying = true;
         try

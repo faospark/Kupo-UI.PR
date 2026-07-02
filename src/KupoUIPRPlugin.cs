@@ -41,6 +41,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> TitleScreenTextDisableShadowConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
     internal static ConfigEntry<string> MessageSpeakerPrefixFontSizeConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> MessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
     {
@@ -95,6 +96,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "Font size applied to both the speaker label and the message text when MessageSpeakerPrefix is enabled. " +
             "Use 'Auto' to leave the original font sizes untouched. " +
             "Set a numeric value (e.g. 24) to override both. Recommended starting value if you see overflow: 24.");
+
+        MessageSpeakerPrefixLoggingConfig = Config.Bind(
+            "UI",
+            "MessageSpeakerPrefixLogging",
+            true,
+            "If true, outputs dialogue match logs to the BepInEx console (helpful for extracting dialogue keys/IDs).");
 
         EnableCustomTexturesConfig = Config.Bind(
             "Textures",
@@ -195,6 +202,18 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ForceVSyncPatch.ApplyNow();
         ObjectConfigPatch.Initialize(ModulesRootPath);
 
+        if (MessageSpeakerPrefixConfig.Value)
+        {
+            ObjectConfigLoader.AddEntry(new ObjectConfig.ObjectConfigEntry
+            {
+                TargetObjectName = "speker_root",
+                TargetPath = "RootObject/Canvas/UIParent/message_parent(Clone)/parent_root/upper_parent/message_window(Clone)/speker_root",
+                Position = new ObjectConfig.Vec3 { X = -730f, Y = -5580f, Z = 0f },
+                Scale = new ObjectConfig.Vec3 { X = 0.9f, Y = 0.9f, Z = 1f },
+                SourceFile = "KupoUIPRPlugin.cs"
+            });
+        }
+
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");
         Log.LogInfo($"ForceVSync = {ForceVSyncConfig.Value}");
@@ -207,6 +226,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"TitleScreenTextDisableShadow = {TitleScreenTextDisableShadowConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixFontSize = {MessageSpeakerPrefixFontSizeConfig.Value}");
+        Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
