@@ -396,6 +396,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
                     if (!string.IsNullOrEmpty(file))
                     {
                         RegisterFontFile(file);
+                    }
+
+                    if (!string.IsNullOrEmpty(fontName))
+                    {
                         FontConfigMapping[fontType] = new FontConfigEntry 
                         { 
                             FontFile = file, 
@@ -408,15 +412,26 @@ public sealed class KupoUIPRPlugin : BasePlugin
                 }
                 else
                 {
-                    // Match string: "Font01" : "MyFont.ttf"
+                    // Match string: "Font01" : "MyFont.ttf" or "Font01" : "Consolas"
                     var strMatch = Regex.Match(json, $"\"{name}\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
                     if (strMatch.Success)
                     {
-                        var file = strMatch.Groups[1].Value;
-                        if (!string.IsNullOrEmpty(file))
+                        var value = strMatch.Groups[1].Value;
+                        if (!string.IsNullOrEmpty(value))
                         {
-                            var fontName = Path.GetFileNameWithoutExtension(file);
-                            RegisterFontFile(file);
+                            var hasExtension = value.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || 
+                                               value.EndsWith(".otf", StringComparison.OrdinalIgnoreCase);
+                            
+                            string file = "";
+                            string fontName = value;
+
+                            if (hasExtension)
+                            {
+                                file = value;
+                                fontName = Path.GetFileNameWithoutExtension(file);
+                                RegisterFontFile(file);
+                            }
+
                             FontConfigMapping[fontType] = new FontConfigEntry 
                             { 
                                 FontFile = file, 

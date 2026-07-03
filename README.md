@@ -631,8 +631,8 @@ The mapping file supports both **simple string mappings** (where the font family
 }
 ```
 
-*   **`FontFile`**: The filename of the `.ttf` or `.otf` file located directly in the `00-Mods/Fonts/` directory.
-*   **`FontName`**: **(Highly Recommended)** The font family name (e.g. `"Harrington"`, `"Segoe UI"`). This is registered with the OS GDI system and resolved by Unity's dynamic font engine, preventing blank text rendering.
+*   **`FontFile`**: **(Optional)** The filename of the `.ttf` or `.otf` file located directly in the `00-Mods/Fonts/` directory. Omit this if you are using a font already pre-installed in the Windows OS.
+*   **`FontName`**: The font family name (e.g. `"Harrington"`, `"Consolas"`, `"Segoe UI"`). If `FontFile` is provided, this registers and matches the custom file. If `FontFile` is omitted, it resolves directly to the matching pre-installed system font.
 *   **`LineSpace`**: A decimal factor representing the line height/spacing (e.g. `1.2`). Override this if your replacement font appears too cramped or overflows dialogue boxes vertically.
 *   **`FontSize`**: An integer representing the target rendering size (e.g. `32`). If omitted, it will automatically scale to match the size of the default font it replaces.
 
