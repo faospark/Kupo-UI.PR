@@ -1,5 +1,8 @@
 using System;
+using System.IO;
+using System.Text.RegularExpressions;
 using System.Collections.Generic;
+using System.Runtime.InteropServices;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -25,10 +28,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> DisableMouseCursorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ForceVSyncConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SaveHighlightColorConfig { get; private set; } = null!;
-    internal static bool EnableCustomTextures => true;
-    internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
-    internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
     internal static ConfigEntry<string> UiFramesFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> UIThemesFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> UIBgColorFolderConfig { get; private set; } = null!;
@@ -43,11 +42,27 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static bool IsTextureLoggerEnabled { get; private set; }
 
     internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> FontSwapSystemFontNameConfig { get; private set; } = null!;
-    internal static ConfigEntry<int> FontSwapFontSizeConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> FontSwapTargetFontTypesConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticsLogFontMappingConfig { get; private set; } = null!;
-    internal static HashSet<Last.Management.FontManager.FontType> ParsedTargetTypes { get; } = new();
+
+    internal class FontConfigEntry
+    {
+        public string FontFile { get; set; } = "";
+        public string FontName { get; set; } = "";
+        public float? LineSpace { get; set; }
+        public int? FontSize { get; set; }
+    }
+    internal static Dictionary<Last.Management.FontManager.FontType, FontConfigEntry> FontConfigMapping { get; } = new();
+    internal static Dictionary<string, UnityEngine.Font> LoadedFonts { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    // Windows GDI P/Invokes to register font files temporarily for our process
+    [DllImport("gdi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern int AddFontResourceEx(string lpszFilename, uint fl, IntPtr pdv);
+
+    [DllImport("gdi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
+    private static extern bool RemoveFontResourceEx(string lpszFilename, uint fl, IntPtr pdv);
+
+    private const uint FR_PRIVATE = 0x10;
+    private static readonly List<string> RegisteredFontFiles = new();
 
     public override void Load()
     {
@@ -57,28 +72,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "FontSwap",
             "Enabled",
             false,
-            "If true, swaps default game fonts with a system font for targets in TargetFontTypes."
-        );
-
-        FontSwapSystemFontNameConfig = Config.Bind(
-            "FontSwap",
-            "SystemFontName",
-            "Segoe UI",
-            "Name of the system font to use for replacement."
-        );
-
-        FontSwapFontSizeConfig = Config.Bind(
-            "FontSwap",
-            "FontSize",
-            32,
-            "Font size to pass to Font.CreateDynamicFontFromOSFont."
-        );
-
-        FontSwapTargetFontTypesConfig = Config.Bind(
-            "FontSwap",
-            "TargetFontTypes",
-            "",
-            "Comma-separated list of FontType enum names to swap (e.g. Font01, Font02)."
+            "If true, swaps default game fonts with custom font files defined in Modules/00-Mods/Fonts/fontconfig.json."
         );
 
         DiagnosticsLogFontMappingConfig = Config.Bind(
@@ -87,8 +81,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
             true,
             "If true, logs information about FontManager.CreateFontParameter and set_FontInstance requests to identify FontType mappings."
         );
-
-        ParseTargetFontTypes();
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
@@ -108,76 +100,72 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "original",
             "Color for the title screen background. Options: original, white, black, navy, crimson, violet.");
 
-        MessageSpeakerPrefixConfig = Config.Bind(
-            "UI-Dialogbox",
-            "MessageSpeakerPrefix",
-            false,
-            "If true, prepends the speaker name to every dialogue message (e.g. \"Maria: I have been worried\" instead of \"I have been worried\").");
-
         DialogueFontSizeConfig = Config.Bind(
-            "UI-Dialogbox",
+            "UI-Text-Size",
             "DialogueFontSize",
             "36",
-            "Font size applied to dialogue message text and speaker label. " +
-            "Independent of MessageSpeakerPrefix — works on its own. " +
-            "Use 'Auto' to leave the original font sizes untouched. " +
-            "Set a numeric value (e.g. 24) to override. Recommended starting value if you see overflow: 24.");
+            "Font size to use for Dialogue Text UI. Defualt is 36. This value can scale up to 48.");
+
+        MessageSpeakerPrefixConfig = Config.Bind(
+            "UI-Message-Tweaks",
+            "MessageSpeakerPrefix",
+            false,
+            "If true, adds a prefix to the message window speaker text to display the speaker name.");
 
         MessageSpeakerPrefixLoggingConfig = Config.Bind(
-            "UI-Dialogbox",
+            "UI-Message-Tweaks",
             "MessageSpeakerPrefixLogging",
             true,
-            "If true, outputs dialogue match logs to the BepInEx console (helpful for extracting dialogue keys/IDs).");
-
-
-        UIThemesFolderConfig = Config.Bind(
-            "Modules",
-            "UIThemesFolder",
-            "Default",
-            "Specify a theme pack under 01-UI-Themes. Overrides 00-Mods but is overridden by specific pack folders. Default = means it will do nothing.");
-
-        UiFramesFolderConfig = Config.Bind(
-            "Modules",
-            "UIFramesFolder",
-            "Default",
-            "Specify Folder to Override UI Frames 02-UI-Frames. Default = means it will do nothing.");
-
-        UIBgColorFolderConfig = Config.Bind(
-            "Modules",
-            "UIBgColorFolder",
-            "Default",
-            "Specify Folder to Override UI Background Colors 03-UI-BgColor. Default = means it will do nothing.");
-
-        CursorsFolderConfig = Config.Bind(
-            "Modules",
-            "CursorsFolder",
-            "Default",
-            "Specify Folder to Override Cursors 04-UI-Cursors. Default = means it will do nothing.");
-
-        ButtonPromptsFolderConfig = Config.Bind(
-            "Modules",
-            "ButtonPromptsFolder",
-            "Default",
-            "Specify Folder to Override Button Prompts 05-Button-Prompts. Default = means it will do nothing.");
+            "If true, logs speaker name replacements.");
 
         DisableMouseCursorConfig = Config.Bind(
-            "Utility",
+            "UI-Cursor",
             "DisableMouseCursor",
             true,
-            "If true, forces the game cursor to remain hidden.");
+            "If true, disables the default mouse cursor inside game frame.");
 
         ForceVSyncConfig = Config.Bind(
-            "Utility",
+            "UI-Graphics",
             "ForceVSync",
             true,
-            "If true, forces V-Sync on and keeps it from being disabled by the game.");
+            "If true, forces VSync on startup.");
+
+        UiFramesFolderConfig = Config.Bind(
+            "Textures-Resolving",
+            "UiFramesFolder",
+            "UiFrames",
+            "Target folder for ResolveTexture: UI frame overrides.");
+
+        UIThemesFolderConfig = Config.Bind(
+            "Textures-Resolving",
+            "UIThemesFolder",
+            "UIThemes",
+            "Target folder for ResolveTexture: UI theme overrides.");
+
+        UIBgColorFolderConfig = Config.Bind(
+            "Textures-Resolving",
+            "UIBgColorFolder",
+            "UIBgColor",
+            "Target folder for ResolveTexture: UI background color overrides.");
+
+        CursorsFolderConfig = Config.Bind(
+            "Textures-Resolving",
+            "CursorsFolder",
+            "Cursors",
+            "Target folder for ResolveTexture: Cursor overrides.");
+
+        ButtonPromptsFolderConfig = Config.Bind(
+            "Textures-Resolving",
+            "ButtonPromptsFolder",
+            "ButtonPrompts",
+            "Target folder for ResolveTexture: Button prompt overrides.");
 
         TextureLoggerConfig = Config.Bind(
-            "Utility",
+            "Diagnostics",
             "TextureLogger",
-            "None",
-            "Combined texture logger setting. Use comma-separated values: Discoveries, Resolutions, Misses. Use All to log all categories or None to disable logger.");
-        
+            "Off",
+            "Texture Resolution Logger mode: Off, Discoveries, Resolutions, Misses, All");
+
         EnableTextureHotReloadConfig = Config.Bind(
             "Utility",
             "EnableTextureHotReload",
@@ -207,6 +195,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
             logMisses);
 
         ModulesRootPath = System.IO.Path.Combine(Paths.GameRootPath, TextureRootFolder);
+
+        LoadFontConfig();
 
         TextureResolver.Initialize(
             TextureRootFolder,
@@ -246,10 +236,21 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
         Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
-        Log.LogInfo($"FontSwapSystemFontName = {FontSwapSystemFontNameConfig.Value}");
-        Log.LogInfo($"FontSwapFontSize = {FontSwapFontSizeConfig.Value}");
-        Log.LogInfo($"FontSwapTargetFontTypes = {FontSwapTargetFontTypesConfig.Value}");
         Log.LogInfo($"DiagnosticsLogFontMapping = {DiagnosticsLogFontMappingConfig.Value}");
+    }
+
+    public void OnDestroy()
+    {
+        foreach (var path in RegisteredFontFiles)
+        {
+            try
+            {
+                RemoveFontResourceEx(path, FR_PRIVATE, IntPtr.Zero);
+                PluginLog.LogInfo($"[FontSwap] Unregistered font file: {Path.GetFileName(path)}");
+            }
+            catch {}
+        }
+        RegisteredFontFiles.Clear();
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
@@ -259,82 +260,183 @@ public sealed class KupoUIPRPlugin : BasePlugin
             return (false, false, false, false);
         }
 
-        var enabled = true;
-        var logDiscoveries = false;
-        var logResolutions = false;
-        var logMisses = false;
-
-        var tokens = configValue.Split(new[] { ',', ';', '|' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var rawToken in tokens)
+        var lower = configValue.ToLowerInvariant();
+        if (lower == "all")
         {
-            var token = rawToken.Trim();
-            if (token.Equals("all", StringComparison.OrdinalIgnoreCase))
-            {
-                return (true, true, true, true);
-            }
-
-            if (token.Equals("none", StringComparison.OrdinalIgnoreCase)
-                || token.Equals("off", StringComparison.OrdinalIgnoreCase)
-                || token.Equals("disabled", StringComparison.OrdinalIgnoreCase)
-                || token.Equals("false", StringComparison.OrdinalIgnoreCase))
-            {
-                return (false, false, false, false);
-            }
-
-            if (token.Equals("discoveries", StringComparison.OrdinalIgnoreCase) || token.Equals("discovery", StringComparison.OrdinalIgnoreCase))
-            {
-                logDiscoveries = true;
-                continue;
-            }
-
-            if (token.Equals("resolutions", StringComparison.OrdinalIgnoreCase) || token.Equals("resolution", StringComparison.OrdinalIgnoreCase))
-            {
-                logResolutions = true;
-                continue;
-            }
-
-            if (token.Equals("misses", StringComparison.OrdinalIgnoreCase) || token.Equals("missing", StringComparison.OrdinalIgnoreCase))
-            {
-                logMisses = true;
-                continue;
-            }
-
-            if (token.Equals("enabled", StringComparison.OrdinalIgnoreCase) || token.Equals("true", StringComparison.OrdinalIgnoreCase))
-            {
-                enabled = true;
-            }
+            return (true, true, true, true);
         }
-
-        if (!logDiscoveries && !logResolutions && !logMisses)
-        {
-            return (false, false, false, false);
-        }
+        var enabled = lower != "off" && lower != "false" && lower != "0";
+        var logDiscoveries = lower.Contains("discover");
+        var logResolutions = lower.Contains("resol");
+        var logMisses = lower.Contains("miss");
 
         return (enabled, logDiscoveries, logResolutions, logMisses);
     }
 
-    private void ParseTargetFontTypes()
+    private void RegisterFontFile(string fontFile)
     {
-        ParsedTargetTypes.Clear();
-        var val = FontSwapTargetFontTypesConfig.Value;
-        if (string.IsNullOrWhiteSpace(val))
+        var fontFilePath = Path.Combine(ModulesRootPath, "00-Mods", "Fonts", fontFile);
+        if (File.Exists(fontFilePath))
         {
+            var normalizedPath = Path.GetFullPath(fontFilePath);
+            if (!RegisteredFontFiles.Contains(normalizedPath))
+            {
+                try
+                {
+                    int result = AddFontResourceEx(normalizedPath, FR_PRIVATE, IntPtr.Zero);
+                    if (result > 0)
+                    {
+                        RegisteredFontFiles.Add(normalizedPath);
+                        PluginLog.LogInfo($"[FontSwap] Registered font file with OS: '{fontFile}' ({result} font(s) added)");
+                    }
+                    else
+                    {
+                        PluginLog.LogWarning($"[FontSwap] AddFontResourceEx returned 0 for '{fontFile}'. LastError={Marshal.GetLastWin32Error()}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    PluginLog.LogError($"[FontSwap] Failed to register font file '{fontFile}': {ex}");
+                }
+            }
+        }
+        else
+        {
+            PluginLog.LogWarning($"[FontSwap] Font file not found at: {fontFilePath}");
+        }
+    }
+
+    private void LoadFontConfig()
+    {
+        FontConfigMapping.Clear();
+        LoadedFonts.Clear();
+        RegisteredFontFiles.Clear();
+
+        var fontsDir = Path.Combine(ModulesRootPath, "00-Mods", "Fonts");
+        var configPath = Path.Combine(fontsDir, "fontconfig.json");
+
+        if (!Directory.Exists(fontsDir))
+        {
+            try
+            {
+                Directory.CreateDirectory(fontsDir);
+                PluginLog.LogInfo($"[FontSwap] Created directory: {fontsDir}");
+            }
+            catch (Exception ex)
+            {
+                PluginLog.LogError($"[FontSwap] Failed to create directory '{fontsDir}': {ex}");
+            }
+        }
+
+        if (!File.Exists(configPath))
+        {
+            try
+            {
+                var templateJson = 
+@"{" + "\n" +
+@"  ""// Instructions"": ""Map a FontType enum name (Font01..Font10, Default) to a font file in 00-Mods/Fonts/ (e.g. 'myfont.ttf'). Specify 'FontName' with the font family name (e.g. 'Harrington').""," + "\n" +
+@"  ""Font01"": {" + "\n" +
+@"    ""FontFile"": ""HARNGTON.TTF""," + "\n" +
+@"    ""FontName"": ""Harrington""," + "\n" +
+@"    ""LineSpace"": 1.0" + "\n" +
+@"  }," + "\n" +
+@"  ""Font02"": {" + "\n" +
+@"    ""FontFile"": ""example.ttf""," + "\n" +
+@"    ""FontName"": ""ExampleFont""," + "\n" +
+@"    ""LineSpace"": 1.2," + "\n" +
+@"    ""FontSize"": 32" + "\n" +
+@"  }," + "\n" +
+@"  ""Default"": {" + "\n" +
+@"    ""FontFile"": ""HARNGTON.TTF""," + "\n" +
+@"    ""FontName"": ""Harrington""" + "\n" +
+@"  }" + "\n" +
+@"}";
+                File.WriteAllText(configPath, templateJson);
+                PluginLog.LogInfo($"[FontSwap] Generated default template fontconfig.json at {configPath}");
+            }
+            catch (Exception ex)
+            {
+                PluginLog.LogError($"[FontSwap] Failed to generate template fontconfig.json: {ex}");
+            }
             return;
         }
 
-        var parts = val.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
+        try
         {
-            var trimmed = part.Trim();
-            if (Enum.TryParse<Last.Management.FontManager.FontType>(trimmed, true, out var fontType))
+            var json = File.ReadAllText(configPath);
+            foreach (Last.Management.FontManager.FontType fontType in Enum.GetValues(typeof(Last.Management.FontManager.FontType)))
             {
-                ParsedTargetTypes.Add(fontType);
-                PluginLog.LogInfo($"[FontSwap] Registered swap target: {fontType}");
-            }
-            else
-            {
-                PluginLog.LogWarning($"[FontSwap] Failed to parse FontType '{trimmed}' from config. Safely ignoring.");
+                var name = Enum.GetName(typeof(Last.Management.FontManager.FontType), fontType);
+                if (string.IsNullOrEmpty(name)) continue;
+
+                // Match object: "Font01" : { ... }
+                var objMatch = Regex.Match(json, $"\"{name}\"\\s*:\\s*\\{{([^}}]+)\\}}", RegexOptions.IgnoreCase);
+                if (objMatch.Success)
+                {
+                    var objStr = objMatch.Groups[1].Value;
+                    var fileMatch = Regex.Match(objStr, "\"FontFile\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                    var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                    var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+                    var sizeMatch = Regex.Match(objStr, "\"FontSize\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
+
+                    var file = fileMatch.Success ? fileMatch.Groups[1].Value : "";
+                    var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : Path.GetFileNameWithoutExtension(file);
+                    
+                    float? space = null;
+                    if (spaceMatch.Success && float.TryParse(spaceMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedSpace))
+                    {
+                        space = parsedSpace;
+                    }
+                    int? size = null;
+                    if (sizeMatch.Success && int.TryParse(sizeMatch.Groups[1].Value, out var parsedSize))
+                    {
+                        size = parsedSize;
+                    }
+
+                    if (!string.IsNullOrEmpty(file))
+                    {
+                        RegisterFontFile(file);
+                        FontConfigMapping[fontType] = new FontConfigEntry 
+                        { 
+                            FontFile = file, 
+                            FontName = fontName, 
+                            LineSpace = space, 
+                            FontSize = size 
+                        };
+                        PluginLog.LogInfo($"[FontSwap] Custom mapping loaded: {fontType} -> file='{file}' name='{fontName}' (LineSpace={space}, FontSize={size})");
+                    }
+                }
+                else
+                {
+                    // Match string: "Font01" : "MyFont.ttf"
+                    var strMatch = Regex.Match(json, $"\"{name}\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+                    if (strMatch.Success)
+                    {
+                        var file = strMatch.Groups[1].Value;
+                        if (!string.IsNullOrEmpty(file))
+                        {
+                            var fontName = Path.GetFileNameWithoutExtension(file);
+                            RegisterFontFile(file);
+                            FontConfigMapping[fontType] = new FontConfigEntry 
+                            { 
+                                FontFile = file, 
+                                FontName = fontName 
+                            };
+                            PluginLog.LogInfo($"[FontSwap] Custom mapping loaded: {fontType} -> file='{file}' name='{fontName}'");
+                        }
+                    }
+                }
             }
         }
+        catch (Exception ex)
+        {
+            PluginLog.LogError($"[FontSwap] Failed to load fontconfig.json: {ex}");
+        }
     }
+
+    // Config entries referenced by original project
+    internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
+    internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
+    internal static bool EnableCustomTextures => true;
 }

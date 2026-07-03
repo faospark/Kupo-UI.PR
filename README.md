@@ -368,6 +368,200 @@ background_canvas/ui_root/backgrou_root/
 ### Installation
 
 Drop any supported image file named `TitlescreenFullBG` into any mod folder:
+- With hot-reload enabled, changes in the texture folders trigger an automatic reindex.
+- Reindexing is debounced by `TextureHotReloadDebounceMs` to avoid repeated rebuilds while copying many files.
+
+Texture logger notes:
+
+- Discovery logs report unique texture names seen from sprite/texture hooks.
+- Resolution logs report unique names that successfully map to replacement files.
+- Miss logs are optional and can be noisy; keep disabled unless diagnosing missing replacements.
+
+## Notes On Optional Dependencies
+
+This plugin does not hard-reference `Memoria.FFPR` or `Magicite` yet.
+
+At runtime, it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.
+
+---
+
+## ObjectConfig.json — Data-driven GameObject Tweaks
+
+You can manipulate Unity GameObjects at runtime (position, rotation, scale, active state) without writing any C# — just drop an `ObjectConfig.json` file inside any mod folder under `Modules/00-Mods/`.
+
+The plugin scans **all** `ObjectConfig.json` files found recursively under `Modules/00-Mods/` when the game starts.
+
+### Folder placement
+
+```
+<GameRoot>/
+  Modules/
+    00-Mods/
+      MyMod/
+        ObjectConfig.json   ← picked up automatically
+      AnotherMod/
+        ObjectConfig.json   ← also picked up
+```
+
+### File format
+
+```json
+{
+  "objects": [
+    {
+      "TargetObjectName": "menu_base(Clone)",
+      "TargetPath": "Canvas/aspect_parent/menu_parent/menu_base(Clone)",
+      "SceneName": "Title",
+      "Position": { "x": 0, "y": -50, "z": 0 },
+      "Rotation": { "x": 0, "y": 0,   "z": 0 },
+      "Scale":    { "x": 0.9, "y": 0.9, "z": 1.0 },
+      "SetActive": true,
+      "TextAlignment": "MiddleCenter",
+      "FontSize": 24,
+      "ResizeTextForBestFit": true,
+      "ResizeTextMaxSize": 36,
+      "ResizeTextMinSize": 12,
+      "TextColorWhite": true,
+      "DisableShadow": true
+    }
+  ]
+}
+```
+
+The `objects` array can contain as many entries as you need, across one file or spread across multiple files in different mod folders.
+
+### Fields
+
+| Field | Required | Description |
+|---|---|---|
+| `TargetObjectName` | **Yes** | Exact `GameObject` name to match (e.g. `"menu_base(Clone)"`). |
+| `TargetPath` | No | Hierarchy path suffix to disambiguate objects with the same name. Forward-slash notation, matched from the object upward. E.g. `"Canvas/aspect_parent/menu_base(Clone)"`. |
+| `SceneName` | No | Only apply this rule while this scene is active. Omit to apply in every scene. Case-insensitive. |
+| `Position` | No | Sets `transform.localPosition`. Provide `x`, `y`, `z` as floats. |
+| `Rotation` | No | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`. |
+| `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
+| `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
+| `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [text alignment values](#text-alignment-values) below. |
+| `FontSize` | No | Sets `Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
+| `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit` on the `UnityEngine.UI.Text` component (if present). Use `true` or `false`. |
+| `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
+| `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
+| `TextColorWhite` | No | Forces `Text.color` to `Color.white` on the `UnityEngine.UI.Text` component (if present). Re-enforced on every color write to prevent the game from overriding it. Use `true`. |
+| `DisableShadow` | No | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`. |
+
+> **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
+
+### When rules are applied
+
+Rules fire at two moments:
+
+1. **Scene load** — when a scene finishes loading, all GameObjects in the scene are scanned and matching rules are applied. This covers objects that are already active from the start.
+2. **SetActive(true)** — when any GameObject is enabled at runtime, matching rules are applied immediately. This covers UI panels and objects toggled on after load.
+
+### Using `TargetPath` to avoid wrong matches
+
+If multiple objects share the same name (common in FFPR), add `TargetPath` to target only the one you want:
+
+```json
+{
+  "TargetObjectName": "menu_base(Clone)",
+  "TargetPath": "RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone)",
+  "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
+}
+```
+
+The path is matched by walking up the transform hierarchy from the object, so it does not need to start from the scene root — a suffix is enough.
+
+> **Important:** Two common mistakes to avoid:
+> - The **last segment of `TargetPath` must match `TargetObjectName`** exactly. The matcher walks upward from the object itself, so the object's own name must appear at the end of the path.
+> - **No trailing slash.** A path ending with `/` produces an empty final segment that will never match any GameObject name, causing the rule to silently do nothing.
+
+### Hiding an object
+
+```json
+{
+  "TargetObjectName": "some_ui_element",
+  "SceneName": "MainMenu",
+  "SetActive": false
+}
+```
+
+> **Note on `SetActive: false` behaviour:** The rule uses a Harmony prefix that intercepts every `SetActive(true)` call and flips it to `false` before Unity processes it. This permanently prevents the object from becoming active — no flicker, no one-frame delay.
+
+### Changing text alignment
+
+If the target object has a `UnityEngine.UI.Text` component, you can set its horizontal and vertical alignment:
+
+```json
+{
+  "TargetObjectName": "some_label",
+  "TargetPath": "Canvas/panel/some_label",
+  "TextAlignment": "MiddleCenter"
+}
+```
+
+#### Text alignment values
+
+| Value | Description |
+|---|---|
+| `UpperLeft` | Top-left corner |
+| `UpperCenter` | Top-center |
+| `UpperRight` | Top-right corner |
+| `MiddleLeft` | Vertically centered, left-aligned |
+| `MiddleCenter` | Fully centered |
+| `MiddleRight` | Vertically centered, right-aligned |
+| `LowerLeft` | Bottom-left corner |
+| `LowerCenter` | Bottom-center |
+| `LowerRight` | Bottom-right corner |
+
+Values are case-insensitive. If the object has no `Text` component, or the value is unrecognized, a warning is written to the BepInEx log and the rule is skipped.
+
+### Combining multiple rules
+
+```json
+{
+  "objects": [
+    {
+      "TargetObjectName": "ui_root",
+      "TargetPath": "RootObject/sab_canvas/root/ui_root",
+      "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
+    },
+    {
+      "TargetObjectName": "title_logo",
+      "SceneName": "Title",
+      "Position": { "x": 0, "y": 80, "z": 0 }
+    }
+  ]
+}
+```
+
+---
+
+## Title Screen Full Background Image (`TitlescreenFullBG`)
+
+You can inject a custom full-screen background image on the title screen by placing a texture file named `TitlescreenFullBG` in any mod folder. No config entry is required — if the file is absent nothing happens.
+
+### How it works
+
+The patch watches for the title screen's internal `background` object at:
+
+```
+background_canvas/ui_root/backgrou_root/background
+```
+
+When that object activates, a new `fullbg` GameObject is injected as a sibling immediately above it in the hierarchy:
+
+```
+background_canvas/ui_root/backgrou_root/
+  ├── background   ← original solid-color background (unchanged)
+  └── fullbg       ← injected — renders on top of background
+```
+
+`fullbg` is a `RawImage` stretched to fill its parent, so it completely covers `background`. The solid-color background underneath is still tinted by `UI-Title-Screen.TitleScreenBgColor` if configured — `fullbg` simply covers it.
+
+### Installation
+
+Drop any supported image file named `TitlescreenFullBG` into any mod folder:
 
 ```
 <GameRoot>/Modules/00-Mods/MyMod/TitlescreenFullBG.png
@@ -383,35 +577,69 @@ Supported formats: `png`, `jpg`, `jpeg`, `tga`, `dds`.
 - The texture is kept alive with `DontDestroyOnLoad` so it survives any additive scene reloads on the title screen.
 
 
-## Font Diagnostic & System Font Swap
+## Font Diagnostic & Custom Font Swap
 
-This plugin includes a two-phase font mapping and swap utility to replace game fonts with OS system fonts cleanly.
+This plugin includes a two-phase font mapping and replacement utility to swap game fonts with custom `.ttf` or `.otf` font files cleanly.
 
 ### Phase 1 — Diagnostic Logging (Always-On by Default)
 
-When the game initializes fonts or switches languages, details about the font parameters are printed to the BepInEx console and log files. 
+When the game initializes fonts, details about the font parameters are printed to the BepInEx console and log files. 
 
 - **Log File Location:** `<GameRoot>/BepInEx/LogOutput.log`
 - **What to look for:** Look for lines starting with `[FontMap]`. For example:
   ```
-  [Info   :KupoUI.PR] [FontMap] FontType=Font01 | Language=English | FontName=font_en_01 | LineSpace=1.2
-  [Info   :KupoUI.PR] [FontMap] set_FontInstance Prefix: FontType=Font01 | Language=English | Font=font_en_01
+  [Info   :KupoUI.PR] [FontMap] FontType=Font09 | Language=En | FontName=PIXELREMASTERFONT.ttf | LineSpace=0.66 | Font=
   ```
-This mapping shows exactly which `FontType` enum matches which `Language` and asset file.
+This mapping shows exactly which `FontType` enum corresponds to which language and default asset file in the game.
 
 Configuration for Phase 1 (in `faospark.kupoui.pr.cfg` under `BepInEx/config`):
 - `Diagnostics.LogFontMapping` (bool, default `true`): Set to `false` to disable diagnostic logging.
 
-### Phase 2 — System Font Swap (Off by Default)
+### Phase 2 — Custom Font File Swap (Off by Default)
 
-Once you identify the target `FontType`s you want to replace, you can configure BepInEx to swap them at runtime. The swap intercept sits directly at the Unity `FontInstance` assignment after the game finishes decryption/loading pipelines.
+You can place your custom font files (TrueType `.ttf` or OpenType `.otf`) inside the mod fonts directory and map them granularly using a configuration file.
 
-Configuration for Phase 2 (in `faospark.kupoui.pr.cfg` under `BepInEx/config`):
-- `FontSwap.Enabled` (bool, default `false`): Set to `true` to enable font swapping.
-- `FontSwap.SystemFontName` (string, default `"Segoe UI"`): The system/OS font name to use as a replacement.
-- `FontSwap.FontSize` (int, default `32`): The font size for the replacement font.
-- `FontSwap.TargetFontTypes` (string, default `""`): A comma-separated list of `FontType` names to swap (e.g., `Font01,Font02`). 
+#### 1. Folder & Config Location
+All custom font files and configuration are placed under:
+- **Directory:** `<GameRoot>/Modules/00-Mods/Fonts/`
+- **Configuration File:** `<GameRoot>/Modules/00-Mods/Fonts/fontconfig.json`
 
-**Note:** Safe parsing is used; if an invalid `FontType` is provided in the list, it will log a warning and ignore it without crashing.
+*(Note: On first startup, the mod will automatically create the `Fonts/` folder and generate a default template `fontconfig.json` file if they are missing.)*
 
+#### 2. Configuration File Format (`fontconfig.json`)
+The mapping file supports both **simple string mappings** (where the font family name defaults to the filename without extension) and **object-based mappings** (highly recommended for custom fonts to ensure the exact font family name and sizing is passed to the engine):
 
+```json
+{
+  "// Instructions": "Map a FontType enum name (Font01..Font10, Default) to a font file in 00-Mods/Fonts/. Specify FontFile and FontName (family name) to ensure characters render correctly.",
+  "Font01": {
+    "FontFile": "HARNGTON.TTF",
+    "FontName": "Harrington",
+    "LineSpace": 1.0
+  },
+  "Font02": {
+    "FontFile": "my_arial_substitute.otf",
+    "FontName": "MyArialSubstitute",
+    "LineSpace": 1.25,
+    "FontSize": 32
+  },
+  "Font09": {
+    "FontFile": "my_pixel_font.ttf",
+    "FontName": "MyPixelFont"
+  },
+  "Default": "HARNGTON.TTF"
+}
+```
+
+*   **`FontFile`**: The filename of the `.ttf` or `.otf` file located directly in the `00-Mods/Fonts/` directory.
+*   **`FontName`**: **(Highly Recommended)** The font family name (e.g. `"Harrington"`, `"Segoe UI"`). This is registered with the OS GDI system and resolved by Unity's dynamic font engine, preventing blank text rendering.
+*   **`LineSpace`**: A decimal factor representing the line height/spacing (e.g. `1.2`). Override this if your replacement font appears too cramped or overflows dialogue boxes vertically.
+*   **`FontSize`**: An integer representing the target rendering size (e.g. `32`). If omitted, it will automatically scale to match the size of the default font it replaces.
+
+#### 3. Enabling the Swap
+Once you have configured your `fontconfig.json` and placed your font files:
+1. Open `<GameRoot>/BepInEx/config/faospark.kupoui.pr.cfg`.
+2. Set **`FontSwap.Enabled`** to `true`.
+3. Restart the game.
+
+*Custom fonts are cached in memory upon first load, ensuring there is zero performance impact or stutter during scene transitions.*

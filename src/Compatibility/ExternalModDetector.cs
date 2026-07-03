@@ -13,12 +13,11 @@ internal static class ExternalModDetector
     {
         MemoriaAssemblyName,
         "Memoria FF PR",
-        "Memoria.FF1",
-        "Memoria.FF2",
-        "Memoria.FF3",
-        "Memoria.FF4",
-        "Memoria.FF5",
-        "Memoria.FF6"
+        "Memoria FF II PR",
+        "Memoria FF III PR",
+        "Memoria FF IV PR",
+        "Memoria FF V PR",
+        "Memoria FF VI PR"
     };
 
     private static readonly string[] MagiciteAssemblyNames =
