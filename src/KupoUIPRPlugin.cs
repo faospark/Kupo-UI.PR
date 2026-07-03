@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using BepInEx;
 using BepInEx.Configuration;
 using BepInEx.Logging;
@@ -40,9 +41,54 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
+
+    internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> FontSwapSystemFontNameConfig { get; private set; } = null!;
+    internal static ConfigEntry<int> FontSwapFontSizeConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> FontSwapTargetFontTypesConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticsLogFontMappingConfig { get; private set; } = null!;
+    internal static HashSet<Last.Management.FontManager.FontType> ParsedTargetTypes { get; } = new();
+
     public override void Load()
     {
         PluginLog = Log;
+
+        FontSwapEnabledConfig = Config.Bind(
+            "FontSwap",
+            "Enabled",
+            false,
+            "If true, swaps default game fonts with a system font for targets in TargetFontTypes."
+        );
+
+        FontSwapSystemFontNameConfig = Config.Bind(
+            "FontSwap",
+            "SystemFontName",
+            "Segoe UI",
+            "Name of the system font to use for replacement."
+        );
+
+        FontSwapFontSizeConfig = Config.Bind(
+            "FontSwap",
+            "FontSize",
+            32,
+            "Font size to pass to Font.CreateDynamicFontFromOSFont."
+        );
+
+        FontSwapTargetFontTypesConfig = Config.Bind(
+            "FontSwap",
+            "TargetFontTypes",
+            "",
+            "Comma-separated list of FontType enum names to swap (e.g. Font01, Font02)."
+        );
+
+        DiagnosticsLogFontMappingConfig = Config.Bind(
+            "Diagnostics",
+            "LogFontMapping",
+            true,
+            "If true, logs information about FontManager.CreateFontParameter and set_FontInstance requests to identify FontType mappings."
+        );
+
+        ParseTargetFontTypes();
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
@@ -199,6 +245,11 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
+        Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
+        Log.LogInfo($"FontSwapSystemFontName = {FontSwapSystemFontNameConfig.Value}");
+        Log.LogInfo($"FontSwapFontSize = {FontSwapFontSizeConfig.Value}");
+        Log.LogInfo($"FontSwapTargetFontTypes = {FontSwapTargetFontTypesConfig.Value}");
+        Log.LogInfo($"DiagnosticsLogFontMapping = {DiagnosticsLogFontMappingConfig.Value}");
     }
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
@@ -260,5 +311,30 @@ public sealed class KupoUIPRPlugin : BasePlugin
         }
 
         return (enabled, logDiscoveries, logResolutions, logMisses);
+    }
+
+    private void ParseTargetFontTypes()
+    {
+        ParsedTargetTypes.Clear();
+        var val = FontSwapTargetFontTypesConfig.Value;
+        if (string.IsNullOrWhiteSpace(val))
+        {
+            return;
+        }
+
+        var parts = val.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            if (Enum.TryParse<Last.Management.FontManager.FontType>(trimmed, true, out var fontType))
+            {
+                ParsedTargetTypes.Add(fontType);
+                PluginLog.LogInfo($"[FontSwap] Registered swap target: {fontType}");
+            }
+            else
+            {
+                PluginLog.LogWarning($"[FontSwap] Failed to parse FontType '{trimmed}' from config. Safely ignoring.");
+            }
+        }
     }
 }

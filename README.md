@@ -382,3 +382,36 @@ Supported formats: `png`, `jpg`, `jpeg`, `tga`, `dds`.
 - The image is stretched to fill its parent rect. For best results, use an image sized to your target resolution (e.g. 1920×1080).
 - The texture is kept alive with `DontDestroyOnLoad` so it survives any additive scene reloads on the title screen.
 
+
+## Font Diagnostic & System Font Swap
+
+This plugin includes a two-phase font mapping and swap utility to replace game fonts with OS system fonts cleanly.
+
+### Phase 1 — Diagnostic Logging (Always-On by Default)
+
+When the game initializes fonts or switches languages, details about the font parameters are printed to the BepInEx console and log files. 
+
+- **Log File Location:** `<GameRoot>/BepInEx/LogOutput.log`
+- **What to look for:** Look for lines starting with `[FontMap]`. For example:
+  ```
+  [Info   :KupoUI.PR] [FontMap] FontType=Font01 | Language=English | FontName=font_en_01 | LineSpace=1.2
+  [Info   :KupoUI.PR] [FontMap] set_FontInstance Prefix: FontType=Font01 | Language=English | Font=font_en_01
+  ```
+This mapping shows exactly which `FontType` enum matches which `Language` and asset file.
+
+Configuration for Phase 1 (in `faospark.kupoui.pr.cfg` under `BepInEx/config`):
+- `Diagnostics.LogFontMapping` (bool, default `true`): Set to `false` to disable diagnostic logging.
+
+### Phase 2 — System Font Swap (Off by Default)
+
+Once you identify the target `FontType`s you want to replace, you can configure BepInEx to swap them at runtime. The swap intercept sits directly at the Unity `FontInstance` assignment after the game finishes decryption/loading pipelines.
+
+Configuration for Phase 2 (in `faospark.kupoui.pr.cfg` under `BepInEx/config`):
+- `FontSwap.Enabled` (bool, default `false`): Set to `true` to enable font swapping.
+- `FontSwap.SystemFontName` (string, default `"Segoe UI"`): The system/OS font name to use as a replacement.
+- `FontSwap.FontSize` (int, default `32`): The font size for the replacement font.
+- `FontSwap.TargetFontTypes` (string, default `""`): A comma-separated list of `FontType` names to swap (e.g., `Font01,Font02`). 
+
+**Note:** Safe parsing is used; if an invalid `FontType` is provided in the list, it will log a warning and ignore it without crashing.
+
+
