@@ -27,6 +27,7 @@ internal static class ObjectConfigPatch
 {
     private static string _modulesRootPath;
     private static bool _hasTextColorWhiteRules;
+    private static bool _hasDisableShadowRules;
     private static bool _isApplyingColor;
 
     /// <summary>
@@ -37,14 +38,19 @@ internal static class ObjectConfigPatch
         _modulesRootPath = modulesRootPath;
         ObjectConfigLoader.Load(_modulesRootPath);
 
-        // Check if any rule requires forcing text color to white
+        // Check if any rule requires forcing text color to white or disabling shadows
         _hasTextColorWhiteRules = false;
+        _hasDisableShadowRules = false;
         var entries = ObjectConfigLoader.Entries;
         foreach (var e in entries)
         {
             if (e.TextColorWhite == true)
             {
                 _hasTextColorWhiteRules = true;
+            }
+            if (e.DisableShadow == true)
+            {
+                _hasDisableShadowRules = true;
             }
         }
 
@@ -422,6 +428,33 @@ internal static class ObjectConfigPatch
                 && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
 
             value = Color.white;
+            return;
+        }
+    }
+
+    /// <summary>
+    /// Intercepts BaseMeshEffect.OnEnable. If the target has a matching DisableShadow rule,
+    /// we force it to remain disabled immediately.
+    /// </summary>
+    [HarmonyPatch(typeof(BaseMeshEffect), "OnEnable")]
+    [HarmonyPostfix]
+    private static void BaseMeshEffectOnEnablePostfix(BaseMeshEffect __instance)
+    {
+        if (!_hasDisableShadowRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+        if (!(__instance is Shadow)) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+        foreach (var entry in ObjectConfigLoader.Entries)
+        {
+            if (entry.DisableShadow != true) continue;
+            if (__instance.name != entry.TargetObjectName) continue;
+            if (!string.IsNullOrEmpty(entry.SceneName)
+                && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) continue;
+            if (!string.IsNullOrEmpty(entry.TargetPath)
+                && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
+
+            __instance.enabled = false;
             return;
         }
     }

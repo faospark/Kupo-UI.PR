@@ -227,7 +227,8 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
       "ResizeTextForBestFit": true,
       "ResizeTextMaxSize": 36,
       "ResizeTextMinSize": 12,
-      "TextColorWhite": true
+      "TextColorWhite": true,
+      "DisableShadow": true
     }
   ]
 }
@@ -252,6 +253,7 @@ The `objects` array can contain as many entries as you need, across one file or 
 | `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
 | `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
 | `TextColorWhite` | No | Forces `Text.color` to `Color.white` on the `UnityEngine.UI.Text` component (if present). Re-enforced on every color write to prevent the game from overriding it. Use `true`. |
+| `DisableShadow` | No | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`. |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 

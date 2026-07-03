@@ -133,6 +133,7 @@ internal static class ObjectConfigLoader
             ResizeTextMaxSize    = ReadInt(block, "ResizeTextMaxSize"),
             ResizeTextMinSize    = ReadInt(block, "ResizeTextMinSize"),
             TextColorWhite       = ReadBool(block, "TextColorWhite"),
+            DisableShadow        = ReadBool(block, "DisableShadow"),
             SourceFile       = sourceFile,
         };
 

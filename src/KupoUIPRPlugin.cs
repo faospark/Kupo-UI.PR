@@ -35,12 +35,9 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> TitleScreenTextWhiteConfig { get; private set; } = null!;
-    internal static ConfigEntry<int> TitleScreenTextFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> TitleScreenTextDisableShadowConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> MessageSpeakerPrefixFontSizeConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
     public override void Load()
@@ -59,29 +56,11 @@ public sealed class KupoUIPRPlugin : BasePlugin
             true,
             "If true, scales RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone) to (0.9, 0.9, 1) when it becomes active.");
 
-        TitleScreenTextWhiteConfig = Config.Bind(
-            "UI-Title-Screen",
-            "TitleScreenTextWhite",
-            false,
-            "If true, forces the title screen menu text color to white.");
-
-        TitleScreenTextFontSizeConfig = Config.Bind(
-            "UI-Title-Screen",
-            "TitleScreenTextFontSize",
-            40,
-            "Font size for the title screen menu text.");
-
         TitleScreenBgColorConfig = Config.Bind(
             "UI-Title-Screen",
             "TitleScreenBgColor",
             "original",
             "Color for the title screen background. Options: original, white, black, navy, crimson, violet.");
-
-        TitleScreenTextDisableShadowConfig = Config.Bind(
-            "UI-Title-Screen",
-            "TitleScreenTextDisableShadow",
-            false,
-            "If true, disables the Shadow component on the title screen menu text.");
 
         MessageSpeakerPrefixConfig = Config.Bind(
             "UI-Dialogbox",
@@ -89,13 +68,14 @@ public sealed class KupoUIPRPlugin : BasePlugin
             false,
             "If true, prepends the speaker name to every dialogue message (e.g. \"Maria: I have been worried\" instead of \"I have been worried\").");
 
-        MessageSpeakerPrefixFontSizeConfig = Config.Bind(
+        DialogueFontSizeConfig = Config.Bind(
             "UI-Dialogbox",
-            "MessageSpeakerPrefixFontSize",
+            "DialogueFontSize",
             "36",
-            "Font size applied to both the speaker label and the message text when MessageSpeakerPrefix is enabled. " +
+            "Font size applied to dialogue message text and speaker label. " +
+            "Independent of MessageSpeakerPrefix — works on its own. " +
             "Use 'Auto' to leave the original font sizes untouched. " +
-            "Set a numeric value (e.g. 24) to override both. Recommended starting value if you see overflow: 24.");
+            "Set a numeric value (e.g. 24) to override. Recommended starting value if you see overflow: 24.");
 
         MessageSpeakerPrefixLoggingConfig = Config.Bind(
             "UI-Dialogbox",
@@ -155,7 +135,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         EnableTextureHotReloadConfig = Config.Bind(
             "Utility",
             "EnableTextureHotReload",
-            true,
+            false,
             "If true, watches texture folders and reloads index when files change.");
 
         TextureHotReloadDebounceMsConfig = Config.Bind(
@@ -215,12 +195,9 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
         Log.LogInfo($"EnableCustomTextures = {EnableCustomTextures}");
         Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
-        Log.LogInfo($"TitleScreenTextWhite = {TitleScreenTextWhiteConfig.Value}");
-        Log.LogInfo($"TitleScreenTextFontSize = {TitleScreenTextFontSizeConfig.Value}");
         Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
-        Log.LogInfo($"TitleScreenTextDisableShadow = {TitleScreenTextDisableShadowConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
-        Log.LogInfo($"MessageSpeakerPrefixFontSize = {MessageSpeakerPrefixFontSizeConfig.Value}");
+        Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
     }
 
