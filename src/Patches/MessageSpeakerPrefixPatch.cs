@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using HarmonyLib;
 using Last.Management;
 using Last.Message;
@@ -111,7 +111,21 @@ internal static class MessageSpeakerPrefixPatch
 
         if (!string.IsNullOrWhiteSpace(speakerName))
         {
-            var prefix = speakerName + Separator;
+            string separator = Separator;
+            try
+            {
+                var msgMgr = UnityEngine.Object.FindObjectOfType<MessageManager>();
+                if (msgMgr != null && msgMgr.currentLanguage.ToString().Equals("Ja", StringComparison.OrdinalIgnoreCase))
+                {
+                    separator = "「";
+                }
+            }
+            catch (Exception)
+            {
+                // Fallback silently if MessageManager is not yet initialized or ready
+            }
+
+            var prefix = speakerName + separator;
 
             // Guard against double-prefix if this fires twice.
             if (!value.StartsWith(prefix, StringComparison.Ordinal))

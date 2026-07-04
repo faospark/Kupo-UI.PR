@@ -71,6 +71,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
 
 
+
+
         FontSwapEnabledConfig = Config.Bind(
             "FontSwap",
             "Enabled",
