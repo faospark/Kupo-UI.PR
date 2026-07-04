@@ -52,7 +52,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         public int? FontSize { get; set; }
     }
     internal static Dictionary<(Last.Management.FontManager.FontType, Last.Data.Parameters.Language?), FontConfigEntry> FontConfigMapping { get; } = new();
-    internal static System.Runtime.CompilerServices.ConditionalWeakTable<Last.Management.FontManager.FontParameter, string> FontParameterLanguages { get; } = new();
+    internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, string> FontParameterLanguages { get; } = new();
     internal static Dictionary<string, UnityEngine.Font> LoadedFonts { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     // Windows GDI P/Invokes to register font files temporarily for our process

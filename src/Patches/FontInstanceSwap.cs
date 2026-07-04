@@ -16,7 +16,7 @@ namespace KupoUI.PR.Patches
 
             // Retrieve the language associated with this FontParameter instance.
             string language = null;
-            KupoUIPRPlugin.FontParameterLanguages.TryGetValue(__result, out language);
+            KupoUIPRPlugin.FontParameterLanguages.TryGetValue(__result.Pointer, out language);
 
             if (!KupoUIPRPlugin.TryGetFontConfig(type, language, out var configEntry)) return;
 
@@ -59,22 +59,31 @@ namespace KupoUI.PR.Patches
                 try
                 {
                     var cache = __instance.cacheFontList;
-                    if (cache != null)
+                    if (cache != null && !string.IsNullOrEmpty(__result.FontName))
                     {
-                        // Log keys once for diagnostics
-                        if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)
+                        bool needsUpdate = true;
+                        if (cache.TryGetValue(__result.FontName, out var existingFont))
                         {
-                            var keys = new System.Collections.Generic.List<string>();
-                            var enumerator = cache.Keys.GetEnumerator();
-                            while (enumerator.MoveNext())
+                            if (existingFont != null && existingFont.Pointer == fontInstance.Pointer)
                             {
-                                keys.Add(enumerator.Current);
+                                needsUpdate = false;
                             }
-                            KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Current cacheFontList keys: {string.Join(", ", keys)}");
                         }
 
-                        if (!string.IsNullOrEmpty(__result.FontName))
+                        if (needsUpdate)
                         {
+                            // Log keys for diagnostics on actual change
+                            if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)
+                            {
+                                var keys = new System.Collections.Generic.List<string>();
+                                var enumerator = cache.Keys.GetEnumerator();
+                                while (enumerator.MoveNext())
+                                {
+                                    keys.Add(enumerator.Current);
+                                }
+                                KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Current cacheFontList keys: {string.Join(", ", keys)}");
+                            }
+
                             if (cache.ContainsKey(__result.FontName))
                             {
                                 cache.Remove(__result.FontName);
