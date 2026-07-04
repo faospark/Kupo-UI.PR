@@ -10,6 +10,10 @@ namespace KupoUI.PR.Patches
         {
             if (__result == null) return;
 
+            // Associate the returned FontParameter with the target Language string representation.
+            KupoUIPRPlugin.FontParameterLanguages.Remove(__result);
+            KupoUIPRPlugin.FontParameterLanguages.Add(__result, __1.ToString());
+
             // Phase 1: Diagnostic Logging (Always-On by Default)
             if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)
             {

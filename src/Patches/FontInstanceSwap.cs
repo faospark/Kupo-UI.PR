@@ -9,12 +9,16 @@ namespace KupoUI.PR.Patches
     class FontInstance_Swap_Patch
     {
         [HarmonyPostfix]
-        static void Postfix(FontManager.FontType type, FontManager.FontParameter __result)
+        static void Postfix(FontManager __instance, FontManager.FontType type, FontManager.FontParameter __result)
         {
             if (__result == null) return;
             if (!KupoUIPRPlugin.FontSwapEnabledConfig.Value) return;
 
-            if (!KupoUIPRPlugin.FontConfigMapping.TryGetValue(type, out var configEntry)) return;
+            // Retrieve the language associated with this FontParameter instance.
+            string language = null;
+            KupoUIPRPlugin.FontParameterLanguages.TryGetValue(__result, out language);
+
+            if (!KupoUIPRPlugin.TryGetFontConfig(type, language, out var configEntry)) return;
 
             var fontName = configEntry.FontName;
             if (string.IsNullOrEmpty(fontName)) return;
@@ -33,26 +37,56 @@ namespace KupoUI.PR.Patches
             var fontInstance = GetOrCreateFont(fontName, targetSize);
             if (fontInstance != null)
             {
-                // If already swapped, skip to avoid redundant assignments
-                if (__result.FontInstance != null && __result.FontInstance.Pointer == fontInstance.Pointer)
-                {
-                    return;
-                }
-
+                // Overwrite the FontInstance property
                 try
                 {
-                    __result.FontInstance = fontInstance;
-
-                    if (configEntry.LineSpace.HasValue)
+                    if (__result.FontInstance == null || __result.FontInstance.Pointer != fontInstance.Pointer)
                     {
-                        __result.LineSpace = configEntry.LineSpace.Value;
+                        __result.FontInstance = fontInstance;
+                        if (configEntry.LineSpace.HasValue)
+                        {
+                            __result.LineSpace = configEntry.LineSpace.Value;
+                        }
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] GetFont Postfix: FontType={type} (Language={language ?? "Default"}) swapped to '{fontName}' at size {targetSize} (LineSpace={__result.LineSpace})");
                     }
-
-                    KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] GetFont Postfix: FontType={type} swapped to '{fontName}' at size {targetSize} (LineSpace={__result.LineSpace})");
                 }
                 catch (Exception ex)
                 {
                     KupoUIPRPlugin.PluginLog.LogError($"[FontSwap] Failed to assign FontInstance: {ex}");
+                }
+
+                // Overwrite the key in FontManager's cacheFontList dictionary
+                try
+                {
+                    var cache = __instance.cacheFontList;
+                    if (cache != null)
+                    {
+                        // Log keys once for diagnostics
+                        if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)
+                        {
+                            var keys = new System.Collections.Generic.List<string>();
+                            var enumerator = cache.Keys.GetEnumerator();
+                            while (enumerator.MoveNext())
+                            {
+                                keys.Add(enumerator.Current);
+                            }
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Current cacheFontList keys: {string.Join(", ", keys)}");
+                        }
+
+                        if (!string.IsNullOrEmpty(__result.FontName))
+                        {
+                            if (cache.ContainsKey(__result.FontName))
+                            {
+                                cache.Remove(__result.FontName);
+                            }
+                            cache.Add(__result.FontName, fontInstance);
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Updated cacheFontList key '{__result.FontName}' -> '{fontName}'");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    KupoUIPRPlugin.PluginLog.LogError($"[FontSwap] Failed to update cacheFontList: {ex}");
                 }
             }
         }

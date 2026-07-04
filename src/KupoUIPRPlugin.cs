@@ -51,7 +51,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
         public float? LineSpace { get; set; }
         public int? FontSize { get; set; }
     }
-    internal static Dictionary<Last.Management.FontManager.FontType, FontConfigEntry> FontConfigMapping { get; } = new();
+    internal static Dictionary<(Last.Management.FontManager.FontType, Last.Data.Parameters.Language?), FontConfigEntry> FontConfigMapping { get; } = new();
+    internal static System.Runtime.CompilerServices.ConditionalWeakTable<Last.Management.FontManager.FontParameter, string> FontParameterLanguages { get; } = new();
     internal static Dictionary<string, UnityEngine.Font> LoadedFonts { get; } = new(StringComparer.OrdinalIgnoreCase);
 
     // Windows GDI P/Invokes to register font files temporarily for our process
@@ -67,6 +68,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
     public override void Load()
     {
         PluginLog = Log;
+
+
 
         FontSwapEnabledConfig = Config.Bind(
             "FontSwap",
@@ -306,6 +309,143 @@ public sealed class KupoUIPRPlugin : BasePlugin
         }
     }
 
+    private static string ExtractBalancedBraces(string json, int openBraceIndex)
+    {
+        var depth = 0;
+        for (var i = openBraceIndex; i < json.Length; i++)
+        {
+            if (json[i] == '{') depth++;
+            else if (json[i] == '}')
+            {
+                depth--;
+                if (depth == 0)
+                {
+                    return json.Substring(openBraceIndex, i - openBraceIndex + 1);
+                }
+            }
+        }
+        return null;
+    }
+
+    private static string ReadSubObject(string json, string key)
+    {
+        var keyPattern = $"\"{Regex.Escape(key)}\"\\s*:\\s*\\{{";
+        var match = Regex.Match(json, keyPattern, RegexOptions.IgnoreCase);
+        if (!match.Success) return null;
+
+        return ExtractBalancedBraces(json, match.Index + match.Length - 1);
+    }
+
+    private FontConfigEntry ParseFontConfigEntry(string json, string keyName)
+    {
+        // Extract balanced braces for the object block (e.g. "Font01": { ... })
+        var objStr = ReadSubObject(json, keyName);
+        if (objStr != null)
+        {
+            var fileMatch = Regex.Match(objStr, "\"FontFile\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+            var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+            var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+            var sizeMatch = Regex.Match(objStr, "\"FontSize\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
+
+            var file = fileMatch.Success ? fileMatch.Groups[1].Value : "";
+            var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : Path.GetFileNameWithoutExtension(file);
+            
+            float? space = null;
+            if (spaceMatch.Success && float.TryParse(spaceMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedSpace))
+            {
+                space = parsedSpace;
+            }
+            int? size = null;
+            if (sizeMatch.Success && int.TryParse(sizeMatch.Groups[1].Value, out var parsedSize))
+            {
+                size = parsedSize;
+            }
+
+            if (!string.IsNullOrEmpty(file))
+            {
+                RegisterFontFile(file);
+            }
+
+            if (!string.IsNullOrEmpty(fontName))
+            {
+                return new FontConfigEntry 
+                { 
+                    FontFile = file, 
+                    FontName = fontName, 
+                    LineSpace = space, 
+                    FontSize = size 
+                };
+            }
+        }
+        else
+        {
+            // Match string: "KeyName" : "MyFont.ttf" or "KeyName" : "Consolas"
+            var strMatch = Regex.Match(json, $"\"{keyName}\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+            if (strMatch.Success)
+            {
+                var value = strMatch.Groups[1].Value;
+                if (!string.IsNullOrEmpty(value))
+                {
+                    var hasExtension = value.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || 
+                                       value.EndsWith(".otf", StringComparison.OrdinalIgnoreCase);
+                    
+                    string file = "";
+                    string fontName = value;
+
+                    if (hasExtension)
+                    {
+                        file = value;
+                        fontName = Path.GetFileNameWithoutExtension(file);
+                        RegisterFontFile(file);
+                    }
+
+                    return new FontConfigEntry 
+                    { 
+                        FontFile = file, 
+                        FontName = fontName 
+                    };
+                }
+            }
+        }
+        return null;
+    }
+
+    internal static bool TryGetFontConfig(Last.Management.FontManager.FontType type, string languageStr, out FontConfigEntry entry)
+    {
+        Last.Data.Parameters.Language? lang = null;
+        if (!string.IsNullOrEmpty(languageStr) && Enum.TryParse<Last.Data.Parameters.Language>(languageStr, out var parsedLang))
+        {
+            lang = parsedLang;
+        }
+
+        // 1. Try specific FontType + specific Language (e.g. Font01_Ja)
+        if (lang.HasValue && FontConfigMapping.TryGetValue((type, lang.Value), out entry))
+        {
+            return true;
+        }
+
+        // 2. Try specific FontType + no Language (e.g. Font01)
+        if (FontConfigMapping.TryGetValue((type, null), out entry))
+        {
+            return true;
+        }
+
+        // 3. Try Default + specific Language (e.g. Default_Ja)
+        if (lang.HasValue && FontConfigMapping.TryGetValue(((Last.Management.FontManager.FontType)(-1), lang.Value), out entry))
+        {
+            return true;
+        }
+
+        // 4. Try Default + no Language (e.g. Default)
+        if (FontConfigMapping.TryGetValue(((Last.Management.FontManager.FontType)(-1), null), out entry))
+        {
+            return true;
+        }
+
+        entry = null;
+        return false;
+    }
+
     private void LoadFontConfig()
     {
         FontConfigMapping.Clear();
@@ -328,27 +468,199 @@ public sealed class KupoUIPRPlugin : BasePlugin
             }
         }
 
+        var helpPath = Path.Combine(fontsDir, "font-help.txt");
+        try
+        {
+            var helpText = 
+@"KupoUI.PR Font Swap Help Guide
+=============================
+
+This directory manages custom font swapping for KupoUI.PR.
+
+Files:
+- fontconfig.json: Holds active font configurations. The mod automatically populates
+  this file with the game's default baseline values for all supported languages.
+- font-help.txt: This help file.
+
+How to Customize:
+1. Open fontconfig.json.
+2. Locate the language block (e.g. ""En"", ""Ja"", ""Th"", ""Ko"", ""Zht"", ""Zhc"", etc.)
+   and the FontType (Font01..Font10, Default) you want to change.
+3. Place your custom .ttf or .otf file inside this ""Fonts/"" directory.
+4. Edit the configuration block:
+   - Set ""FontFile"" to your custom font filename (e.g. ""my_pixel_font.ttf"").
+   - Set ""FontName"" to the actual font family name (e.g. ""MyPixelFont"").
+   - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) or ""FontSize"" (integer) if needed.
+5. Restart the game to apply changes.
+
+Supported Languages:
+- En (English)
+- Ja (Japanese)
+- Fr (French)
+- De (German)
+- It (Italian)
+- Ru (Russian)
+- Pt (Portuguese)
+- Th (Thai)
+- Ko (Korean)
+- Zht (Traditional Chinese)
+- Zhc (Simplified Chinese)
+";
+            File.WriteAllText(helpPath, helpText);
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogError($"[FontSwap] Failed to generate font-help.txt: {ex}");
+        }
+
         if (!File.Exists(configPath))
         {
             try
             {
                 var templateJson = 
 @"{" + "\n" +
-@"  ""// Instructions"": ""Map a FontType enum name (Font01..Font10, Default) to a font file in 00-Mods/Fonts/ (e.g. 'myfont.ttf'). Specify 'FontName' with the font family name (e.g. 'Harrington').""," + "\n" +
-@"  ""Font01"": {" + "\n" +
-@"    ""FontFile"": ""HARNGTON.TTF""," + "\n" +
-@"    ""FontName"": ""Harrington""," + "\n" +
-@"    ""LineSpace"": 1.0" + "\n" +
+@"  ""En"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
 @"  }," + "\n" +
-@"  ""Font02"": {" + "\n" +
-@"    ""FontFile"": ""example.ttf""," + "\n" +
-@"    ""FontName"": ""ExampleFont""," + "\n" +
-@"    ""LineSpace"": 1.2," + "\n" +
-@"    ""FontSize"": 32" + "\n" +
+@"  ""Ja"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.67 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
 @"  }," + "\n" +
-@"  ""Default"": {" + "\n" +
-@"    ""FontFile"": ""HARNGTON.TTF""," + "\n" +
-@"    ""FontName"": ""Harrington""" + "\n" +
+@"  ""Fr"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""De"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""It"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""Ru"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""ITCAvantGardeW1G-Medium"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""Pt"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""SE-ALPSCB__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""Th"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""arnewhebesans-th_rg"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""arnewhebesans-th_rg"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""arnewhebesans-th_rg"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""Ko"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""FOTK-YoonGothic750"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""Zht"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""arudjingxiheiu30_db"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"  }," + "\n" +
+@"  ""Zhc"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""arudjingxiheig30_db"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
+@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
 @"  }" + "\n" +
 @"}";
                 File.WriteAllText(configPath, templateJson);
@@ -364,81 +676,105 @@ public sealed class KupoUIPRPlugin : BasePlugin
         try
         {
             var json = File.ReadAllText(configPath);
-            foreach (Last.Management.FontManager.FontType fontType in Enum.GetValues(typeof(Last.Management.FontManager.FontType)))
+
+            // 1. Detect root-level Language parameter (e.g. "Language": "Pt")
+            Last.Data.Parameters.Language? fileLanguage = null;
+            var langPropMatch = Regex.Match(json, "\"Language\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
+            if (langPropMatch.Success)
             {
-                var name = Enum.GetName(typeof(Last.Management.FontManager.FontType), fontType);
-                if (string.IsNullOrEmpty(name)) continue;
-
-                // Match object: "Font01" : { ... }
-                var objMatch = Regex.Match(json, $"\"{name}\"\\s*:\\s*\\{{([^}}]+)\\}}", RegexOptions.IgnoreCase);
-                if (objMatch.Success)
+                var langStr = langPropMatch.Groups[1].Value;
+                if (Enum.TryParse<Last.Data.Parameters.Language>(langStr, true, out var parsedLang))
                 {
-                    var objStr = objMatch.Groups[1].Value;
-                    var fileMatch = Regex.Match(objStr, "\"FontFile\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
-                    var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
-                    var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
-                    var sizeMatch = Regex.Match(objStr, "\"FontSize\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
+                    fileLanguage = parsedLang;
+                    PluginLog.LogInfo($"[FontSwap] Root language target detected: {fileLanguage}");
+                }
+            }
 
-                    var file = fileMatch.Success ? fileMatch.Groups[1].Value : "";
-                    var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : Path.GetFileNameWithoutExtension(file);
-                    
-                    float? space = null;
-                    if (spaceMatch.Success && float.TryParse(spaceMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedSpace))
+            // Helper to register parsed configs
+            void AddConfig(Last.Management.FontManager.FontType fontType, Last.Data.Parameters.Language? lang, FontConfigEntry entry, string sourceContext)
+            {
+                FontConfigMapping[(fontType, lang)] = entry;
+                var langStr = lang.HasValue ? lang.Value.ToString() : "Global";
+                PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> file='{entry.FontFile}' name='{entry.FontName}' (LineSpace={entry.LineSpace}, FontSize={entry.FontSize})");
+            }
+
+            // 2. Parse language-specific nested blocks (e.g. "Pt": { ... })
+            foreach (Last.Data.Parameters.Language lang in Enum.GetValues(typeof(Last.Data.Parameters.Language)))
+            {
+                var langName = Enum.GetName(typeof(Last.Data.Parameters.Language), lang);
+                if (string.IsNullOrEmpty(langName)) continue;
+
+                var langBlock = ReadSubObject(json, langName);
+                if (langBlock != null)
+                {
+                    // Parse "Default" within the language block
+                    var defaultEntry = ParseFontConfigEntry(langBlock, "Default");
+                    if (defaultEntry != null)
                     {
-                        space = parsedSpace;
-                    }
-                    int? size = null;
-                    if (sizeMatch.Success && int.TryParse(sizeMatch.Groups[1].Value, out var parsedSize))
-                    {
-                        size = parsedSize;
+                        AddConfig((Last.Management.FontManager.FontType)(-1), lang, defaultEntry, $"nested block '{langName}'");
                     }
 
-                    if (!string.IsNullOrEmpty(file))
+                    // Parse specific FontTypes within the language block
+                    foreach (Last.Management.FontManager.FontType fontType in Enum.GetValues(typeof(Last.Management.FontManager.FontType)))
                     {
-                        RegisterFontFile(file);
-                    }
+                        var fontTypeName = Enum.GetName(typeof(Last.Management.FontManager.FontType), fontType);
+                        if (string.IsNullOrEmpty(fontTypeName)) continue;
 
-                    if (!string.IsNullOrEmpty(fontName))
-                    {
-                        FontConfigMapping[fontType] = new FontConfigEntry 
-                        { 
-                            FontFile = file, 
-                            FontName = fontName, 
-                            LineSpace = space, 
-                            FontSize = size 
-                        };
-                        PluginLog.LogInfo($"[FontSwap] Custom mapping loaded: {fontType} -> file='{file}' name='{fontName}' (LineSpace={space}, FontSize={size})");
+                        var entry = ParseFontConfigEntry(langBlock, fontTypeName);
+                        if (entry != null)
+                        {
+                            AddConfig(fontType, lang, entry, $"nested block '{langName}'");
+                        }
                     }
                 }
-                else
+            }
+
+            // 3. Parse root-level configs
+            // Root "Default" / "Default_Lang"
+            var rootDefaultEntry = ParseFontConfigEntry(json, "Default");
+            if (rootDefaultEntry != null)
+            {
+                AddConfig((Last.Management.FontManager.FontType)(-1), fileLanguage, rootDefaultEntry, "root (Default)");
+            }
+
+            // Root language-suffixed defaults (e.g., "Default_Ja")
+            foreach (Last.Data.Parameters.Language lang in Enum.GetValues(typeof(Last.Data.Parameters.Language)))
+            {
+                var langName = Enum.GetName(typeof(Last.Data.Parameters.Language), lang);
+                if (string.IsNullOrEmpty(langName)) continue;
+
+                var defaultLangKey = $"Default_{langName}";
+                var defaultLangEntry = ParseFontConfigEntry(json, defaultLangKey);
+                if (defaultLangEntry != null)
                 {
-                    // Match string: "Font01" : "MyFont.ttf" or "Font01" : "Consolas"
-                    var strMatch = Regex.Match(json, $"\"{name}\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
-                    if (strMatch.Success)
+                    AddConfig((Last.Management.FontManager.FontType)(-1), lang, defaultLangEntry, "root suffix");
+                }
+            }
+
+            // Root FontType keys
+            foreach (Last.Management.FontManager.FontType fontType in Enum.GetValues(typeof(Last.Management.FontManager.FontType)))
+            {
+                var fontTypeName = Enum.GetName(typeof(Last.Management.FontManager.FontType), fontType);
+                if (string.IsNullOrEmpty(fontTypeName)) continue;
+
+                // Load root FontType (e.g., "Font01")
+                var baseEntry = ParseFontConfigEntry(json, fontTypeName);
+                if (baseEntry != null)
+                {
+                    AddConfig(fontType, fileLanguage, baseEntry, "root");
+                }
+
+                // Load root suffix FontType (e.g., "Font01_Ja")
+                foreach (Last.Data.Parameters.Language lang in Enum.GetValues(typeof(Last.Data.Parameters.Language)))
+                {
+                    var langName = Enum.GetName(typeof(Last.Data.Parameters.Language), lang);
+                    if (string.IsNullOrEmpty(langName)) continue;
+
+                    var langKey = $"{fontTypeName}_{langName}";
+                    var langEntry = ParseFontConfigEntry(json, langKey);
+                    if (langEntry != null)
                     {
-                        var value = strMatch.Groups[1].Value;
-                        if (!string.IsNullOrEmpty(value))
-                        {
-                            var hasExtension = value.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || 
-                                               value.EndsWith(".otf", StringComparison.OrdinalIgnoreCase);
-                            
-                            string file = "";
-                            string fontName = value;
-
-                            if (hasExtension)
-                            {
-                                file = value;
-                                fontName = Path.GetFileNameWithoutExtension(file);
-                                RegisterFontFile(file);
-                            }
-
-                            FontConfigMapping[fontType] = new FontConfigEntry 
-                            { 
-                                FontFile = file, 
-                                FontName = fontName 
-                            };
-                            PluginLog.LogInfo($"[FontSwap] Custom mapping loaded: {fontType} -> file='{file}' name='{fontName}'");
-                        }
+                        AddConfig(fontType, lang, langEntry, "root suffix");
                     }
                 }
             }

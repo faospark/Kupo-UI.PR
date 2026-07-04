@@ -603,40 +603,95 @@ You can place your custom font files (TrueType `.ttf` or OpenType `.otf`) inside
 All custom font files and configuration are placed under:
 - **Directory:** `<GameRoot>/Modules/00-Mods/Fonts/`
 - **Configuration File:** `<GameRoot>/Modules/00-Mods/Fonts/fontconfig.json`
+- **Help Documentation:** `<GameRoot>/Modules/00-Mods/Fonts/font-help.txt`
 
-*(Note: On first startup, the mod will automatically create the `Fonts/` folder and generate a default template `fontconfig.json` file if they are missing.)*
+*(Note: On first startup, the mod will automatically create the `Fonts/` folder, write the `font-help.txt` guide, and generate a default `fontconfig.json` containing the game's actual default font values for all supported languages.)*
 
 #### 2. Configuration File Format (`fontconfig.json`)
-The mapping file supports both **simple string mappings** (where the font family name defaults to the filename without extension) and **object-based mappings** (highly recommended for custom fonts to ensure the exact font family name and sizing is passed to the engine):
+The mapping file supports both **simple string mappings** (where the font family name defaults to the filename without extension) and **object-based mappings** (highly recommended for custom fonts to ensure the exact font family name and sizing is passed to the engine). 
+
+When generated on startup, the file contains the game's actual default font settings structured by language, like so:
 
 ```json
 {
-  "// Instructions": "Map a FontType enum name (Font01..Font10, Default) to a font file in 00-Mods/Fonts/. Specify FontFile and FontName (family name) to ensure characters render correctly.",
-  "Font01": {
-    "FontFile": "HARNGTON.TTF",
-    "FontName": "Harrington",
-    "LineSpace": 1.0
+  "En": {
+    "Font01": { "FontFile": "SE-ALPSTN__.TTF", "FontName": "SE-ALPSTN__", "LineSpace": 1.0 },
+    "Font02": { "FontFile": "Arial.ttf", "FontName": "Arial", "LineSpace": 1.2 },
+    "Default": { "FontFile": "Arial.ttf", "FontName": "Arial", "LineSpace": 1.2 }
   },
-  "Font02": {
-    "FontFile": "my_arial_substitute.otf",
-    "FontName": "MyArialSubstitute",
-    "LineSpace": 1.25,
-    "FontSize": 32
-  },
-  "Font09": {
-    "FontFile": "my_pixel_font.ttf",
-    "FontName": "MyPixelFont"
-  },
-  "Default": "HARNGTON.TTF"
+  "Ja": {
+    "Font01": { "FontFile": "FOT-NewRodinPro-DB.otf", "FontName": "FOT-NewRodinPro-DB", "LineSpace": 0.73 }
+  }
 }
 ```
+
+To swap a font, simply edit the `"FontFile"` and `"FontName"` properties in the relevant block.
 
 *   **`FontFile`**: **(Optional)** The filename of the `.ttf` or `.otf` file located directly in the `00-Mods/Fonts/` directory. Omit this if you are using a font already pre-installed in the Windows OS.
 *   **`FontName`**: The font family name (e.g. `"Harrington"`, `"Consolas"`, `"Segoe UI"`). If `FontFile` is provided, this registers and matches the custom file. If `FontFile` is omitted, it resolves directly to the matching pre-installed system font.
 *   **`LineSpace`**: A decimal factor representing the line height/spacing (e.g. `1.2`). Override this if your replacement font appears too cramped or overflows dialogue boxes vertically.
 *   **`FontSize`**: An integer representing the target rendering size (e.g. `32`). If omitted, it will automatically scale to match the size of the default font it replaces.
 
-#### 3. Enabling the Swap
+#### 3. Language-Specific Configurations
+There are three ways to customize fonts for specific game languages (e.g. `Ja`, `En`, `Fr`, `Ru`, `Pt`, `De`, `It`, `Th`, `Ko`, `Zht`, `Zhc`):
+
+##### Style A: Root-Level Language Specifier (Recommended for Single Language Mods)
+You can set a `"Language"` property at the root of the file. This acts as a scope modifier, so all configurations in the file apply to that language:
+```json
+{
+  "Language": "Pt",
+  "Font01": {
+    "FontFile": "portuguese_font.ttf",
+    "FontName": "PortugueseFont"
+  },
+  "Default": "portuguese_fallback.ttf"
+}
+```
+
+##### Style B: Nested Language Blocks (Recommended for Multi-Language Mods)
+You can organize configurations inside nested objects named after the language abbreviations:
+```json
+{
+  "Pt": {
+    "Font01": {
+      "FontFile": "portuguese_font.ttf",
+      "FontName": "PortugueseFont"
+    }
+  },
+  "Ja": {
+    "Font01": {
+      "FontFile": "japanese_font.ttf",
+      "FontName": "JapaneseFont"
+    }
+  }
+}
+```
+
+##### Style C: Flat Key Suffixes
+You can append `_` followed by the language abbreviation directly to the key names:
+```json
+{
+  "Font01": {
+    "FontFile": "english_font.ttf",
+    "FontName": "EnglishFont"
+  },
+  "Font01_Ja": {
+    "FontFile": "japanese_font.ttf",
+    "FontName": "JapaneseFont",
+    "LineSpace": 0.83
+  },
+  "Default_Ja": "japanese_fallback_font.ttf"
+}
+```
+
+##### Configuration Fallback Hierarchy
+When looking up a font for a specific `FontType` and language, the plugin searches in this order:
+1. Specific `FontType` + Specific Language (e.g. `Font01_Ja` or nested `Ja` block -> `Font01`)
+2. Specific `FontType` global fallback (e.g. `Font01`)
+3. `Default` + Specific Language (e.g. `Default_Ja` or nested `Ja` block -> `Default`)
+4. `Default` global fallback (e.g. `Default`)
+
+#### 4. Enabling the Swap
 Once you have configured your `fontconfig.json` and placed your font files:
 1. Open `<GameRoot>/BepInEx/config/faospark.kupoui.pr.cfg`.
 2. Set **`FontSwap.Enabled`** to `true`.
