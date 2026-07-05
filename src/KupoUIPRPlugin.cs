@@ -703,10 +703,11 @@ Supported Languages:
 @"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See fontconfig-sample.json for all baseline default values.""," + "\n" +
 @"  ""En"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""Segoe UI"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Segoe UI"" }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""Segoe UI"" }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Code"" }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Code"" }" + "\n" +
+@"    ""Font08"": { ""FontName"": ""Courier New"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Courier New"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Courier New"" }" + "\n" +
 @"  }" + "\n" +
 @"}";
                 File.WriteAllText(configPath, minimalConfigJson);
