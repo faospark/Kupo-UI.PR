@@ -134,36 +134,35 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "ForceVSync",
             true,
             "If true, forces VSync on startup.");
+        UIThemesFolderConfig = Config.Bind(
+            "UI and Customizations",
+            "UIThemesFolder",
+            "",
+            "Specify the folder name under {GameRoot}/Modules/01-UI-Themes for UI theme overrides.");
 
         UiFramesFolderConfig = Config.Bind(
-            "Textures-Resolving",
+            "UI and Customizations",
             "UiFramesFolder",
-            "UiFrames",
-            "Target folder for ResolveTexture: UI frame overrides.");
-
-        UIThemesFolderConfig = Config.Bind(
-            "Textures-Resolving",
-            "UIThemesFolder",
-            "UIThemes",
-            "Target folder for ResolveTexture: UI theme overrides.");
+            "",
+            "Specify the folder name under {GameRoot}/Modules/02-UI-Frames for UI frame overrides.");
 
         UIBgColorFolderConfig = Config.Bind(
-            "Textures-Resolving",
+            "UI and Customizations",
             "UIBgColorFolder",
-            "UIBgColor",
-            "Target folder for ResolveTexture: UI background color overrides.");
+            "",
+            "Specify the folder name under {GameRoot}/Modules/03-UI-BgColor for UI background overrides.");
 
         CursorsFolderConfig = Config.Bind(
-            "Textures-Resolving",
+            "UI and Customizations",
             "CursorsFolder",
-            "Cursors",
-            "Target folder for ResolveTexture: Cursor overrides.");
+            "",
+            "Specify the folder name under {GameRoot}/Modules/04-UI-Cursors for Cursor overrides.");
 
         ButtonPromptsFolderConfig = Config.Bind(
-            "Textures-Resolving",
+            "UI and Customizations",
             "ButtonPromptsFolder",
-            "ButtonPrompts",
-            "Target folder for ResolveTexture: Button prompt overrides.");
+            "",
+            "Specify the folder name under {GameRoot}/Modules/05-Button-Prompts for Button prompt overrides.");
 
         TextureLoggerConfig = Config.Bind(
             "Diagnostics",
