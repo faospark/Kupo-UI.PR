@@ -480,17 +480,49 @@ How to Customize:
 3. In fontconfig.json, create the corresponding language block (ensure it matches the language you are playing in-game) and intentionally define the specific FontType key you want to change.
 4. Edit the configuration block:
    - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"") or a custom font name.
-   - (Optional) Set ""FontFile"" if you wish to use a custom font file placed in the ""Fonts/"" directory.
+   - (Optional *does not work atm) Set ""FontFile"" if you wish to use a custom font file placed in the ""Fonts/"" directory.
    - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) or ""FontSize"" (integer) if needed.
 5. Restart the game to apply changes.
 
+Understanding Language Blocks 
+{
+  ""En"": {
+    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" },
+    ""Font02"": { ""FontName"": ""Arial"" },
+    ""Font03"": { ""FontName"": ""Arial"" },
+    ""Font04"": { ""FontName"": ""Arial"" },
+    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" },
+    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" },
+    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" },
+    ""Font08"": { ""FontName"": ""sqex-MonoSix"" },
+    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" },
+    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }
+  }
+}
+Each language has its own set of FontTypes and implementations. Seeing FOT-NewRodinPro-DB for numbers 
+in one language does not mean it is used everywhere. 
+Example:
+Modern Font (English)
+- Default: SE-ALPSTN__
+- To change it, update both Font01 and Font07
+
+Classic Font (English)
+- Default: sqex-MonoSix
+- To change it, update both Font08 and Font10
+
+Menu Numbers Font Type Pairing
+- FOT-NewRodinPro-DB → Modern English (Font05)
+- PIXELREMASTERFONT → Classic English (Font09)
+
+Not every font FONT* has to be edited
 Example fontconfig.json (Limited Scope Override):
 {
   ""En"": {
     ""Font01"": { ""FontName"": ""Segoe UI"" },
+    ""Font05"": { ""FontName"": ""Segoe UI"" },
     ""Font07"": { ""FontName"": ""Segoe UI"" },
     ""Font08"": { ""FontName"": ""Courier New"" },
-    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" },
+    ""Font09"": { ""FontName"": ""Courier New"" },
     ""Font10"": { ""FontName"": ""Courier New"" }
   }
 }
