@@ -24,6 +24,11 @@ internal static class MessageSpeakerPrefixPatch
     public static string LastDialogueID { get; private set; } = "None";
 
     /// <summary>
+    /// Stores the last speaker ID captured from the localization manager.
+    /// </summary>
+    public static string LastSpeakerID { get; private set; } = "None";
+
+    /// <summary>
     /// Reentrancy guard: set to <c>true</c> while we are rewriting <c>value</c>
     /// so that the setter we trigger on ourselves does not loop.
     /// </summary>
@@ -50,6 +55,17 @@ internal static class MessageSpeakerPrefixPatch
         if (!string.IsNullOrEmpty(key))
         {
             LastDialogueID = key;
+        }
+    }
+
+    // ── INTERCEPT GETSPEAKER TO CAPTURE SPEAKER ID ───────────────────────
+    [HarmonyPatch(typeof(MessageManager), nameof(MessageManager.GetSpeaker), new[] { typeof(string) })]
+    [HarmonyPrefix]
+    private static void GetSpeakerPrefix(string key)
+    {
+        if (!string.IsNullOrEmpty(key))
+        {
+            LastSpeakerID = key;
         }
     }
 
@@ -103,6 +119,7 @@ internal static class MessageSpeakerPrefixPatch
             KupoUIPRPlugin.PluginLog.LogInfo(
                 $"[MessageSpeakerPrefix] Dialogue matched. " +
                 $"Key: '{LastDialogueID}', " +
+                $"SpeakerID: '{LastSpeakerID}', " +
                 $"MessageText ID: {msgTextId} (Ptr: {msgTextPtr}), " +
                 $"SpeakerText ID: {speakerTextId} (Ptr: {speakerTextPtr}), " +
                 $"SpeakerName: '{speakerName ?? "(null)"}', " +
