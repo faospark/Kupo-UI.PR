@@ -194,7 +194,7 @@ internal static class SpeakerPortraitsPatch
     }
 
     /// <summary>
-    /// Loads a PNG from the filesystem into a Unity Sprite, utilizing caching.
+    /// Loads a PNG from the filesystem into a Unity Sprite, utilizing caching and applying point filtering if inside a Pixel folder.
     /// </summary>
     private static Sprite GetOrCreatePortraitSprite(string filePath)
     {
@@ -209,6 +209,16 @@ internal static class SpeakerPortraitsPatch
             Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (ImageConversion.LoadImage(texture, data))
             {
+                if (Textures.TextureResolver.ShouldUsePointFilter(filePath))
+                {
+                    texture.filterMode = FilterMode.Point;
+                    if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] Applied Point Filter to portrait: {Path.GetFileName(filePath)}");
+                }
+                else
+                {
+                    texture.filterMode = FilterMode.Bilinear;
+                }
+
                 var rect = new Rect(0, 0, texture.width, texture.height);
                 var pivot = new Vector2(0.5f, 0.5f);
                 var sprite = Sprite.Create(texture, rect, pivot);

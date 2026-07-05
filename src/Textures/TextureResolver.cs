@@ -1024,7 +1024,7 @@ internal static class TextureResolver
             || extension.Equals(".dds", StringComparison.OrdinalIgnoreCase);
     }
 
-    private static bool ShouldUsePointFilter(string filePath)
+    internal static bool ShouldUsePointFilter(string filePath)
     {
         if (string.IsNullOrEmpty(filePath))
         {
