@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using HarmonyLib;
 using Last.Management;
 using Last.Message;
@@ -63,7 +63,7 @@ internal static class MessageSpeakerPrefixPatch
             return;
         }
 
-        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value)
+        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value && !KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
         {
             return;
         }
@@ -109,7 +109,7 @@ internal static class MessageSpeakerPrefixPatch
                 $"Message: '{value}'");
         }
 
-        if (!string.IsNullOrWhiteSpace(speakerName))
+        if (KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value && !string.IsNullOrWhiteSpace(speakerName))
         {
             string separator = Separator;
             try
