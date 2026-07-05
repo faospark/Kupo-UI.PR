@@ -43,6 +43,7 @@ internal static class MessageSpeakerPrefixPatch
     private static void PlayMessageCommonPrefix(string messageID)
     {
         LastDialogueID = messageID;
+        LastSpeakerID = "None";
     }
 
     // ── INTERCEPT GETMESSAGE TO CAPTURE LOCALIZATION ID ──────────────────
@@ -55,17 +56,18 @@ internal static class MessageSpeakerPrefixPatch
         if (!string.IsNullOrEmpty(key))
         {
             LastDialogueID = key;
+            LastSpeakerID = "None";
         }
     }
 
-    // ── INTERCEPT GETSPEAKER TO CAPTURE SPEAKER ID ───────────────────────
-    [HarmonyPatch(typeof(MessageManager), nameof(MessageManager.GetSpeaker), new[] { typeof(string) })]
-    [HarmonyPrefix]
-    private static void GetSpeakerPrefix(string key)
+    // ── INTERCEPT GETSPEAKERMESSAGEID TO CAPTURE SPEAKER ID ────────────────
+    [HarmonyPatch(typeof(MessageManager), nameof(MessageManager.GetSpeakerMessageId), new[] { typeof(string) })]
+    [HarmonyPostfix]
+    private static void GetSpeakerMessageIdPostfix(string __result)
     {
-        if (!string.IsNullOrEmpty(key))
+        if (!string.IsNullOrEmpty(__result))
         {
-            LastSpeakerID = key;
+            LastSpeakerID = __result;
         }
     }
 
