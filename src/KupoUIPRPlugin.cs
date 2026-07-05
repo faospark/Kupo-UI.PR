@@ -432,17 +432,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             return true;
         }
 
-        // 3. Try Default + specific Language (e.g. Default_Ja)
-        if (lang.HasValue && FontConfigMapping.TryGetValue(((Last.Management.FontManager.FontType)(-1), lang.Value), out entry))
-        {
-            return true;
-        }
 
-        // 4. Try Default + no Language (e.g. Default)
-        if (FontConfigMapping.TryGetValue(((Last.Management.FontManager.FontType)(-1), null), out entry))
-        {
-            return true;
-        }
 
         entry = null;
         return false;
@@ -487,7 +477,7 @@ Files:
 How to Customize:
 1. Open fontconfig.json.
 2. Locate the language block (e.g. ""En"", ""Ja"", ""Th"", ""Ko"", ""Zht"", ""Zhc"", etc.)
-   and the FontType (Font01..Font10, Default) you want to change.
+   and the FontType (Font01..Font10) you want to change.
 3. Place your custom .ttf or .otf file inside this ""Fonts/"" directory.
 4. Edit the configuration block:
    - Set ""FontFile"" to your custom font filename (e.g. ""my_pixel_font.ttf"").
@@ -522,147 +512,92 @@ Supported Languages:
                 var templateJson = 
 @"{" + "\n" +
 @"  ""En"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Ja"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.67 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Fr"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""De"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""It"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Ru"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""ITCAvantGardeW1G-Medium"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""ITCAvantGardeW1G-Medium"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Pt"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""SE-ALPSCB__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"", ""LineSpace"": 0.73 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""SE-ALPSCB__"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""sqex-MonoSix"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Th"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""arnewhebesans-th_rg"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""arnewhebesans-th_rg"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""arnewhebesans-th_rg"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"", ""LineSpace"": 0.66 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""arnewhebesans-th_rg"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""arnewhebesans-th_rg"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""arnewhebesans-th_rg"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Ko"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""FOTK-YoonGothic750"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""FOTK-YoonGothic750"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Zht"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""arudjingxiheiu30_db"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""arudjingxiheiu30_db"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Zhc"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""arudjingxiheig30_db"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font02"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font03"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font04"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"", ""LineSpace"": 0.6 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }," + "\n" +
-@"    ""Default"": { ""FontName"": ""Arial"", ""LineSpace"": 1.2 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""arudjingxiheig30_db"" }," + "\n" +
+@"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
 @"  }" + "\n" +
 @"}";
                 File.WriteAllText(configPath, templateJson);
@@ -709,12 +644,7 @@ Supported Languages:
                 var langBlock = ReadSubObject(json, langName);
                 if (langBlock != null)
                 {
-                    // Parse "Default" within the language block
-                    var defaultEntry = ParseFontConfigEntry(langBlock, "Default");
-                    if (defaultEntry != null)
-                    {
-                        AddConfig((Last.Management.FontManager.FontType)(-1), lang, defaultEntry, $"nested block '{langName}'");
-                    }
+
 
                     // Parse specific FontTypes within the language block
                     foreach (Last.Management.FontManager.FontType fontType in Enum.GetValues(typeof(Last.Management.FontManager.FontType)))
@@ -731,25 +661,27 @@ Supported Languages:
                 }
             }
 
-            // 3. Parse root-level configs
-            // Root "Default" / "Default_Lang"
-            var rootDefaultEntry = ParseFontConfigEntry(json, "Default");
-            if (rootDefaultEntry != null)
-            {
-                AddConfig((Last.Management.FontManager.FontType)(-1), fileLanguage, rootDefaultEntry, "root (Default)");
-            }
-
-            // Root language-suffixed defaults (e.g., "Default_Ja")
+            // 3. Parse root-level configs by removing language blocks first
+            var rootJson = json;
             foreach (Last.Data.Parameters.Language lang in Enum.GetValues(typeof(Last.Data.Parameters.Language)))
             {
                 var langName = Enum.GetName(typeof(Last.Data.Parameters.Language), lang);
                 if (string.IsNullOrEmpty(langName)) continue;
 
-                var defaultLangKey = $"Default_{langName}";
-                var defaultLangEntry = ParseFontConfigEntry(json, defaultLangKey);
-                if (defaultLangEntry != null)
+                var langBlock = ReadSubObject(rootJson, langName);
+                if (langBlock != null)
                 {
-                    AddConfig((Last.Management.FontManager.FontType)(-1), lang, defaultLangEntry, "root suffix");
+                    var keyPattern = $"\"{Regex.Escape(langName)}\"\\s*:\\s*\\{{";
+                    var match = Regex.Match(rootJson, keyPattern, RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        var blockIndex = rootJson.IndexOf(langBlock, match.Index);
+                        if (blockIndex >= 0)
+                        {
+                            var blockLength = (blockIndex + langBlock.Length) - match.Index;
+                            rootJson = rootJson.Remove(match.Index, blockLength);
+                        }
+                    }
                 }
             }
 
@@ -760,7 +692,7 @@ Supported Languages:
                 if (string.IsNullOrEmpty(fontTypeName)) continue;
 
                 // Load root FontType (e.g., "Font01")
-                var baseEntry = ParseFontConfigEntry(json, fontTypeName);
+                var baseEntry = ParseFontConfigEntry(rootJson, fontTypeName);
                 if (baseEntry != null)
                 {
                     AddConfig(fontType, fileLanguage, baseEntry, "root");
@@ -773,7 +705,7 @@ Supported Languages:
                     if (string.IsNullOrEmpty(langName)) continue;
 
                     var langKey = $"{fontTypeName}_{langName}";
-                    var langEntry = ParseFontConfigEntry(json, langKey);
+                    var langEntry = ParseFontConfigEntry(rootJson, langKey);
                     if (langEntry != null)
                     {
                         AddConfig(fontType, lang, langEntry, "root suffix");
