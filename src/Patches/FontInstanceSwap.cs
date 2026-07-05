@@ -40,13 +40,19 @@ namespace KupoUI.PR.Patches
                 // Overwrite the FontInstance property
                 try
                 {
-                    if (__result.FontInstance == null || __result.FontInstance.Pointer != fontInstance.Pointer)
+                    bool isNewSwap = __result.FontInstance == null || __result.FontInstance.Pointer != fontInstance.Pointer;
+                    if (isNewSwap)
                     {
                         __result.FontInstance = fontInstance;
-                        if (configEntry.LineSpace.HasValue)
-                        {
-                            __result.LineSpace = configEntry.LineSpace.Value;
-                        }
+                    }
+
+                    if (configEntry.LineSpace.HasValue)
+                    {
+                        __result.LineSpace = configEntry.LineSpace.Value;
+                    }
+
+                    if (isNewSwap)
+                    {
                         KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] GetFont Postfix: FontType={type} (Language={language ?? "Default"}) swapped to '{fontName}' at size {targetSize} (LineSpace={__result.LineSpace})");
                     }
                 }
