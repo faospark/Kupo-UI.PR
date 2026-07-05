@@ -471,6 +471,7 @@ internal static class TextureResolver
         Directory.CreateDirectory(root);
 
         Directory.CreateDirectory(Path.Combine(root, "00-Mods"));
+        Directory.CreateDirectory(Path.Combine(root, "00-Mods", "SpeakerPortraits"));
         Directory.CreateDirectory(Path.Combine(root, "01-UI-Themes"));
         Directory.CreateDirectory(Path.Combine(root, "02-UI-Frames"));
         Directory.CreateDirectory(Path.Combine(root, "03-UI-BgColor"));

@@ -42,6 +42,21 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> MessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
 
+    internal static ConfigEntry<bool> EnableSpeakerPortraitsConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitWidthConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitHeightConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitOffsetXConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitOffsetYConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitScaleXConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitScaleYConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitAnchorMinXConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitAnchorMinYConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitAnchorMaxXConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitAnchorMaxYConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitPivotXConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> PortraitPivotYConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> EnablePortraitLoggingConfig { get; private set; } = null!;
+
     internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticsLogFontMappingConfig { get; private set; } = null!;
 
@@ -141,6 +156,90 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "ForceVSync",
             true,
             "If true, forces VSync on startup.");
+
+        EnableSpeakerPortraitsConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "EnableSpeakerPortraits",
+            true,
+            "If true, dynamically injects speaker portraits during dialogue sequences.");
+
+        PortraitWidthConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitWidth",
+            256f,
+            "Custom bounding box width for the portrait.");
+
+        PortraitHeightConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitHeight",
+            256f,
+            "Custom bounding box height for the portrait.");
+
+        PortraitOffsetXConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitOffsetX",
+            0f,
+            "Positional horizontal adjustment (offset X) for the portrait placement.");
+
+        PortraitOffsetYConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitOffsetY",
+            0f,
+            "Positional vertical adjustment (offset Y) for the portrait placement.");
+
+        PortraitScaleXConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitScaleX",
+            1f,
+            "Scaling factor X for the portrait image.");
+
+        PortraitScaleYConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitScaleY",
+            1f,
+            "Scaling factor Y for the portrait image.");
+
+        PortraitAnchorMinXConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitAnchorMinX",
+            0f,
+            "Minimum anchor X coordinate (default 0.0 for left side).");
+
+        PortraitAnchorMinYConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitAnchorMinY",
+            0.5f,
+            "Minimum anchor Y coordinate (default 0.5 for middle alignment).");
+
+        PortraitAnchorMaxXConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitAnchorMaxX",
+            0f,
+            "Maximum anchor X coordinate (default 0.0 for left side).");
+
+        PortraitAnchorMaxYConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitAnchorMaxY",
+            0.5f,
+            "Maximum anchor Y coordinate (default 0.5 for middle alignment).");
+
+        PortraitPivotXConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitPivotX",
+            0f,
+            "Pivot X coordinate (default 0.0 for left-side alignment).");
+
+        PortraitPivotYConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "PortraitPivotY",
+            0.5f,
+            "Pivot Y coordinate (default 0.5 for middle alignment).");
+
+        EnablePortraitLoggingConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "EnablePortraitLogging",
+            true,
+            "If true, outputs debug information for portrait lifecycle and resolution.");
         UIThemesFolderConfig = Config.Bind(
             "UI and Customizations",
             "UIThemesFolder",
@@ -237,6 +336,21 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
         Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
         Log.LogInfo($"DiagnosticsLogFontMapping = {DiagnosticsLogFontMappingConfig.Value}");
+
+        Log.LogInfo($"EnableSpeakerPortraits = {EnableSpeakerPortraitsConfig.Value}");
+        Log.LogInfo($"PortraitWidth = {PortraitWidthConfig.Value}");
+        Log.LogInfo($"PortraitHeight = {PortraitHeightConfig.Value}");
+        Log.LogInfo($"PortraitOffsetX = {PortraitOffsetXConfig.Value}");
+        Log.LogInfo($"PortraitOffsetY = {PortraitOffsetYConfig.Value}");
+        Log.LogInfo($"PortraitScaleX = {PortraitScaleXConfig.Value}");
+        Log.LogInfo($"PortraitScaleY = {PortraitScaleYConfig.Value}");
+        Log.LogInfo($"PortraitAnchorMinX = {PortraitAnchorMinXConfig.Value}");
+        Log.LogInfo($"PortraitAnchorMinY = {PortraitAnchorMinYConfig.Value}");
+        Log.LogInfo($"PortraitAnchorMaxX = {PortraitAnchorMaxXConfig.Value}");
+        Log.LogInfo($"PortraitAnchorMaxY = {PortraitAnchorMaxYConfig.Value}");
+        Log.LogInfo($"PortraitPivotX = {PortraitPivotXConfig.Value}");
+        Log.LogInfo($"PortraitPivotY = {PortraitPivotYConfig.Value}");
+        Log.LogInfo($"EnablePortraitLogging = {EnablePortraitLoggingConfig.Value}");
     }
 
     public void OnDestroy()
