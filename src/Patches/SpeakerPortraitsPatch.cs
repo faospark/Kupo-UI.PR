@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Last.Message;
 using UnityEngine;
@@ -16,7 +15,6 @@ namespace KupoUI.PR.Patches;
 internal static class SpeakerPortraitsPatch
 {
     private static readonly Dictionary<string, Sprite> _portraitCache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConditionalWeakTable<MessageWindowView, PortraitLayoutData> _layoutTrackers = new();
     private static List<string> _cachedFolders;
 
     static SpeakerPortraitsPatch()
@@ -268,63 +266,33 @@ internal static class SpeakerPortraitsPatch
         var battleWindow = view.transform.Find("message_root/common_battlewindow");
         var lastText = view.transform.Find("message_root/message_root/root/last_text");
 
-        // Get or create the tracker data association
-        if (!_layoutTrackers.TryGetValue(view, out var tracker))
-        {
-            tracker = new PortraitLayoutData();
-            _layoutTrackers.Add(view, tracker);
-        }
-
         if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] InjectPortrait: speakerId='{speakerId}', speakerName='{speakerName ?? "null"}', imagePath='{imagePath ?? "null"}'");
-            KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   battleWindow: {(battleWindow != null ? "FOUND scale=" + battleWindow.localScale.ToString() : "NULL")}");
-            KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   lastText: {(lastText != null ? "FOUND pos=" + lastText.localPosition.ToString() : "NULL")}");
         }
 
         if (string.IsNullOrEmpty(imagePath))
         {
-            // Reset to default captured transforms ONLY if we previously modified them
-            if (tracker.hasSaved)
+            // Reset to defaults directly
+            if (battleWindow != null)
             {
-                if (battleWindow != null)
-                {
-                    battleWindow.localScale = tracker.originalBattleWindowScale;
-                    if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset battleWindow scale to " + tracker.originalBattleWindowScale.ToString());
-                }
-                if (lastText != null)
-                {
-                    lastText.localPosition = tracker.originalLastTextPosition;
-                    if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset lastText position to " + tracker.originalLastTextPosition.ToString());
-                }
+                battleWindow.localScale = Vector3.one;
+                if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset battleWindow scale to (1.0, 1.0, 1.0)");
+            }
+            if (lastText != null)
+            {
+                lastText.localPosition = Vector3.zero;
+                if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset lastText position to (0.0, 0.0, 0.0)");
             }
             return;
-        }
-
-        // We are about to apply portrait modifications. Save the true default layout parameters now, if not saved already.
-        if (!tracker.hasSaved)
-        {
-            if (battleWindow != null) tracker.originalBattleWindowScale = battleWindow.localScale;
-            if (lastText != null) tracker.originalLastTextPosition = lastText.localPosition;
-            tracker.hasSaved = true;
-            if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
-            {
-                KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Saved defaults: scale={tracker.originalBattleWindowScale}, pos={tracker.originalLastTextPosition}");
-            }
         }
 
         var sprite = GetOrCreatePortraitSprite(imagePath);
         if (sprite == null)
         {
-            // Reset to defaults if sprite failed to load
-            if (battleWindow != null)
-            {
-                battleWindow.localScale = tracker.originalBattleWindowScale;
-            }
-            if (lastText != null)
-            {
-                lastText.localPosition = tracker.originalLastTextPosition;
-            }
+            // Reset to defaults directly if sprite failed to load
+            if (battleWindow != null) battleWindow.localScale = Vector3.one;
+            if (lastText != null) lastText.localPosition = Vector3.zero;
             return;
         }
 
@@ -384,19 +352,11 @@ internal static class SpeakerPortraitsPatch
             }
         }
 
-        if (_layoutTrackers.TryGetValue(view, out var tracker) && tracker.hasSaved)
-        {
-            var battleWindow = view.transform.Find("message_root/common_battlewindow");
-            if (battleWindow != null)
-            {
-                battleWindow.localScale = tracker.originalBattleWindowScale;
-            }
-            var lastText = view.transform.Find("message_root/message_root/root/last_text");
-            if (lastText != null)
-            {
-                lastText.localPosition = tracker.originalLastTextPosition;
-            }
-        }
+        var battleWindow = view.transform.Find("message_root/common_battlewindow");
+        if (battleWindow != null) battleWindow.localScale = Vector3.one;
+
+        var lastText = view.transform.Find("message_root/message_root/root/last_text");
+        if (lastText != null) lastText.localPosition = new Vector3(-637f, -25f, 0f);
     }
 
     // ── HARMONY HOOKS ────────────────────────────────────────────────────
@@ -453,14 +413,4 @@ internal static class SpeakerPortraitsPatch
 
         return null;
     }
-}
-
-/// <summary>
-/// A temporary data holder associated with MessageWindowView to track and preserve the default UI positions.
-/// </summary>
-internal class PortraitLayoutData
-{
-    public Vector3 originalLastTextPosition;
-    public Vector3 originalBattleWindowScale;
-    public bool hasSaved = false;
 }
