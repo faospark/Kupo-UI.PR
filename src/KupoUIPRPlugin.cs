@@ -37,6 +37,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> HideSpeakerTagConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
@@ -116,6 +117,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "MessageSpeakerPrefix",
             false,
             "If true, adds a prefix to the message window speaker text to display the speaker name.");
+
+        HideSpeakerTagConfig = Config.Bind(
+            "UI-Message-Tweaks",
+            "HideSpeakerTag",
+            false,
+            "If true, hides the speaker name tag bubble by moving it off-screen.");
 
         MessageSpeakerPrefixLoggingConfig = Config.Bind(
             "UI-Message-Tweaks",
@@ -217,18 +224,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ForceVSyncPatch.ApplyNow();
         ObjectConfigPatch.Initialize(ModulesRootPath);
 
-        if (MessageSpeakerPrefixConfig.Value)
-        {
-            ObjectConfigLoader.AddEntry(new ObjectConfig.ObjectConfigEntry
-            {
-                TargetObjectName = "speker_root",
-                TargetPath = "RootObject/Canvas/UIParent/message_parent(Clone)/parent_root/upper_parent/message_window(Clone)/speker_root",
-                Position = new ObjectConfig.Vec3 { X = -730f, Y = -5580f, Z = 0f },
-                Scale = new ObjectConfig.Vec3 { X = 0.9f, Y = 0.9f, Z = 1f },
-                SourceFile = "KupoUIPRPlugin.cs"
-            });
-        }
-
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");
         Log.LogInfo($"ForceVSync = {ForceVSyncConfig.Value}");
@@ -237,6 +232,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
         Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
+        Log.LogInfo($"HideSpeakerTag = {HideSpeakerTagConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
         Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
