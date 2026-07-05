@@ -470,20 +470,30 @@ public sealed class KupoUIPRPlugin : BasePlugin
 This directory manages custom font swapping for KupoUI.PR.
 
 Files:
-- fontconfig.json: Holds active font configurations. The mod automatically populates
-  this file with the game's default baseline values for all supported languages.
+- fontconfig.json: Holds active font configurations. Copy target blocks or specific keys from fontconfig-sample.json here to customize them.
+- fontconfig-sample.json: Holds game's default baseline values for all supported languages. Overwritten on game launch.
 - font-help.txt: This help file.
 
 How to Customize:
-1. Open fontconfig.json.
-2. Locate the language block (e.g. ""En"", ""Ja"", ""Th"", ""Ko"", ""Zht"", ""Zhc"", etc.)
-   and the FontType (Font01..Font10) you want to change.
-3. Place your custom .ttf or .otf file inside this ""Fonts/"" directory.
+1. Open fontconfig-sample.json to reference the game's default font names.
+2. Identify the language block (e.g. ""En"", ""Ja"", ""Th"", etc.) and the specific FontType (Font01..Font10) you wish to change. Note that font enums differ per language.
+3. In fontconfig.json, create the corresponding language block (ensure it matches the language you are playing in-game) and intentionally define the specific FontType key you want to change.
 4. Edit the configuration block:
-   - Set ""FontFile"" to your custom font filename (e.g. ""my_pixel_font.ttf"").
-   - Set ""FontName"" to the actual font family name (e.g. ""MyPixelFont"").
+   - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"") or a custom font name.
+   - (Optional) Set ""FontFile"" if you wish to use a custom font file placed in the ""Fonts/"" directory.
    - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) or ""FontSize"" (integer) if needed.
 5. Restart the game to apply changes.
+
+Example fontconfig.json (Limited Scope Override):
+{
+  ""En"": {
+    ""Font01"": { ""FontName"": ""Segoe UI"" },
+    ""Font07"": { ""FontName"": ""Segoe UI"" },
+    ""Font08"": { ""FontName"": ""Courier New"" },
+    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" },
+    ""Font10"": { ""FontName"": ""Courier New"" }
+  }
+}
 
 Supported Languages:
 - En (English)
@@ -505,14 +515,14 @@ Supported Languages:
             PluginLog.LogError($"[FontSwap] Failed to generate font-help.txt: {ex}");
         }
 
-        if (!File.Exists(configPath))
-        {
-            try
-            {
-                var templateJson = 
+        var samplePath = Path.Combine(fontsDir, "fontconfig-sample.json");
+        var templateJson = 
 @"{" + "\n" +
 @"  ""En"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
@@ -529,10 +539,14 @@ Supported Languages:
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
 @"    ""Font08"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Fr"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
@@ -542,6 +556,9 @@ Supported Languages:
 @"  }," + "\n" +
 @"  ""De"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
@@ -551,6 +568,9 @@ Supported Languages:
 @"  }," + "\n" +
 @"  ""It"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
@@ -560,8 +580,15 @@ Supported Languages:
 @"  }," + "\n" +
 @"  ""Ru"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""ITCAvantGardeW1G-Medium"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Pt"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
@@ -582,26 +609,76 @@ Supported Languages:
 @"    ""Font04"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
 @"    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Ko"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""FOTK-YoonGothic750"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Zht"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""arudjingxiheiu30_db"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"" }" + "\n" +
 @"  }," + "\n" +
 @"  ""Zhc"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""arudjingxiheig30_db"" }," + "\n" +
+@"    ""Font02"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font03"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font04"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font05"": { ""FontName"": ""Arial"" }," + "\n" +
 @"    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }" + "\n" +
+@"    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""Arial"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Arial"" }" + "\n" +
 @"  }" + "\n" +
 @"}";
-                File.WriteAllText(configPath, templateJson);
-                PluginLog.LogInfo($"[FontSwap] Generated default template fontconfig.json at {configPath}");
+
+        try
+        {
+            File.WriteAllText(samplePath, templateJson);
+            PluginLog.LogInfo($"[FontSwap] Generated/Updated baseline template at {samplePath}");
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogError($"[FontSwap] Failed to generate baseline template fontconfig-sample.json: {ex}");
+        }
+
+        if (!File.Exists(configPath))
+        {
+            try
+            {
+                var minimalConfigJson = 
+@"{" + "\n" +
+@"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See fontconfig-sample.json for all baseline default values.""," + "\n" +
+@"  ""En"": {" + "\n" +
+@"    ""Font01"": { ""FontName"": ""Segoe UI"" }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""Segoe UI"" }," + "\n" +
+@"    ""Font08"": { ""FontName"": ""Code"" }," + "\n" +
+@"    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" }," + "\n" +
+@"    ""Font10"": { ""FontName"": ""Code"" }" + "\n" +
+@"  }" + "\n" +
+@"}";
+                File.WriteAllText(configPath, minimalConfigJson);
+                PluginLog.LogInfo($"[FontSwap] Generated default minimal fontconfig.json at {configPath}");
             }
             catch (Exception ex)
             {
