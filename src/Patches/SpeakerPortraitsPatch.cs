@@ -46,42 +46,10 @@ internal static class SpeakerPortraitsPatch
                 folders.Add(root);
             }
 
-            foreach (var subDir in Directory.GetDirectories(root))
+            var matches = Directory.GetDirectories(root, "SpeakerPortraits", SearchOption.AllDirectories);
+            foreach (var match in matches)
             {
-                string name = Path.GetFileName(subDir);
-                if (name.Equals("SpeakerPortraits", StringComparison.OrdinalIgnoreCase))
-                {
-                    folders.Add(subDir);
-                }
-                else if (name.Equals("00-Mods", StringComparison.OrdinalIgnoreCase))
-                {
-                    string directTarget = Path.Combine(subDir, "SpeakerPortraits");
-                    if (Directory.Exists(directTarget))
-                    {
-                        folders.Add(directTarget);
-                    }
-
-                    foreach (var modDir in Directory.GetDirectories(subDir))
-                    {
-                        string modName = Path.GetFileName(modDir);
-                        if (!modName.Equals("SpeakerPortraits", StringComparison.OrdinalIgnoreCase))
-                        {
-                            string target = Path.Combine(modDir, "SpeakerPortraits");
-                            if (Directory.Exists(target))
-                            {
-                                folders.Add(target);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    string target = Path.Combine(subDir, "SpeakerPortraits");
-                    if (Directory.Exists(target))
-                    {
-                        folders.Add(target);
-                    }
-                }
+                folders.Add(match);
             }
         }
         catch (Exception ex)
