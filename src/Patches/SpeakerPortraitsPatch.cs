@@ -192,7 +192,7 @@ internal static class SpeakerPortraitsPatch
     }
 
     /// <summary>
-    /// Loads a PNG from the filesystem into a Unity Sprite, utilizing caching and applying point filtering if inside a Pixel folder.
+    /// Loads a PNG from the filesystem into a Unity Sprite, utilizing caching and applying sidecar JSON metadata if present.
     /// </summary>
     private static Sprite GetOrCreatePortraitSprite(string filePath)
     {
@@ -207,22 +207,48 @@ internal static class SpeakerPortraitsPatch
             Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
             if (ImageConversion.LoadImage(texture, data))
             {
-                if (Textures.TextureResolver.ShouldUsePointFilter(filePath))
+                // Read sidecar metadata if available
+                var metadata = Textures.TextureResolver.LoadTextureMetadata(filePath);
+
+                // Apply filter mode and wrap mode from metadata/defaults
+                texture.filterMode = Textures.TextureResolver.ResolveFilterMode(filePath, metadata);
+                texture.wrapMode = Textures.TextureResolver.ResolveWrapMode(filePath, metadata);
+
+                // Parse pivot (default 0.5, 0.5)
+                var pivot = new Vector2(0.5f, 0.5f);
+                var parsedPivot = Textures.TextureResolver.ParsePivot(metadata);
+                if (parsedPivot.HasValue)
                 {
-                    texture.filterMode = FilterMode.Point;
-                    if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] Applied Point Filter to portrait: {Path.GetFileName(filePath)}");
+                    pivot = parsedPivot.Value;
                 }
-                else
+
+                // Parse PPU (default 100)
+                float ppu = 100f;
+                if (metadata != null && metadata.PixelsPerUnit > 0f)
                 {
-                    texture.filterMode = FilterMode.Bilinear;
+                    ppu = metadata.PixelsPerUnit;
+                }
+
+                // Parse 9-slice borders (default Vector4.zero)
+                var border = Vector4.zero;
+                var parsedBorder = Textures.TextureResolver.ParseBorder(metadata);
+                if (parsedBorder.HasValue)
+                {
+                    border = parsedBorder.Value;
                 }
 
                 var rect = new Rect(0, 0, texture.width, texture.height);
-                var pivot = new Vector2(0.5f, 0.5f);
-                var sprite = Sprite.Create(texture, rect, pivot);
+                var sprite = Sprite.Create(texture, rect, pivot, ppu, 0, SpriteMeshType.FullRect, border);
 
                 texture.hideFlags |= HideFlags.DontSave;
                 sprite.hideFlags |= HideFlags.DontSave;
+
+                if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo(
+                        $"[SpeakerPortraits] Created sprite for {Path.GetFileName(filePath)}: " +
+                        $"filter={texture.filterMode}, ppu={ppu}, pivot={pivot}, border={border}");
+                }
 
                 _portraitCache[filePath] = sprite;
                 return sprite;
@@ -323,13 +349,13 @@ internal static class SpeakerPortraitsPatch
         var rectTransform = portraitGo.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
-            rectTransform.anchorMin = new Vector2(KupoUIPRPlugin.PortraitAnchorMinXConfig.Value, KupoUIPRPlugin.PortraitAnchorMinYConfig.Value);
-            rectTransform.anchorMax = new Vector2(KupoUIPRPlugin.PortraitAnchorMaxXConfig.Value, KupoUIPRPlugin.PortraitAnchorMaxYConfig.Value);
-            rectTransform.pivot = new Vector2(KupoUIPRPlugin.PortraitPivotXConfig.Value, KupoUIPRPlugin.PortraitPivotYConfig.Value);
+            rectTransform.anchorMin = new Vector2(0f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0f, 0.5f);
+            rectTransform.pivot = new Vector2(0f, 0.5f);
 
-            rectTransform.sizeDelta = new Vector2(KupoUIPRPlugin.PortraitWidthConfig.Value, KupoUIPRPlugin.PortraitHeightConfig.Value);
-            rectTransform.anchoredPosition = new Vector2(KupoUIPRPlugin.PortraitOffsetXConfig.Value, KupoUIPRPlugin.PortraitOffsetYConfig.Value);
-            rectTransform.localScale = new Vector3(KupoUIPRPlugin.PortraitScaleXConfig.Value, KupoUIPRPlugin.PortraitScaleYConfig.Value, 1f);
+            rectTransform.sizeDelta = new Vector2(256f, 256f);
+            rectTransform.anchoredPosition = new Vector2(-224f, 0f);
+            rectTransform.localScale = Vector3.one;
         }
     }
 

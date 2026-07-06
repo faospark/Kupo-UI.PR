@@ -688,7 +688,7 @@ internal static class TextureResolver
         return TexturePathIndex.TryGetValue(key, out filePath);
     }
 
-    private static TextureOverrideMetadata LoadTextureMetadata(string texturePath)
+    internal static TextureOverrideMetadata LoadTextureMetadata(string texturePath)
     {
         if (string.IsNullOrEmpty(texturePath))
         {
@@ -736,7 +736,7 @@ internal static class TextureResolver
         }
     }
 
-    private static FilterMode ResolveFilterMode(string texturePath, TextureOverrideMetadata metadata)
+    internal static FilterMode ResolveFilterMode(string texturePath, TextureOverrideMetadata metadata)
     {
         if (metadata != null)
         {
@@ -769,7 +769,7 @@ internal static class TextureResolver
         return ShouldUsePointFilter(texturePath) ? FilterMode.Point : FilterMode.Bilinear;
     }
 
-    private static TextureWrapMode ResolveWrapMode(string texturePath, TextureOverrideMetadata metadata)
+    internal static TextureWrapMode ResolveWrapMode(string texturePath, TextureOverrideMetadata metadata)
     {
         if (metadata != null && !string.IsNullOrEmpty(metadata.WrapMode))
         {
@@ -839,7 +839,7 @@ internal static class TextureResolver
     /// <summary>
     /// Parses a "x,y" normalized pivot string from metadata. Returns null if absent or malformed.
     /// </summary>
-    private static Vector2? ParsePivot(TextureOverrideMetadata metadata)
+    internal static Vector2? ParsePivot(TextureOverrideMetadata metadata)
     {
         if (metadata == null || string.IsNullOrEmpty(metadata.Pivot))
         {
@@ -865,7 +865,7 @@ internal static class TextureResolver
     /// Parses a "left,bottom,right,top" 9-slice border string from metadata. Returns null if absent or malformed.
     /// Values are pixel counts and must be non-negative.
     /// </summary>
-    private static Vector4? ParseBorder(TextureOverrideMetadata metadata)
+    internal static Vector4? ParseBorder(TextureOverrideMetadata metadata)
     {
         if (metadata == null || string.IsNullOrEmpty(metadata.Border))
         {
@@ -1087,7 +1087,7 @@ internal static class TextureResolver
         return $"w={width},h={height},ppu={ppu},mode={mode},point={point},wrap={wrap},pivot={pivot},border={border},rectX={rectX},rectY={rectY}";
     }
 
-    private sealed class TextureOverrideMetadata
+    internal sealed class TextureOverrideMetadata
     {
         internal int Width { get; set; }
         internal int Height { get; set; }
