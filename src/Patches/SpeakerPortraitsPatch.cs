@@ -198,7 +198,7 @@ internal static class SpeakerPortraitsPatch
             KupoUIPRPlugin.PluginLog.LogError($"[SpeakerPortraits] Error scanning directories: {ex.Message}");
         }
 
-        if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
+        if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] Scanned portrait folders: {string.Join(", ", folders)}");
         }
@@ -352,7 +352,7 @@ internal static class SpeakerPortraitsPatch
                 texture.hideFlags |= HideFlags.DontSave;
                 sprite.hideFlags |= HideFlags.DontSave;
 
-                if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
+                if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
                 {
                     KupoUIPRPlugin.PluginLog.LogInfo(
                         $"[SpeakerPortraits] Created sprite for {Path.GetFileName(filePath)}: " +
@@ -380,7 +380,7 @@ internal static class SpeakerPortraitsPatch
         var parent = view.transform.Find("message_root/message_root/root");
         if (parent == null)
         {
-            if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
+            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
             {
                 KupoUIPRPlugin.PluginLog.LogWarning("[SpeakerPortraits] Could not find target path 'message_root/message_root/root' relative to MessageWindowView.");
             }
@@ -391,7 +391,7 @@ internal static class SpeakerPortraitsPatch
         var battleWindow = view.transform.Find("message_root/common_battlewindow");
         var lastText = view.transform.Find("message_root/message_root/root/last_text");
 
-        if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
+        if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] InjectPortrait: speakerId='{speakerId}', speakerName='{speakerName ?? "null"}', imagePath='{imagePath ?? "null"}'");
         }
@@ -404,12 +404,12 @@ internal static class SpeakerPortraitsPatch
             if (battleWindow != null)
             {
                 battleWindow.localScale = Vector3.one;
-                if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset battleWindow scale to (1.0, 1.0, 1.0)");
+                if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset battleWindow scale to (1.0, 1.0, 1.0)");
             }
             if (lastText != null)
             {
                 lastText.localPosition = Vector3.zero;
-                if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset lastText position to (0.0, 0.0, 0.0)");
+                if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset lastText position to (0.0, 0.0, 0.0)");
             }
 
             // Set all custom portraits to inactive
@@ -476,15 +476,15 @@ internal static class SpeakerPortraitsPatch
         if (battleWindow != null)
         {
             battleWindow.localScale = new Vector3(1.2f, 1f, 1f);
-            if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Set battleWindow scale to 1.2");
+            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Set battleWindow scale to 1.2");
         }
         if (lastText != null)
         {
             lastText.localPosition = new Vector3(129.5999f, 0f, 0f);
-            if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Set lastText position to 129.5999");
+            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Set lastText position to 129.5999");
         }
 
-        if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value)
+        if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] Injecting portrait for '{speakerId}' ({speakerName ?? "null"}) from '{imagePath}'");
         }

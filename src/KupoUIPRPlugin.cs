@@ -33,17 +33,17 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> UIBgColorFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> CursorsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
-    internal static ConfigEntry<string> TextureLoggerConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> DiagnosticTextureLoggerConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> HideSpeakerTagConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> MessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticMessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
 
     internal static ConfigEntry<bool> EnableSpeakerPortraitsConfig { get; private set; } = null!;
-    internal static ConfigEntry<bool> EnablePortraitLoggingConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticPortraitLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
 
     internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
@@ -74,95 +74,60 @@ public sealed class KupoUIPRPlugin : BasePlugin
     {
         PluginLog = Log;
 
-
-
-
-
         FontSwapEnabledConfig = Config.Bind(
             "FontSwap",
             "Enabled",
             false,
-            "If true, swaps default game fonts with custom font files defined in Modules/00-Mods/Fonts/fontconfig.json."
-        );
-
-        DiagnosticsLogFontMappingConfig = Config.Bind(
-            "Diagnostics",
-            "LogFontMapping",
-            true,
-            "If true, logs information about FontManager.CreateFontParameter and set_FontInstance requests to identify FontType mappings."
-        );
+            "If true, swaps default game fonts with custom font files defined in Modules/00-Mods/Fonts/fontconfig.json.");
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
             "SaveHighlightColor",
             "Disable",
-            "Save slot highlight color override for image_blue. Options: Original, DarkNavy, DarkGreen, DarkViolet, DarkYellow, DarkOrange, Disable.");
+            "Customize Quick Save and Auto Save highlight color. Options: Original, DarkNavy, DarkGreen, DarkViolet, DarkYellow, DarkOrange, Disable.");
 
         ScaledDownMenuConfig = Config.Bind(
             "UI",
             "ScaledDownMenu",
             true,
-            "If true, scales RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone) to (0.9, 0.9, 1) when it becomes active.");
+            "Shrinks the entire in-game menu by 10%");
 
         TitleScreenBgColorConfig = Config.Bind(
-            "UI-Title-Screen",
+            "UI",
             "TitleScreenBgColor",
             "original",
             "Color for the title screen background. Options: original, white, black, navy, crimson, violet.");
 
         DialogueFontSizeConfig = Config.Bind(
-            "UI-Text-Size",
+            "UI-Dialog",
             "DialogueFontSize",
             "36",
-            "Font size to use for Dialogue Text UI. Defualt is 36. This value can scale up to 48.");
+            "Font size to use for Dialogue Text UI. Defualt is 36. This value can scale up to 48-ish you can even set to Auto to use the font's declared size in game");
 
         MessageSpeakerPrefixConfig = Config.Bind(
-            "UI-Message-Tweaks",
+            "UI-Dialog",
             "MessageSpeakerPrefix",
-            false,
-            "If true, adds a prefix to the message window speaker text to display the speaker name.");
+            true,
+            "If true, adds a prefix to the message window speaker text to display the speaker name wihout altering the game files. Alternativ to Classic Text Box Framework");
 
         HideSpeakerTagConfig = Config.Bind(
-            "UI-Message-Tweaks",
+            "UI-Dialog",
             "HideSpeakerTag",
-            false,
-            "If true, hides the speaker name tag bubble by moving it off-screen.");
-
-        MessageSpeakerPrefixLoggingConfig = Config.Bind(
-            "UI-Message-Tweaks",
-            "MessageSpeakerPrefixLogging",
             true,
-            "If true, logs speaker name replacements.");
-
-        DisableMouseCursorConfig = Config.Bind(
-            "UI-Cursor",
-            "DisableMouseCursor",
-            true,
-            "If true, disables the default mouse cursor inside game frame.");
-
-        ForceVSyncConfig = Config.Bind(
-            "UI-Graphics",
-            "ForceVSync",
-            true,
-            "If true, forces VSync on startup.");
+            "If true, hides the speaker name tag bubble by moving it off-screen. Will conflict with older mods that uses the box as portraits");
 
         EnableSpeakerPortraitsConfig = Config.Bind(
-            "UI-Speaker-Portraits",
+            "UI-Dialog",
             "EnableSpeakerPortraits",
             true,
             "If true, dynamically injects speaker portraits during dialogue sequences.");
 
-        EnablePortraitLoggingConfig = Config.Bind(
-            "UI-Speaker-Portraits",
-            "EnablePortraitLogging",
-            true,
-            "If true, outputs debug information for portrait lifecycle and resolution.");
-
         FlipSpeakerPortraitsConfig = Config.Bind(
-            "UI-Speaker-Portraits",
+            "UI-Dialog",
             "FlipSpeakerPortraits",
-            false,
+            true,
             "If true, flips all speaker portraits horizontally.");
+
         UIThemesFolderConfig = Config.Bind(
             "UI and Customizations",
             "UIThemesFolder",
@@ -193,11 +158,42 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "",
             "Specify the folder name under {GameRoot}/Modules/05-Button-Prompts for Button prompt overrides.");
 
-        TextureLoggerConfig = Config.Bind(
+        DiagnosticsLogFontMappingConfig = Config.Bind(
+            "Diagnostics",
+            "LogFontMapping",
+            false,
+            "If true, logs information about FontManager.CreateFontParameter and set_FontInstance requests to identify FontType mappings."
+        );
+
+        DiagnosticMessageSpeakerPrefixLoggingConfig = Config.Bind(
+            "Diagnostics",
+            "MessageSpeakerPrefixLogging",
+            false,
+            "If true, logs speaker name replacements.");
+
+        DiagnosticTextureLoggerConfig = Config.Bind(
             "Diagnostics",
             "TextureLogger",
             "Off",
             "Texture Resolution Logger mode: Off, Discoveries, Resolutions, Misses, All");
+
+        DiagnosticPortraitLoggingConfig = Config.Bind(
+            "Diagnostics",
+            "PortraitLogging",
+            true,
+            "If true, outputs debug information for portrait lifecycle and resolution.");
+
+        DisableMouseCursorConfig = Config.Bind(
+            "Utility",
+            "DisableMouseCursor",
+            false,
+            "If true, disables the default mouse cursor inside game frame.");
+
+        ForceVSyncConfig = Config.Bind(
+            "Utility",
+            "ForceVSync",
+            true,
+            "If true, forces VSync on startup.");
 
         EnableTextureHotReloadConfig = Config.Bind(
             "Utility",
@@ -215,9 +211,9 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "Utility",
             "EnableDDSTextures",
             true,
-            "Experimenta - If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32)." );
+            "Experimental - If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32).");
 
-        var (loggerEnabled, logDiscoveries, logResolutions, logMisses) = ResolveTextureLoggerConfig(TextureLoggerConfig.Value);
+        var (loggerEnabled, logDiscoveries, logResolutions, logMisses) = ResolveDiagnosticTextureLoggerConfig(DiagnosticTextureLoggerConfig.Value);
 
         IsTextureLoggerEnabled = loggerEnabled;
 
@@ -256,12 +252,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
         Log.LogInfo($"HideSpeakerTag = {HideSpeakerTagConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
-        Log.LogInfo($"MessageSpeakerPrefixLogging = {MessageSpeakerPrefixLoggingConfig.Value}");
+        Log.LogInfo($"MessageSpeakerPrefixLogging = {DiagnosticMessageSpeakerPrefixLoggingConfig.Value}");
         Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
         Log.LogInfo($"DiagnosticsLogFontMapping = {DiagnosticsLogFontMappingConfig.Value}");
 
         Log.LogInfo($"EnableSpeakerPortraits = {EnableSpeakerPortraitsConfig.Value}");
-        Log.LogInfo($"EnablePortraitLogging = {EnablePortraitLoggingConfig.Value}");
+        Log.LogInfo($"PortraitLogging = {DiagnosticPortraitLoggingConfig.Value}");
     }
 
     public void OnDestroy()
@@ -273,12 +269,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
                 RemoveFontResourceEx(path, FR_PRIVATE, IntPtr.Zero);
                 PluginLog.LogInfo($"[FontSwap] Unregistered font file: {Path.GetFileName(path)}");
             }
-            catch {}
+            catch { }
         }
         RegisteredFontFiles.Clear();
     }
 
-    private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveTextureLoggerConfig(string configValue)
+    private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveDiagnosticTextureLoggerConfig(string configValue)
     {
         if (string.IsNullOrWhiteSpace(configValue))
         {
@@ -371,7 +367,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
             var file = fileMatch.Success ? fileMatch.Groups[1].Value : "";
             var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : Path.GetFileNameWithoutExtension(file);
-            
+
             float? space = null;
             if (spaceMatch.Success && float.TryParse(spaceMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedSpace))
             {
@@ -390,12 +386,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
             if (!string.IsNullOrEmpty(fontName))
             {
-                return new FontConfigEntry 
-                { 
-                    FontFile = file, 
-                    FontName = fontName, 
-                    LineSpace = space, 
-                    FontSize = size 
+                return new FontConfigEntry
+                {
+                    FontFile = file,
+                    FontName = fontName,
+                    LineSpace = space,
+                    FontSize = size
                 };
             }
         }
@@ -408,9 +404,9 @@ public sealed class KupoUIPRPlugin : BasePlugin
                 var value = strMatch.Groups[1].Value;
                 if (!string.IsNullOrEmpty(value))
                 {
-                    var hasExtension = value.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) || 
+                    var hasExtension = value.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) ||
                                        value.EndsWith(".otf", StringComparison.OrdinalIgnoreCase);
-                    
+
                     string file = "";
                     string fontName = value;
 
@@ -421,10 +417,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
                         RegisterFontFile(file);
                     }
 
-                    return new FontConfigEntry 
-                    { 
-                        FontFile = file, 
-                        FontName = fontName 
+                    return new FontConfigEntry
+                    {
+                        FontFile = file,
+                        FontName = fontName
                     };
                 }
             }
@@ -483,7 +479,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         var helpPath = Path.Combine(fontsDir, "font-help.txt");
         try
         {
-            var helpText = 
+            var helpText =
 @"KupoUI.PR Font Swap Help Guide
 =============================
 
@@ -568,7 +564,7 @@ Supported Languages:
         }
 
         var samplePath = Path.Combine(fontsDir, "fontconfig-sample.json");
-        var templateJson = 
+        var templateJson =
 @"{" + "\n" +
 @"  ""En"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""SE-ALPSTN__"", ""LineSpace"": 1.0 }," + "\n" +
@@ -729,7 +725,7 @@ Supported Languages:
         {
             try
             {
-                var minimalConfigJson = 
+                var minimalConfigJson =
 @"{" + "\n" +
 @"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See fontconfig-sample.json for all baseline default values.""," + "\n" +
 @"  ""En"": {" + "\n" +

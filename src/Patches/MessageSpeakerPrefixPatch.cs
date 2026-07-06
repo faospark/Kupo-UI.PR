@@ -81,7 +81,7 @@ internal static class MessageSpeakerPrefixPatch
             return;
         }
 
-        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value && !KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
+        if (!KupoUIPRPlugin.MessageSpeakerPrefixConfig.Value && !KupoUIPRPlugin.DiagnosticMessageSpeakerPrefixLoggingConfig.Value)
         {
             return;
         }
@@ -116,7 +116,7 @@ internal static class MessageSpeakerPrefixPatch
         int speakerTextId = spekerText != null ? spekerText.GetInstanceID() : 0;
         string speakerTextPtr = spekerText != null ? spekerText.Pointer.ToString("X") : "null";
 
-        if (KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
+        if (KupoUIPRPlugin.DiagnosticMessageSpeakerPrefixLoggingConfig.Value)
         {
             KupoUIPRPlugin.PluginLog.LogInfo(
                 $"[MessageSpeakerPrefix] Dialogue matched. " +
@@ -149,7 +149,7 @@ internal static class MessageSpeakerPrefixPatch
             // Guard against double-prefix if this fires twice.
             if (!value.StartsWith(prefix, StringComparison.Ordinal))
             {
-                if (KupoUIPRPlugin.MessageSpeakerPrefixLoggingConfig.Value)
+                if (KupoUIPRPlugin.DiagnosticMessageSpeakerPrefixLoggingConfig.Value)
                 {
                     KupoUIPRPlugin.PluginLog.LogInfo(
                         $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
