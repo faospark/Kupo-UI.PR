@@ -434,6 +434,9 @@ internal static class SpeakerPortraitsPatch
             }
         }
 
+        var metadata = Textures.TextureResolver.LoadTextureMetadata(imagePath);
+        bool shouldFlip = (metadata != null && metadata.FlipHorizontal == true) || KupoUIPRPlugin.FlipSpeakerPortraitsConfig.Value;
+
         var existingPortrait = parent.Find(targetName);
         if (existingPortrait != null)
         {
@@ -446,6 +449,7 @@ internal static class SpeakerPortraitsPatch
             {
                 lastText.localPosition = new Vector3(129.5999f, 0f, 0f);
             }
+            existingPortrait.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
             return;
         }
 
@@ -501,7 +505,7 @@ internal static class SpeakerPortraitsPatch
 
             rectTransform.sizeDelta = new Vector2(256f, 256f);
             rectTransform.localPosition = new Vector3(-522f, 0f, 0f);
-            rectTransform.localScale = Vector3.one;
+            rectTransform.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
         }
     }
 

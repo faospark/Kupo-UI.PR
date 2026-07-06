@@ -44,6 +44,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
     internal static ConfigEntry<bool> EnableSpeakerPortraitsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnablePortraitLoggingConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
 
     internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticsLogFontMappingConfig { get; private set; } = null!;
@@ -156,6 +157,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "EnablePortraitLogging",
             true,
             "If true, outputs debug information for portrait lifecycle and resolution.");
+
+        FlipSpeakerPortraitsConfig = Config.Bind(
+            "UI-Speaker-Portraits",
+            "FlipSpeakerPortraits",
+            false,
+            "If true, flips all speaker portraits horizontally.");
         UIThemesFolderConfig = Config.Bind(
             "UI and Customizations",
             "UIThemesFolder",

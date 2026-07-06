@@ -737,7 +737,8 @@ internal static class TextureResolver
                 Pivot = ReadString(json, "pivot"),
                 Border = ReadString(json, "border"),
                 RectX = ReadNullableInt(json, "rectX"),
-                RectY = ReadNullableInt(json, "rectY")
+                RectY = ReadNullableInt(json, "rectY"),
+                FlipHorizontal = ReadBool(json, "flipHorizontal") ?? ReadBool(json, "flipX")
             };
 
             MetadataCache[texturePath] = metadata;
@@ -1138,5 +1139,6 @@ internal static class TextureResolver
         internal int? RectX { get; set; }
         /// <summary>Explicit Y pixel offset into the replacement texture rect. Null = inherit from original sprite rect.</summary>
         internal int? RectY { get; set; }
+        internal bool? FlipHorizontal { get; set; }
     }
 }
