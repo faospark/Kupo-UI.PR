@@ -159,26 +159,26 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "Specify the folder name under {GameRoot}/Modules/05-Button-Prompts for Button prompt overrides.");
 
         DiagnosticsLogFontMappingConfig = Config.Bind(
-            "Diagnostics",
+            "Z - Diagnostics",
             "LogFontMapping",
             false,
             "If true, logs information about FontManager.CreateFontParameter and set_FontInstance requests to identify FontType mappings."
         );
 
         DiagnosticMessageSpeakerPrefixLoggingConfig = Config.Bind(
-            "Diagnostics",
+            "Z - Diagnostics",
             "MessageSpeakerPrefixLogging",
             false,
             "If true, logs speaker name replacements.");
 
         DiagnosticTextureLoggerConfig = Config.Bind(
-            "Diagnostics",
+            "Z - Diagnostics",
             "TextureLogger",
             "Off",
             "Texture Resolution Logger mode: Off, Discoveries, Resolutions, Misses, All");
 
         DiagnosticPortraitLoggingConfig = Config.Bind(
-            "Diagnostics",
+            "Z - Diagnostics",
             "PortraitLogging",
             true,
             "If true, outputs debug information for portrait lifecycle and resolution.");
