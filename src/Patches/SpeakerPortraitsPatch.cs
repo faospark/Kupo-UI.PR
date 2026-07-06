@@ -278,16 +278,6 @@ internal static class SpeakerPortraitsPatch
             return;
         }
 
-        // Always clean up existing custom portrait children
-        for (int i = parent.childCount - 1; i >= 0; i--)
-        {
-            var child = parent.GetChild(i);
-            if (child.name.StartsWith("Portrait_", StringComparison.Ordinal))
-            {
-                UnityEngine.Object.Destroy(child.gameObject);
-            }
-        }
-
         // Find battle window frame and last_text to apply overrides
         var battleWindow = view.transform.Find("message_root/common_battlewindow");
         var lastText = view.transform.Find("message_root/message_root/root/last_text");
@@ -296,6 +286,8 @@ internal static class SpeakerPortraitsPatch
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] InjectPortrait: speakerId='{speakerId}', speakerName='{speakerName ?? "null"}', imagePath='{imagePath ?? "null"}'");
         }
+
+        string targetName = "Portrait_" + speakerId;
 
         if (string.IsNullOrEmpty(imagePath))
         {
@@ -310,6 +302,41 @@ internal static class SpeakerPortraitsPatch
                 lastText.localPosition = Vector3.zero;
                 if (KupoUIPRPlugin.EnablePortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset lastText position to (0.0, 0.0, 0.0)");
             }
+
+            // Set all custom portraits to inactive
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child.name.StartsWith("Portrait_", StringComparison.Ordinal))
+                {
+                    child.gameObject.SetActive(false);
+                }
+            }
+            return;
+        }
+
+        // Set all other portraits to inactive, and only keep the target speaker portrait active (if it already exists)
+        for (int i = 0; i < parent.childCount; i++)
+        {
+            var child = parent.GetChild(i);
+            if (child.name.StartsWith("Portrait_", StringComparison.Ordinal))
+            {
+                child.gameObject.SetActive(child.name == targetName);
+            }
+        }
+
+        var existingPortrait = parent.Find(targetName);
+        if (existingPortrait != null)
+        {
+            // Apply dialogue-box sizing adjustments to fit the portrait area
+            if (battleWindow != null)
+            {
+                battleWindow.localScale = new Vector3(1.2f, 1f, 1f);
+            }
+            if (lastText != null)
+            {
+                lastText.localPosition = new Vector3(129.5999f, 0f, 0f);
+            }
             return;
         }
 
@@ -319,6 +346,16 @@ internal static class SpeakerPortraitsPatch
             // Reset to defaults directly if sprite failed to load
             if (battleWindow != null) battleWindow.localScale = Vector3.one;
             if (lastText != null) lastText.localPosition = Vector3.zero;
+
+            // Set all custom portraits to inactive
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child.name.StartsWith("Portrait_", StringComparison.Ordinal))
+                {
+                    child.gameObject.SetActive(false);
+                }
+            }
             return;
         }
 
@@ -339,7 +376,7 @@ internal static class SpeakerPortraitsPatch
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] Injecting portrait for '{speakerId}' ({speakerName ?? "null"}) from '{imagePath}'");
         }
 
-        var portraitGo = new GameObject("Portrait_" + speakerId);
+        var portraitGo = new GameObject(targetName);
         portraitGo.transform.SetParent(parent, false);
 
         var image = portraitGo.AddComponent<Image>();
@@ -349,12 +386,12 @@ internal static class SpeakerPortraitsPatch
         var rectTransform = portraitGo.GetComponent<RectTransform>();
         if (rectTransform != null)
         {
-            rectTransform.anchorMin = new Vector2(0f, 0.5f);
-            rectTransform.anchorMax = new Vector2(0f, 0.5f);
-            rectTransform.pivot = new Vector2(0f, 0.5f);
+            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+            rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
             rectTransform.sizeDelta = new Vector2(256f, 256f);
-            rectTransform.anchoredPosition = new Vector2(-224f, 0f);
+            rectTransform.localPosition = new Vector3(-522f, 0f, 0f);
             rectTransform.localScale = Vector3.one;
         }
     }
@@ -373,7 +410,7 @@ internal static class SpeakerPortraitsPatch
                 var child = parent.GetChild(i);
                 if (child.name.StartsWith("Portrait_", StringComparison.Ordinal))
                 {
-                    UnityEngine.Object.Destroy(child.gameObject);
+                    child.gameObject.SetActive(false);
                 }
             }
         }
@@ -382,7 +419,7 @@ internal static class SpeakerPortraitsPatch
         if (battleWindow != null) battleWindow.localScale = Vector3.one;
 
         var lastText = view.transform.Find("message_root/message_root/root/last_text");
-        if (lastText != null) lastText.localPosition = new Vector3(-637f, -25f, 0f);
+        if (lastText != null) lastText.localPosition = Vector3.zero;
     }
 
     // ── HARMONY HOOKS ────────────────────────────────────────────────────
