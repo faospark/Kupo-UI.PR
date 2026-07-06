@@ -22,6 +22,130 @@ internal static class SpeakerPortraitsPatch
         GetOrCreateDefaultFolder();
     }
 
+    internal static void ClearCache()
+    {
+        _portraitCache.Clear();
+        _cachedFolders = null;
+    }
+
+    private static int GetFolderPriority(string path, string root)
+    {
+        string normRoot = root.Replace('\\', '/').TrimEnd('/');
+        string normPath = path.Replace('\\', '/').TrimEnd('/');
+
+        if (!normPath.StartsWith(normRoot, StringComparison.OrdinalIgnoreCase))
+        {
+            return -1;
+        }
+
+        string relative = normPath.Substring(normRoot.Length).TrimStart('/');
+        string[] parts = relative.Split('/');
+
+        if (parts.Length == 0 || string.IsNullOrEmpty(parts[0]))
+        {
+            return 0;
+        }
+
+        string layer = parts[0];
+        string gameTag = Textures.TextureResolver.CurrentGameTag;
+
+        if (layer.Equals("05-Button-Prompts", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1 && parts[1].Equals(Textures.TextureResolver.ButtonPromptsPack, StringComparison.OrdinalIgnoreCase))
+            {
+                return 100;
+            }
+            return -1;
+        }
+
+        if (layer.Equals("04-UI-Cursors", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1 && parts[1].Equals(Textures.TextureResolver.CursorsPack, StringComparison.OrdinalIgnoreCase))
+            {
+                return 90;
+            }
+            return -1;
+        }
+
+        if (layer.Equals("03-UI-BgColor", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1 && parts[1].Equals(Textures.TextureResolver.UiBgColorPack, StringComparison.OrdinalIgnoreCase))
+            {
+                return 80;
+            }
+            return -1;
+        }
+
+        if (layer.Equals("02-UI-Frames", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1 && parts[1].Equals(Textures.TextureResolver.UiFramesPack, StringComparison.OrdinalIgnoreCase))
+            {
+                return 70;
+            }
+            return -1;
+        }
+
+        if (layer.Equals("01-UI-Themes", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1 && parts[1].Equals(Textures.TextureResolver.UiThemesPack, StringComparison.OrdinalIgnoreCase))
+            {
+                return 60;
+            }
+            return -1;
+        }
+
+        if (layer.Equals("00-Mods", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1)
+            {
+                string nextSegment = parts[1];
+                if (nextSegment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    return 30;
+                }
+                if (nextSegment.Equals("Shared", StringComparison.OrdinalIgnoreCase))
+                {
+                    return 20;
+                }
+                if (nextSegment.Equals("SpeakerPortraits", StringComparison.OrdinalIgnoreCase))
+                {
+                    return 50;
+                }
+                return 40;
+            }
+            return 50;
+        }
+
+        if (layer.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+        {
+            return 10;
+        }
+
+        if (layer.Equals("Shared", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length > 1)
+            {
+                string nextSegment = parts[1];
+                if (nextSegment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    return 8;
+                }
+                if (nextSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase)
+                    || nextSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase)
+                    || nextSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase)
+                    || nextSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase)
+                    || nextSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase)
+                    || nextSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase))
+                {
+                    return -1;
+                }
+            }
+            return 5;
+        }
+
+        return 0;
+    }
+
     /// <summary>
     /// Scans the {GameRoot}/Modules/ directory for any subfolders named "SpeakerPortraits".
     /// </summary>
@@ -41,15 +165,32 @@ internal static class SpeakerPortraitsPatch
 
         try
         {
+            var sortedFolders = new List<(string Path, int Priority)>();
+
             if (Path.GetFileName(root).Equals("SpeakerPortraits", StringComparison.OrdinalIgnoreCase))
             {
-                folders.Add(root);
+                int priority = GetFolderPriority(root, root);
+                if (priority >= 0)
+                {
+                    sortedFolders.Add((root, priority));
+                }
             }
 
             var matches = Directory.GetDirectories(root, "SpeakerPortraits", SearchOption.AllDirectories);
             foreach (var match in matches)
             {
-                folders.Add(match);
+                int priority = GetFolderPriority(match, root);
+                if (priority >= 0)
+                {
+                    sortedFolders.Add((match, priority));
+                }
+            }
+
+            sortedFolders.Sort((a, b) => b.Priority.CompareTo(a.Priority));
+
+            foreach (var item in sortedFolders)
+            {
+                folders.Add(item.Path);
             }
         }
         catch (Exception ex)
@@ -67,11 +208,11 @@ internal static class SpeakerPortraitsPatch
     }
 
     /// <summary>
-    /// Auto-creates the default folder under {GameRoot}/Modules/00-Mods/SpeakerPortraits if none exist.
+    /// Auto-creates the default folder under {GameRoot}/Modules/Shared/SpeakerPortraits if none exist.
     /// </summary>
     private static string GetOrCreateDefaultFolder()
     {
-        string defaultPath = Path.Combine(KupoUIPRPlugin.ModulesRootPath, "00-Mods", "SpeakerPortraits");
+        string defaultPath = Path.Combine(KupoUIPRPlugin.ModulesRootPath, "Shared", "SpeakerPortraits");
         if (!Directory.Exists(defaultPath))
         {
             try

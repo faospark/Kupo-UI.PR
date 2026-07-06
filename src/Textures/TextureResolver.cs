@@ -37,6 +37,13 @@ internal static class TextureResolver
     private static long _lastChangeUtcTicks;
     private static int _hotReloadDebounceMs = 350;
 
+    internal static string CurrentGameTag => _currentGameTag;
+    internal static string UiThemesPack => _uiThemesPack;
+    internal static string UiFramesPack => _uiFramesPack;
+    internal static string UiBgColorPack => _uiBgColorPack;
+    internal static string CursorsPack => _cursorsPack;
+    internal static string ButtonPromptsPack => _buttonPromptsPack;
+
     internal static void Initialize(
         string configuredRootPath,
         string uiFramesPack,
@@ -471,15 +478,20 @@ internal static class TextureResolver
         Directory.CreateDirectory(root);
 
         Directory.CreateDirectory(Path.Combine(root, "00-Mods"));
-        Directory.CreateDirectory(Path.Combine(root, "00-Mods", "SpeakerPortraits"));
         Directory.CreateDirectory(Path.Combine(root, "01-UI-Themes"));
         Directory.CreateDirectory(Path.Combine(root, "02-UI-Frames"));
         Directory.CreateDirectory(Path.Combine(root, "03-UI-BgColor"));
         Directory.CreateDirectory(Path.Combine(root, "04-UI-Cursors"));
         Directory.CreateDirectory(Path.Combine(root, "05-Button-Prompts"));
 
-        // Keep old directory layouts optional for backward compatibility.
-        // We do not auto-create them anymore to avoid confusing new users.
+        Directory.CreateDirectory(Path.Combine(root, "Shared"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "SpeakerPortraits"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF1"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF2"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF3"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF4"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF5"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF6"));
     }
 
     private static void BuildIndex(string root, string gameTag)
@@ -495,7 +507,8 @@ internal static class TextureResolver
         var watch = Stopwatch.StartNew();
 
         // Legacy layout support (lowest priority): Shared/FFx and 00-Mods/Shared/FFx.
-        IndexLayer(Path.Combine(root, "Shared"));
+        IndexLayer(Path.Combine(root, "Shared"), excludeGameTags: true);
+        IndexLayer(Path.Combine(root, "Shared", gameTag));
         IndexLayer(Path.Combine(root, gameTag));
         IndexLayer(Path.Combine(root, "00-Mods", "Shared"));
         IndexLayer(Path.Combine(root, "00-Mods", gameTag));
@@ -517,6 +530,8 @@ internal static class TextureResolver
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Indexed {TexturePathIndex.Count} textures in {watch.ElapsedMilliseconds} ms");
         }
+
+        KupoUI.PR.Patches.SpeakerPortraitsPatch.ClearCache();
     }
 
     private static void SetupHotReloadWatcher()
@@ -893,7 +908,7 @@ internal static class TextureResolver
         return null;
     }
 
-    private static void IndexLayer(string layerPath)
+    private static void IndexLayer(string layerPath, bool excludeGameTags = false)
     {
         if (!Directory.Exists(layerPath))
         {
@@ -904,6 +919,25 @@ internal static class TextureResolver
         var files = Directory.GetFiles(layerPath, "*.*", SearchOption.AllDirectories);
         foreach (var file in files)
         {
+            if (excludeGameTags)
+            {
+                var relPath = file.Substring(layerPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var parts = relPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (parts.Length > 0)
+                {
+                    var firstSegment = parts[0];
+                    if (firstSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+                }
+            }
+
             var extension = Path.GetExtension(file);
             if (!IsSupportedExtension(extension))
             {

@@ -31,23 +31,64 @@ internal static class ObjectConfigLoader
     internal static void Load(string modulesRootPath)
     {
         _entries.Clear();
+        var filesToLoad = new List<string>();
 
+        // 1. Gather from 00-Mods (recursively)
         var modsRoot = Path.Combine(modulesRootPath, ModsSubFolder);
-        if (!Directory.Exists(modsRoot))
+        if (Directory.Exists(modsRoot))
+        {
+            var modsFiles = Directory.GetFiles(modsRoot, ConfigFileName, SearchOption.AllDirectories);
+            filesToLoad.AddRange(modsFiles);
+        }
+        else
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Mods root not found, skipping: {modsRoot}");
-            return;
         }
 
-        var files = Directory.GetFiles(modsRoot, ConfigFileName, SearchOption.AllDirectories);
-        if (files.Length == 0)
+        // 2. Gather from Shared (recursively, filtering by game tag)
+        var sharedRoot = Path.Combine(modulesRootPath, "Shared");
+        if (Directory.Exists(sharedRoot))
+        {
+            var sharedFiles = Directory.GetFiles(sharedRoot, ConfigFileName, SearchOption.AllDirectories);
+            var gameTag = Textures.TextureResolver.CurrentGameTag;
+
+            foreach (var file in sharedFiles)
+            {
+                var relPath = file.Substring(sharedRoot.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var parts = relPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (parts.Length > 1)
+                {
+                    var firstSegment = parts[0];
+                    if (firstSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase)
+                        || firstSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!firstSegment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
+                    }
+                }
+
+                filesToLoad.Add(file);
+            }
+        }
+        else
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Shared root not found, skipping: {sharedRoot}");
+        }
+
+        if (filesToLoad.Count == 0)
         {
             KupoUIPRPlugin.PluginLog.LogInfo("[ObjectConfig] No ObjectConfig.json files found.");
             return;
         }
 
         var totalLoaded = 0;
-        foreach (var file in files)
+        foreach (var file in filesToLoad)
         {
             var loaded = ParseFile(file);
             _entries.AddRange(loaded);
@@ -55,7 +96,7 @@ internal static class ObjectConfigLoader
         }
 
         KupoUIPRPlugin.PluginLog.LogInfo(
-            $"[ObjectConfig] Loaded {totalLoaded} rule(s) from {files.Length} file(s).");
+            $"[ObjectConfig] Loaded {totalLoaded} rule(s) from {filesToLoad.Count} file(s).");
     }
 
     /// <summary>
