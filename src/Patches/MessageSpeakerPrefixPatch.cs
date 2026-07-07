@@ -144,6 +144,11 @@ internal static class MessageSpeakerPrefixPatch
                 // Fallback silently if MessageManager is not yet initialized or ready
             }
 
+            if (KupoUIPRPlugin.SpeakerNameUppercaseConfig.Value)
+            {
+                speakerName = speakerName.ToUpperInvariant();
+            }
+
             var prefix = speakerName + separator;
 
             // Guard against double-prefix if this fires twice.

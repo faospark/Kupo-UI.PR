@@ -23,6 +23,34 @@ internal static class TextureResolver
     private static readonly HashSet<string> NonReadableTextureWarnings = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object ReloadLock = new();
 
+    // [OPT-7] O(1) extension lookup — replaces five sequential string.Equals calls.
+    private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
+        { ".png", ".jpg", ".jpeg", ".tga", ".dds" };
+
+    // [OPT-8] O(1) game-tag lookup — replaces six sequential string.Equals calls in IndexLayer.
+    private static readonly HashSet<string> KnownGameTags = new(StringComparer.OrdinalIgnoreCase)
+        { "FF1", "FF2", "FF3", "FF4", "FF5", "FF6" };
+
+    // [OPT-5] Allocated once instead of per NormalizePackFolderName call.
+    private static readonly char[] InvalidPackNameChars = { '/', '\\', ':' };
+
+    // [OPT-1] Pre-compiled regexes for metadata JSON parsing.
+    // All property names are known at compile time, so we avoid per-call Regex construction and
+    // interpretation overhead. RegexOptions.Compiled produces native IL for the pattern.
+    private static readonly Regex RxWidth = new(@"""width""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxHeight = new(@"""height""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxPixelsPerUnit = new(@"""pixelsPerUnit""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxPointFilter = new(@"""pointFilter""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxFilterMode = new(@"""filterMode""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxFilterType = new(@"""filterType""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxWrapMode = new(@"""wrapMode""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxPivot = new(@"""pivot""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxBorder = new(@"""border""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxRectX = new(@"""rectX""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxRectY = new(@"""rectY""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxFlipHorizontal = new(@"""flipHorizontal""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxFlipX = new(@"""flipX""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
     private static bool _initialized;
     private static bool _verboseLogs;
     private static string _currentGameTag = "Shared";
@@ -138,7 +166,8 @@ internal static class TextureResolver
         {
             path = addressedPath;
         }
-        else if (!TryGetFilePathByName(key, out path))
+        // [OPT-3] key is already normalized above — skip the redundant NormalizeName inside TryGetFilePathByName.
+        else if (!TryGetFilePathByNormalizedName(key, out path))
         {
             TextureLogger.LogMissingTexture(key, "TryReplaceTextureInPlace");
             return false;
@@ -288,8 +317,8 @@ internal static class TextureResolver
 
         SpriteCache[originalId] = replacement;
 
-        var shouldLogDiagnostics = _verboseLogs || KupoUIPRPlugin.IsTextureLoggerEnabled;
-        if (shouldLogDiagnostics)
+        // [OPT-9] _verboseLogs is set to IsTextureLoggerEnabled during Initialize — no need to re-read the config here.
+        if (_verboseLogs)
         {
             KupoUIPRPlugin.PluginLog.LogInfo(
                 $"[TextureResolver] Sprite replacement: {spriteName} / {textureName} | rect=({rect.x:0.##},{rect.y:0.##},{rect.width:0.##},{rect.height:0.##}) ppu={replacementPixelsPerUnit:0.###} filter={customTexture.filterMode} meta={DescribeMetadata(metadata)}");
@@ -401,7 +430,8 @@ internal static class TextureResolver
         {
             path = addressedPath;
         }
-        else if (!TryGetFilePathByName(textureName, out path))
+        // [OPT-3] Callers of LoadTexture always pass already-normalized names — use the fast overload.
+        else if (!TryGetFilePathByNormalizedName(textureName, out path))
         {
             TextureLogger.LogMissingTexture(textureName, "LoadTexture");
             return null;
@@ -598,13 +628,16 @@ internal static class TextureResolver
 
     private static void OnTextureFolderChanged(object sender, FileSystemEventArgs args)
     {
-        _lastChangeUtcTicks = DateTime.UtcNow.Ticks;
+        // [OPT-4] Use atomic write: plain long assignment is not guaranteed atomic on 32-bit CLR.
+        Interlocked.Exchange(ref _lastChangeUtcTicks, DateTime.UtcNow.Ticks);
         Interlocked.Exchange(ref _reindexRequested, 1);
     }
 
     private static void MaybeRefreshIndex()
     {
-        if (Interlocked.CompareExchange(ref _reindexRequested, 0, 0) == 0)
+        // [OPT-12] Volatile.Read is the correct and clearer primitive for a plain flag read.
+        // CompareExchange(ref x, 0, 0) is a no-op swap used as a read, which is misleading.
+        if (Volatile.Read(ref _reindexRequested) == 0)
         {
             return;
         }
@@ -617,7 +650,7 @@ internal static class TextureResolver
 
         lock (ReloadLock)
         {
-            if (Interlocked.CompareExchange(ref _reindexRequested, 0, 0) == 0)
+            if (Volatile.Read(ref _reindexRequested) == 0)
             {
                 return;
             }
@@ -687,20 +720,29 @@ internal static class TextureResolver
 
     private static bool TryGetFilePathByName(string textureName, out string filePath)
     {
+        var key = NormalizeName(textureName);
+        return TryGetFilePathByNormalizedName(key, out filePath);
+    }
+
+    /// <summary>
+    /// Like <see cref="TryGetFilePathByName"/> but skips the <see cref="NormalizeName"/> step.
+    /// Use when the caller has already normalized the key to avoid redundant string allocations.
+    /// </summary>
+    private static bool TryGetFilePathByNormalizedName(string normalizedKey, out string filePath)
+    {
         filePath = null;
 
-        var key = NormalizeName(textureName);
-        if (string.IsNullOrEmpty(key))
+        if (string.IsNullOrEmpty(normalizedKey))
         {
             return false;
         }
 
-        if (AmbiguousTextureNames.Contains(key))
+        if (AmbiguousTextureNames.Contains(normalizedKey))
         {
             return false;
         }
 
-        return TexturePathIndex.TryGetValue(key, out filePath);
+        return TexturePathIndex.TryGetValue(normalizedKey, out filePath);
     }
 
     internal static TextureOverrideMetadata LoadTextureMetadata(string texturePath)
@@ -725,20 +767,23 @@ internal static class TextureResolver
         try
         {
             var json = File.ReadAllText(metadataPath);
+
+            // [OPT-1] Use pre-compiled static Regex instances. Each Match() call runs the compiled
+            // NFA against the string once; no pattern string is built or interpreted at call time.
             var metadata = new TextureOverrideMetadata
             {
-                Width = ReadInt(json, "width"),
-                Height = ReadInt(json, "height"),
-                PixelsPerUnit = ReadFloat(json, "pixelsPerUnit"),
-                PointFilter = ReadBool(json, "pointFilter"),
-                FilterMode = ReadString(json, "filterMode"),
-                FilterType = ReadString(json, "filterType"),
-                WrapMode = ReadString(json, "wrapMode"),
-                Pivot = ReadString(json, "pivot"),
-                Border = ReadString(json, "border"),
-                RectX = ReadNullableInt(json, "rectX"),
-                RectY = ReadNullableInt(json, "rectY"),
-                FlipHorizontal = ReadBool(json, "flipHorizontal") ?? ReadBool(json, "flipX")
+                Width = MatchInt(RxWidth.Match(json)),
+                Height = MatchInt(RxHeight.Match(json)),
+                PixelsPerUnit = MatchFloat(RxPixelsPerUnit.Match(json)),
+                PointFilter = MatchBool(RxPointFilter.Match(json)),
+                FilterMode = MatchString(RxFilterMode.Match(json)),
+                FilterType = MatchString(RxFilterType.Match(json)),
+                WrapMode = MatchString(RxWrapMode.Match(json)),
+                Pivot = MatchString(RxPivot.Match(json)),
+                Border = MatchString(RxBorder.Match(json)),
+                RectX = MatchNullableInt(RxRectX.Match(json)),
+                RectY = MatchNullableInt(RxRectY.Match(json)),
+                FlipHorizontal = MatchBool(RxFlipHorizontal.Match(json)) ?? MatchBool(RxFlipX.Match(json))
             };
 
             MetadataCache[texturePath] = metadata;
@@ -751,6 +796,27 @@ internal static class TextureResolver
             return null;
         }
     }
+
+    // Tiny helpers that extract a typed value from a pre-executed Match result.
+    // Replaces the generic ReadInt/ReadFloat/ReadBool/ReadString helpers that built and ran
+    // a new Regex object on every call.
+    private static int MatchInt(Match m) =>
+        m.Success && int.TryParse(m.Groups[1].Value, out var v) ? v : 0;
+
+    private static int? MatchNullableInt(Match m) =>
+        m.Success && int.TryParse(m.Groups[1].Value, out var v) ? v : (int?)null;
+
+    private static float MatchFloat(Match m) =>
+        m.Success && float.TryParse(m.Groups[1].Value,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var v) ? v : 0f;
+
+    private static bool? MatchBool(Match m) =>
+        m.Success && bool.TryParse(m.Groups[1].Value, out var v) ? v : (bool?)null;
+
+    private static string MatchString(Match m) =>
+        m.Success ? m.Groups[1].Value : null;
 
     internal static FilterMode ResolveFilterMode(string texturePath, TextureOverrideMetadata metadata)
     {
@@ -812,44 +878,6 @@ internal static class TextureResolver
         }
 
         return TextureWrapMode.Clamp;
-    }
-
-    private static int ReadInt(string json, string propertyName)
-    {
-        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
-        return match.Success && int.TryParse(match.Groups[1].Value, out var value) ? value : 0;
-    }
-
-    /// <summary>
-    /// Like ReadInt but returns null when the property is absent, allowing 0 to be a valid explicit value.
-    /// </summary>
-    private static int? ReadNullableInt(string json, string propertyName)
-    {
-        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
-        return match.Success && int.TryParse(match.Groups[1].Value, out var value) ? value : (int?)null;
-    }
-
-    private static float ReadFloat(string json, string propertyName)
-    {
-        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
-        return match.Success && float.TryParse(match.Groups[1].Value, out var value) ? value : 0f;
-    }
-
-    private static bool? ReadBool(string json, string propertyName)
-    {
-        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*(true|false)", RegexOptions.IgnoreCase);
-        if (!match.Success)
-        {
-            return null;
-        }
-
-        return bool.TryParse(match.Groups[1].Value, out var value) ? value : null;
-    }
-
-    private static string ReadString(string json, string propertyName)
-    {
-        var match = Regex.Match(json, $"\"{Regex.Escape(propertyName)}\"\\s*:\\s*\"([^\"]*)\"", RegexOptions.IgnoreCase);
-        return match.Success ? match.Groups[1].Value : null;
     }
 
     /// <summary>
@@ -917,35 +945,33 @@ internal static class TextureResolver
         }
 
         var layerSeenKeys = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var files = Directory.GetFiles(layerPath, "*.*", SearchOption.AllDirectories);
-        foreach (var file in files)
+
+        // [OPT-2] EnumerateFiles is lazy (no full string[] allocation). For large mod folders
+        // this avoids a potentially large upfront array that is then immediately iterated.
+        foreach (var file in Directory.EnumerateFiles(layerPath, "*.*", SearchOption.AllDirectories))
         {
             if (excludeGameTags)
             {
                 var relPath = file.Substring(layerPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var parts = relPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (parts.Length > 0)
+                // [OPT-8] Extract the first segment without splitting the whole string into an array.
+                var sepIdx = relPath.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+                var firstSegment = sepIdx >= 0 ? relPath.Substring(0, sepIdx) : relPath;
+                if (KnownGameTags.Contains(firstSegment))
                 {
-                    var firstSegment = parts[0];
-                    if (firstSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase))
-                    {
-                        continue;
-                    }
+                    continue;
                 }
             }
 
             var extension = Path.GetExtension(file);
-            if (!IsSupportedExtension(extension))
+            // [OPT-7] O(1) HashSet lookup instead of five sequential Equals comparisons.
+            if (!SupportedExtensions.Contains(extension))
             {
                 continue;
             }
 
-            var key = NormalizeName(Path.GetFileNameWithoutExtension(file));
+            // [OPT-13] Disk filenames never contain Unity suffixes like "(Clone)" or "(Instance)",
+            // so NormalizeName would be a no-op beyond the final Trim. Skip the extra Replace calls.
+            var key = Path.GetFileNameWithoutExtension(file).Trim();
             if (string.IsNullOrEmpty(key))
             {
                 continue;
@@ -994,7 +1020,8 @@ internal static class TextureResolver
             return "Default";
         }
 
-        if (value.IndexOfAny(new[] { '/', '\\', ':' }) >= 0)
+        // [OPT-5] Reuse static char array instead of allocating new[] { '/', '\\', ':' } every call.
+        if (value.IndexOfAny(InvalidPackNameChars) >= 0)
         {
             return "Default";
         }
@@ -1010,11 +1037,8 @@ internal static class TextureResolver
     /// </summary>
     private static string ExtractGameAssetsPathKey(string layerRoot, string filePath)
     {
-        if (!filePath.StartsWith(layerRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            return null;
-        }
-
+        // [OPT-11] filePath always comes from Directory.EnumerateFiles(layerPath, ...) so it is
+        // guaranteed to start with layerRoot. The StartsWith guard was always true and is not needed.
         var relative = filePath.Substring(layerRoot.Length)
             .TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
             .Replace('\\', '/');
@@ -1045,19 +1069,8 @@ internal static class TextureResolver
         return pathKey;
     }
 
-    private static bool IsSupportedExtension(string extension)
-    {
-        if (string.IsNullOrEmpty(extension))
-        {
-            return false;
-        }
-
-        return extension.Equals(".png", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".jpg", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".jpeg", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".tga", StringComparison.OrdinalIgnoreCase)
-            || extension.Equals(".dds", StringComparison.OrdinalIgnoreCase);
-    }
+    private static bool IsSupportedExtension(string extension) =>
+        !string.IsNullOrEmpty(extension) && SupportedExtensions.Contains(extension);
 
     internal static bool ShouldUsePointFilter(string filePath)
     {
@@ -1072,14 +1085,34 @@ internal static class TextureResolver
             return false;
         }
 
-        var segments = directoryPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        for (var i = 0; i < segments.Length; i++)
+        // [OPT-6] Scan for "pixel"/"pixels" path segment without splitting the string into an array.
+        return ContainsPathSegment(directoryPath, "pixel")
+            || ContainsPathSegment(directoryPath, "pixels");
+    }
+
+    /// <summary>
+    /// Returns true when <paramref name="path"/> contains a directory segment whose name exactly
+    /// equals <paramref name="segment"/> (case-insensitive). Avoids allocating a string array.
+    /// </summary>
+    private static bool ContainsPathSegment(string path, string segment)
+    {
+        var idx = path.IndexOf(segment, StringComparison.OrdinalIgnoreCase);
+        while (idx >= 0)
         {
-            if (segments[i].Equals("pixel", StringComparison.OrdinalIgnoreCase)
-                || segments[i].Equals("pixels", StringComparison.OrdinalIgnoreCase))
+            var before = idx == 0
+                || path[idx - 1] == Path.DirectorySeparatorChar
+                || path[idx - 1] == Path.AltDirectorySeparatorChar;
+            var end = idx + segment.Length;
+            var after = end >= path.Length
+                || path[end] == Path.DirectorySeparatorChar
+                || path[end] == Path.AltDirectorySeparatorChar;
+
+            if (before && after)
             {
                 return true;
             }
+
+            idx = path.IndexOf(segment, idx + 1, StringComparison.OrdinalIgnoreCase);
         }
 
         return false;

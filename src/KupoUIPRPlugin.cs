@@ -37,6 +37,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> SpeakerNameUppercaseConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> HideSpeakerTagConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticMessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
@@ -109,6 +110,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "MessageSpeakerPrefix",
             true,
             "If true, adds a prefix to the message window speaker text to display the speaker name wihout altering the game files. Alternativ to Classic Text Box Framework");
+
+        SpeakerNameUppercaseConfig = Config.Bind(
+            "UI-Dialog",
+            "SpeakerNameUppercase",
+            false,
+            "If true, transforms the speaker name to UPPERCASE before prepending it to the dialogue message.");
 
         HideSpeakerTagConfig = Config.Bind(
             "UI-Dialog",
@@ -192,7 +199,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ForceVSyncConfig = Config.Bind(
             "Utility",
             "ForceVSync",
-            true,
+            false,
             "If true, forces VSync on startup.");
 
         EnableTextureHotReloadConfig = Config.Bind(
@@ -250,6 +257,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
         Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
+        Log.LogInfo($"SpeakerNameUppercase = {SpeakerNameUppercaseConfig.Value}");
         Log.LogInfo($"HideSpeakerTag = {HideSpeakerTagConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {DiagnosticMessageSpeakerPrefixLoggingConfig.Value}");
