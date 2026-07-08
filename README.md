@@ -1,131 +1,210 @@
 # KupoUI.PR
 
-A BepInEx IL2CPP plugin scaffold for Final Fantasy Pixel Remaster (FF1-FF6).
+A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provides runtime UI patches, custom texture replacement, dialogue enhancements, and data-driven GameObject tweaks.
 
-This plugin includes runtime patches for UI cleanup and custom texture replacement across Final Fantasy Pixel Remaster (FF1-FF6).
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Build Requirements](#build-requirements)
+- [Install](#install)
+- [Configuration Reference](#configuration-reference)
+- [Custom Texture System](#custom-texture-system)
+  - [Folder Layout](#folder-layout)
+  - [Lookup Priority](#lookup-priority)
+  - [Path-Based Overrides](#path-based-overrides)
+  - [Sidecar Metadata (.json)](#sidecar-metadata-json)
+  - [Texture Formats & Filter Modes](#texture-formats--filter-modes)
+  - [Hot-Reload](#hot-reload)
+  - [Texture Logger](#texture-logger)
+- [ObjectConfig.json — Data-Driven GameObject Tweaks](#objectconfigjson--data-driven-gameobject-tweaks)
+  - [Fields](#fields)
+  - [When Rules Are Applied](#when-rules-are-applied)
+  - [Text Alignment Values](#text-alignment-values)
+- [Title Screen](#title-screen)
+  - [Title Screen Background Color](#title-screen-background-color)
+  - [Title Screen Full Background Image](#title-screen-full-background-image)
+- [Dialogue System](#dialogue-system)
+  - [Speaker Name Prefix](#speaker-name-prefix)
+  - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
+  - [Speaker Portraits](#speaker-portraits)
+  - [Dialogue Font Size](#dialogue-font-size)
+- [Font Diagnostic & Custom Font Swap](#font-diagnostic--custom-font-swap)
+- [UI Tweaks](#ui-tweaks)
+  - [Scaled-Down Menu](#scaled-down-menu)
+  - [Save Highlight Color](#save-highlight-color)
+- [Utility](#utility)
+  - [Disable Mouse Cursor](#disable-mouse-cursor)
+  - [Force VSync](#force-vsync)
+- [Optional Dependencies](#optional-dependencies)
+
+---
 
 ## Features
 
-- BepInEx IL2CPP plugin structure (`BasePlugin`)
-- Harmony runtime patching (`PatchAll`)
-- Soft dependency detection for:
-  - `Memoria.FFPR`
-  - `Magicite`
-- Cross-game-safe first patch using Unity API (`UnityEngine.Cursor`)
-- Layered custom texture system with general and category pack folders
+- BepInEx IL2CPP plugin structure (`BasePlugin`) with Harmony runtime patching (`PatchAll`)
+- Layered custom texture system with pack-folder selection and hot-reload
+- Path-based (`GameAssets/…`) texture overrides to resolve same-name collisions across bundles
+- Optional sidecar JSON metadata per texture (size, pivot, border, filter, flip, etc.)
+- DDS texture support (DXT1, DXT5, uncompressed RGBA32)
+- Data-driven GameObject tweaks via `ObjectConfig.json` (no C# required)
+- Custom full-screen title background image injection
+- Configurable title screen background color
+- Speaker name prepended to dialogue messages
+- Speaker tag bubble hider
+- Dynamic speaker portrait injection
+- Configurable dialogue font size
+- Custom font swap via `fontconfig.json` with per-language and per-FontType granularity
+- Scaled-down in-game menu (10% shrink)
+- Save slot highlight color override
+- Mouse cursor hider
+- Force VSync
+- Soft dependency detection for `Memoria.FFPR` and `Magicite`
 
-## Project Layout
-
-- `KupoUI.PR.csproj` - .NET Framework 4.7.2 class library project
-- `src/KupoUIPRPlugin.cs` - plugin entry point
-- `src/Patches/DisableMouseCursorPatch.cs` - first runtime patch
-- `src/Patches/CustomTexturePatch.cs` - sprite/UI texture replacement patches
-- `src/Compatibility/ExternalModDetector.cs` - optional mod detection helper
-- `src/Textures/TextureResolver.cs` - texture indexing/loading/replacement core
-- `src/Textures/GameTagDetector.cs` - FF1-FF6 auto detection helper
+---
 
 ## Build Requirements
 
 1. Install BepInEx IL2CPP (6.0-pre.2 or newer) into your FFPR game folder.
 2. Ensure interop assemblies are generated (`BepInEx/interop`).
-3. Build with `BepInExDir` set to that game's BepInEx folder.
-
-Example:
+3. Build with `BepInExDir` pointing to that game's BepInEx folder.
 
 ```powershell
 dotnet build .\KupoUI.PR.csproj -c Release -p:BepInExDir="D:\Games\FINAL FANTASY II PR\BepInEx"
 ```
 
+---
+
 ## Install
 
-Copy output DLL from:
+Copy the output DLL from:
 
-- `bin/Release/net472/KupoUI.PR.dll`
+```
+bin/Release/net472/KupoUI.PR.dll
+```
 
 to:
 
-- `BepInEx/plugins/KupoUI.PR/`
+```
+BepInEx/plugins/KupoUI.PR/
+```
 
-## Config
+---
 
-Generated on first run in `BepInEx/config`:
+## Configuration Reference
 
-- `General.DisableMouseCursor` (default: `true`)
-- `UI.SaveHighlightColor` (default: `DarkNavy`; options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`)
-- `Textures.EnableCustomTextures` (default: `true`)
-- Texture root folder is fixed to `<GameRoot>/Modules/`
-- `Textures.EnableTextureHotReload` (default: `true`)
-- `Textures.TextureHotReloadDebounceMs` (default: `350`)
-- `Textures.EnableDDSTextures` (default: `true`)
-- `Textures.UIFramesFolder` (default: `Default`; selects a folder under `02-UI-Frames`)
-- `Textures.UIBgColorFolder` (default: `Default`; selects a folder under `03-UI-BgColor`)
-- `Textures.CursorsFolder` (default: `Default`; selects a folder under `04-UI-Cursors`)
-- `Textures.ButtonPromptsFolder` (default: `Default`; selects a folder under `05-Button-Prompts`)
-- `Textures.TextureLogger` (default: `Discoveries,Resolutions`; options: `All`, `None`, or comma-separated categories: `Discoveries`, `Resolutions`, `Misses`)
+The config file is generated on first run at:
 
-Set to `false` to disable this initial patch while keeping the plugin active.
+```
+BepInEx/config/faospark.kupoui.pr.cfg
+```
 
-## Custom Texture Folder Layout
+| Section | Key | Default | Description |
+|---|---|---|---|
+| `FontSwap` | `Enabled` | `false` | Enable custom font swap via `fontconfig.json`. |
+| `UI` | `SaveHighlightColor` | `Disable` | Save slot highlight color. Options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`. |
+| `UI` | `ScaledDownMenu` | `true` | Shrinks the in-game menu by 10%. |
+| `UI` | `TitleScreenBgColor` | `original` | Title screen background color. Options: `original`, `white`, `black`, `navy`, `crimson`, `violet`. |
+| `UI-Dialog` | `DialogueFontSize` | `36` | Font size for dialogue text. Use an integer (e.g. `36`) or `Auto` to use the font's declared size. |
+| `UI-Dialog` | `MessageSpeakerPrefix` | `true` | Prepend speaker name to dialogue messages. |
+| `UI-Dialog` | `SpeakerNameUppercase` | `false` | Transform speaker name to UPPERCASE before prepending. |
+| `UI-Dialog` | `HideSpeakerTag` | `true` | Move the speaker tag bubble off-screen. May conflict with mods that use the bubble as portraits. |
+| `UI-Dialog` | `EnableSpeakerPortraits` | `true` | Dynamically inject speaker portraits during dialogue. |
+| `UI-Dialog` | `FlipSpeakerPortraits` | `true` | Flip all injected speaker portraits horizontally. |
+| `UI and Customizations` | `UIThemesFolder` | *(empty)* | Folder under `Modules/01-UI-Themes/` for UI theme overrides. |
+| `UI and Customizations` | `UiFramesFolder` | *(empty)* | Folder under `Modules/02-UI-Frames/` for UI frame overrides. |
+| `UI and Customizations` | `UIBgColorFolder` | *(empty)* | Folder under `Modules/03-UI-BgColor/` for UI background overrides. |
+| `UI and Customizations` | `CursorsFolder` | *(empty)* | Folder under `Modules/04-UI-Cursors/` for cursor overrides. |
+| `UI and Customizations` | `ButtonPromptsFolder` | *(empty)* | Folder under `Modules/05-Button-Prompts/` for button prompt overrides. |
+| `Utility` | `DisableMouseCursor` | `false` | Hide the OS mouse cursor inside the game window. |
+| `Utility` | `ForceVSync` | `false` | Force VSync on and lock `targetFrameRate` to `-1`. |
+| `Utility` | `EnableTextureHotReload` | `false` | Watch texture folders and rebuild index when files change. |
+| `Utility` | `TextureHotReloadDebounceMs` | `350` | Debounce window (ms) before rebuilding index after file changes. |
+| `Utility` | `EnableDDSTextures` | `true` | Enable DDS texture loading (DXT1/DXT5 and uncompressed RGBA32). |
+| `Z - Diagnostics` | `TextureLogger` | `Off` | Texture logger mode: `Off`, `Discoveries`, `Resolutions`, `Misses`, `All` (or comma-separated). |
+| `Z - Diagnostics` | `LogFontMapping` | `false` | Log `FontManager` font parameter and instance details to identify `FontType` mappings. |
+| `Z - Diagnostics` | `MessageSpeakerPrefixLogging` | `false` | Log speaker name replacements. |
+| `Z - Diagnostics` | `PortraitLogging` | `true` | Log portrait lifecycle and resolution details. |
 
-Default root:
+---
 
-- `<GameRoot>/Modules/`
+## Custom Texture System
 
-Recommended folders created automatically:
+### Folder Layout
 
-- `00-Mods/` (general shared overrides)
-- `02-UI-Frames/Default/`
-- `03-UI-BgColor/Default/`
-- `04-UI-Cursors/Default/`
-- `05-Button-Prompts/Default/`
+The texture root is fixed to:
 
-Pack selection behavior:
+```
+<GameRoot>/Modules/
+```
 
-- `Textures.UIFramesFolder` selects `02-UI-Frames/<value>/`
-- `Textures.UIBgColorFolder` selects `03-UI-BgColor/<value>/`
-- `Textures.CursorsFolder` selects `04-UI-Cursors/<value>/`
-- `Textures.ButtonPromptsFolder` selects `05-Button-Prompts/<value>/`
-- `Default` means no special pack selected; only files you place in those folders apply.
+Recommended structure created automatically on first run:
 
-Lookup priority (highest to lowest):
+```
+<GameRoot>/
+  Modules/
+    00-Mods/              ← general shared overrides and custom mods
+    01-UI-Themes/         ← full UI theme packs
+    02-UI-Frames/         ← UI frame texture packs
+    03-UI-BgColor/        ← UI background color packs
+    04-UI-Cursors/        ← cursor texture packs
+    05-Button-Prompts/    ← button prompt texture packs
+    Shared/               ← cross-game textures and speaker portraits
+      SpeakerPortraits/   ← portrait images resolved by speaker ID
+      FF1/                ← FF1-specific textures (game-tag folder)
+      FF2/
+      FF3/
+      FF4/
+      FF5/
+      FF6/
+```
 
-1. `05-Button-Prompts/<SelectedPack>`
-2. `04-UI-Cursors/<SelectedPack>`
-3. `03-UI-BgColor/<SelectedPack>`
-4. `02-UI-Frames/<SelectedPack>`
-5. `00-Mods/`
-6. Legacy compatibility folders (`Shared`, `FF1`..`FF6`, `00-Mods/Shared`, `00-Mods/FF1`..`FF6`) if present
+Within each numbered folder you can create named sub-folders (packs). The active pack for each category is selected via the corresponding config key (e.g. `UIThemesFolder = MyTheme` selects `01-UI-Themes/MyTheme/`). An empty value means no pack is selected for that category.
 
-Use file names without extension to match in-game texture/sprite names (for example `window_frame.png` to replace `window_frame`).
+The `Shared/` folder is auto-created on first run. Place textures that apply to all six games directly inside `Shared/`, or inside the matching game-tag sub-folder (e.g. `Shared/FF2/`) to target a specific game. Speaker portraits belong in `Shared/SpeakerPortraits/`.
 
-### Path-based overrides (recommended for collisions)
+### Lookup Priority
 
-Many FFPR assets reuse the same file names in different bundles. To avoid collisions, KupoUI.PR also supports path-based resolution for files placed under a `GameAssets` folder.
+Priority is highest to lowest:
 
-How it works:
+1. `05-Button-Prompts/<ButtonPromptsFolder>`
+2. `04-UI-Cursors/<CursorsFolder>`
+3. `03-UI-BgColor/<UIBgColorFolder>`
+4. `02-UI-Frames/<UiFramesFolder>`
+5. `01-UI-Themes/<UIThemesFolder>`
+6. `00-Mods/`
+7. `00-Mods/<GameTag>/` (e.g. `00-Mods/FF2/`)
+8. `00-Mods/Shared/`
+9. `<GameTag>/` (root-level game-tag folder, if present)
+10. `Shared/<GameTag>/` (e.g. `Shared/FF2/`)
+11. `Shared/` (cross-game, lowest priority)
 
-- If a replacement file path contains a `GameAssets/...` segment, the resolver indexes it by full relative path (without extension), not only by file name.
-- At runtime, when the game loads an address like `Assets/GameAssets/...`, KupoUI.PR can resolve to the exact matching replacement path first.
-- Name-only matching still works as a fallback for existing setups.
+Use the file name **without extension** to match the in-game texture/sprite name (e.g. `window_frame.png` replaces the asset named `window_frame`).
 
-Example (FF2 portrait):
+### Path-Based Overrides
+
+Many FFPR assets share the same file name across different bundles (e.g. `Default_00.png` used in multiple portrait folders). To avoid collisions, KupoUI.PR supports path-based resolution for files placed under a `GameAssets/` folder within any mod folder.
+
+- If a replacement file path contains a `GameAssets/…` segment, it is indexed by its full relative path (no extension), not by name alone.
+- At runtime, when the game loads an address like `Assets/GameAssets/…`, KupoUI.PR resolves to the exact matching replacement first.
+- Name-only matching still works as a fallback.
+
+**Example — FF2 portrait:**
 
 - In-game address: `Assets/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
-- Replacement file location:
-  - `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
+- Replacement file: `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 
-This allows `Default_00.png` files from different portrait folders/bundles to be replaced independently.
+### Sidecar Metadata (.json)
 
-### Optional sidecar metadata
+Place a `.json` file next to any replacement texture with the same base name to override sprite properties. All fields are optional — only include what you need.
 
-You can add a JSON file next to a replacement texture with the same base name to override any combination of logical size, filtering, pivot, 9-slice border, and source rect. All fields are optional — only include what you need to override.
+**Example:**
 
-Example:
-
-- `Default_00.png`
-- `Default_00.json`
-
-Example JSON:
+```
+Default_00.png
+Default_00.json
+```
 
 ```json
 {
@@ -137,79 +216,77 @@ Example JSON:
   "pivot": "0.5,0.5",
   "border": "4,4,4,4",
   "rectX": 0,
-  "rectY": 16
+  "rectY": 16,
+  "flipHorizontal": false
 }
 ```
 
-> **Note:** All fields are optional. Only include the ones relevant to your replacement.
+| Field | Description |
+|---|---|
+| `width` | Logical source width used to calculate replacement sprite scale. |
+| `height` | Logical source height used to calculate replacement sprite scale. |
+| `pixelsPerUnit` | Direct sprite PPU override (takes priority over auto scale calculation). |
+| `filterMode` / `filterType` | Filter override: `Point`, `Bilinear`, or `Trilinear`. String mode takes priority over `pointFilter`. |
+| `pointFilter` | Legacy boolean shorthand: `true` = `Point`, `false` = `Bilinear`. |
+| `wrapMode` | Wrap mode: `Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`. |
+| `pivot` | Normalized sprite anchor `"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left. |
+| `border` | 9-slice border in pixels `"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border. |
+| `rectX` | Pixel X offset within the replacement texture (source UV position, not screen position). |
+| `rectY` | Pixel Y offset within the replacement texture. Useful for sprite sheets. |
+| `flipHorizontal` / `flipX` | Flip the replacement texture horizontally. |
 
-Supported fields:
+> **Note:** When `width`/`height` are provided, sprite creation uses them to override replacement rect sizing; when values do not fit atlas coordinates, origin-clamped sizing is used as a fallback.
 
-- `width`: logical source width used when calculating replacement sprite scale
-- `height`: logical source height used when calculating replacement sprite scale
-- `pixelsPerUnit`: optional direct sprite PPU override (takes priority over auto scale calculation)
-- `filterMode`: Unity-style filter override, one of `Point`, `Bilinear`, or `Trilinear`
-- `filterType`: alias for `filterMode` (same accepted values)
-- `pointFilter`: legacy boolean shorthand, `true` = `Point`, `false` = `Bilinear`
-- `wrapMode`: Unity-style wrap mode override, one of `Clamp`, `Repeat`, `Mirror`, or `MirrorOnce` (default: `Clamp`)
-- `pivot`: normalized sprite anchor point as `"x,y"` (each value 0–1). Examples: `"0.5,0.5"` = center, `"0,0"` = bottom-left, `"0.5,0"` = bottom-center. Overrides the original sprite's pivot. Values are clamped to 0–1.
-- `border`: 9-slice border in pixels as `"left,bottom,right,top"`. Example: `"4,4,4,4"`. Overrides the original sprite's border; use `"0,0,0,0"` to strip an inherited border.
-- `rectX`: pixel X offset within the replacement texture to start sampling from. When omitted, inherits from the original sprite's rect x position. Clamped to valid texture bounds. Note: this controls **source UV position** inside the replacement image, not the sprite's position on screen.
-- `rectY`: pixel Y offset within the replacement texture to start sampling from. Same rules as `rectX`. Useful when a single replacement image contains multiple sprites at known offsets.
+### Texture Formats & Filter Modes
 
-If both `filterMode`/`filterType` and `pointFilter` are present, the string mode takes priority.
+**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds` (DXT1, DXT5, uncompressed RGBA32)
 
-If `width` and/or `height` are provided, sprite creation uses those values to override replacement rect sizing when possible; when values do not fit atlas coordinates, fallback uses origin-clamped sizing.
+**Filter mode behavior:**
 
-Supported texture formats:
-
-- `png`, `jpg`, `jpeg`, `tga`
-- `dds` (DXT1, DXT5, and uncompressed 32-bit RGBA DDS)
-
-Filter mode behavior:
-
-- Default behavior is Bilinear filtering.
+- Default is Bilinear.
 - Point filtering is applied automatically if the replacement file is inside a folder named `Pixel` or `Pixels` (at any depth).
-- For path-based `GameAssets/...` overrides, prefer sidecar `filterMode` metadata when the folder convention is not practical.
+- For path-based `GameAssets/…` overrides, prefer sidecar `filterMode` metadata when the folder convention is not practical.
 
-Hot-reload notes:
+### Hot-Reload
 
-- With hot-reload enabled, changes in the texture folders trigger an automatic reindex.
-- Reindexing is debounced by `TextureHotReloadDebounceMs` to avoid repeated rebuilds while copying many files.
+When `Utility.EnableTextureHotReload` is `true`, file-system changes inside the `Modules/` folder trigger an automatic texture index rebuild. Rebuilds are debounced by `TextureHotReloadDebounceMs` (default 350 ms) to avoid repeated rebuilds while copying many files.
 
-Texture logger notes:
+### Texture Logger
 
-- Discovery logs report unique texture names seen from sprite/texture hooks.
-- Resolution logs report unique names that successfully map to replacement files.
-- Miss logs are optional and can be noisy; keep disabled unless diagnosing missing replacements.
+Controlled by `Z - Diagnostics.TextureLogger`. Categories:
 
-## Notes On Optional Dependencies
+- `Discoveries` — unique texture names seen from sprite/texture hooks.
+- `Resolutions` — unique names that successfully map to a replacement file.
+- `Misses` — names that were looked up but found no replacement. Optional; can be noisy.
 
-This plugin does not hard-reference `Memoria.FFPR` or `Magicite` yet.
-
-At runtime, it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.
+Set to `All` to enable all categories, or use a comma-separated list (e.g. `Discoveries,Resolutions`).
 
 ---
 
-## ObjectConfig.json — Data-driven GameObject Tweaks
+## ObjectConfig.json — Data-Driven GameObject Tweaks
 
-You can manipulate Unity GameObjects at runtime (position, rotation, scale, active state) without writing any C# — just drop an `ObjectConfig.json` file inside any mod folder under `Modules/00-Mods/`.
+Manipulate Unity GameObjects at runtime (position, rotation, scale, active state, text properties) without writing C# — just drop an `ObjectConfig.json` file anywhere inside `Modules/`.
 
-The plugin scans **all** `ObjectConfig.json` files found recursively under `Modules/00-Mods/` when the game starts.
+The plugin scans **all** `ObjectConfig.json` files found recursively under `Modules/` on startup. Files placed inside `Shared/FF1`–`FF6` sub-folders are filtered to the detected game, so only the matching game's rules are applied.
 
-### Folder placement
+### Folder Placement
 
 ```
 <GameRoot>/
   Modules/
     00-Mods/
       MyMod/
-        ObjectConfig.json   ← picked up automatically
-      AnotherMod/
+        ObjectConfig.json   ← picked up
+    01-UI-Themes/
+      MyTheme/
         ObjectConfig.json   ← also picked up
+    Shared/
+      ObjectConfig.json     ← picked up (applies to all games)
+      FF2/
+        ObjectConfig.json   ← picked up only when running FF2
 ```
 
-### File format
+### File Format
 
 ```json
 {
@@ -234,7 +311,7 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
 }
 ```
 
-The `objects` array can contain as many entries as you need, across one file or spread across multiple files in different mod folders.
+The `objects` array can contain as many entries as you need, spread across one file or multiple files in different mod folders.
 
 ### Fields
 
@@ -247,24 +324,24 @@ The `objects` array can contain as many entries as you need, across one file or 
 | `Rotation` | No | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`. |
 | `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
 | `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
-| `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [text alignment values](#text-alignment-values) below. |
+| `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [Text Alignment Values](#text-alignment-values). |
 | `FontSize` | No | Sets `Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
-| `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit` on the `UnityEngine.UI.Text` component (if present). Use `true` or `false`. |
-| `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
-| `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
-| `TextColorWhite` | No | Forces `Text.color` to `Color.white` on the `UnityEngine.UI.Text` component (if present). Re-enforced on every color write to prevent the game from overriding it. Use `true`. |
+| `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit`. Use `true` or `false`. |
+| `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize`. Provide an integer. |
+| `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize`. Provide an integer. |
+| `TextColorWhite` | No | Forces `Text.color` to `Color.white`. Re-enforced on every color write to prevent game overrides. Use `true`. |
 | `DisableShadow` | No | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`. |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 
-### When rules are applied
+### When Rules Are Applied
 
 Rules fire at two moments:
 
-1. **Scene load** — when a scene finishes loading, all GameObjects in the scene are scanned and matching rules are applied. This covers objects that are already active from the start.
-2. **SetActive(true)** — when any GameObject is enabled at runtime, matching rules are applied immediately. This covers UI panels and objects toggled on after load.
+1. **Scene load** — when a scene finishes loading, all GameObjects in the scene are scanned and matching rules are applied.
+2. **SetActive(true)** — when any GameObject is enabled at runtime, matching rules are applied immediately.
 
-### Using `TargetPath` to avoid wrong matches
+### Using `TargetPath` to Avoid Wrong Matches
 
 If multiple objects share the same name (common in FFPR), add `TargetPath` to target only the one you want:
 
@@ -276,13 +353,13 @@ If multiple objects share the same name (common in FFPR), add `TargetPath` to ta
 }
 ```
 
-The path is matched by walking up the transform hierarchy from the object, so it does not need to start from the scene root — a suffix is enough.
+The path is matched by walking up the transform hierarchy, so it does not need to start from the scene root — a suffix is enough.
 
 > **Important:** Two common mistakes to avoid:
-> - The **last segment of `TargetPath` must match `TargetObjectName`** exactly. The matcher walks upward from the object itself, so the object's own name must appear at the end of the path.
-> - **No trailing slash.** A path ending with `/` produces an empty final segment that will never match any GameObject name, causing the rule to silently do nothing.
+> - The **last segment of `TargetPath` must match `TargetObjectName`** exactly. The matcher walks upward from the object itself.
+> - **No trailing slash.** A path ending with `/` produces an empty final segment that will never match, causing the rule to silently do nothing.
 
-### Hiding an object
+### Hiding an Object
 
 ```json
 {
@@ -294,19 +371,7 @@ The path is matched by walking up the transform hierarchy from the object, so it
 
 > **Note on `SetActive: false` behaviour:** The rule uses a Harmony prefix that intercepts every `SetActive(true)` call and flips it to `false` before Unity processes it. This permanently prevents the object from becoming active — no flicker, no one-frame delay.
 
-### Changing text alignment
-
-If the target object has a `UnityEngine.UI.Text` component, you can set its horizontal and vertical alignment:
-
-```json
-{
-  "TargetObjectName": "some_label",
-  "TargetPath": "Canvas/panel/some_label",
-  "TextAlignment": "MiddleCenter"
-}
-```
-
-#### Text alignment values
+### Text Alignment Values
 
 | Value | Description |
 |---|---|
@@ -320,297 +385,126 @@ If the target object has a `UnityEngine.UI.Text` component, you can set its hori
 | `LowerCenter` | Bottom-center |
 | `LowerRight` | Bottom-right corner |
 
-Values are case-insensitive. If the object has no `Text` component, or the value is unrecognized, a warning is written to the BepInEx log and the rule is skipped.
-
-### Combining multiple rules
-
-```json
-{
-  "objects": [
-    {
-      "TargetObjectName": "ui_root",
-      "TargetPath": "RootObject/sab_canvas/root/ui_root",
-      "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
-    },
-    {
-      "TargetObjectName": "title_logo",
-      "SceneName": "Title",
-      "Position": { "x": 0, "y": 80, "z": 0 }
-    }
-  ]
-}
-```
+Values are case-insensitive. If the object has no `Text` component, or the value is unrecognized, a warning is written to the log and the field is skipped.
 
 ---
 
-## Title Screen Full Background Image (`TitlescreenFullBG`)
+## Title Screen
 
-You can inject a custom full-screen background image on the title screen by placing a texture file named `TitlescreenFullBG` in any mod folder. No config entry is required — if the file is absent nothing happens.
+### Title Screen Background Color
 
-### How it works
+`UI.TitleScreenBgColor` — Controls the color of the title screen's solid background panel.
 
-The patch watches for the title screen's internal `background` object at:
+Options: `original` (game default), `white`, `black`, `navy`, `crimson`, `violet`.
 
-```
-background_canvas/ui_root/backgrou_root/background
-```
+The patch intercepts the `Graphic.color` setter and re-enforces the chosen color on every material update to prevent the game from overriding it.
 
-When that object activates, a new `fullbg` GameObject is injected as a sibling immediately above it in the hierarchy:
+### Title Screen Full Background Image
 
-```
-background_canvas/ui_root/backgrou_root/
-  ├── background   ← original solid-color background (unchanged)
-  └── fullbg       ← injected — renders on top of background
-```
-
-`fullbg` is a `RawImage` stretched to fill its parent, so it completely covers `background`. The solid-color background underneath is still tinted by `UI-Title-Screen.TitleScreenBgColor` if configured — `fullbg` simply covers it.
-
-### Installation
-
-Drop any supported image file named `TitlescreenFullBG` into any mod folder:
-- With hot-reload enabled, changes in the texture folders trigger an automatic reindex.
-- Reindexing is debounced by `TextureHotReloadDebounceMs` to avoid repeated rebuilds while copying many files.
-
-Texture logger notes:
-
-- Discovery logs report unique texture names seen from sprite/texture hooks.
-- Resolution logs report unique names that successfully map to replacement files.
-- Miss logs are optional and can be noisy; keep disabled unless diagnosing missing replacements.
-
-## Notes On Optional Dependencies
-
-This plugin does not hard-reference `Memoria.FFPR` or `Magicite` yet.
-
-At runtime, it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.
-
----
-
-## ObjectConfig.json — Data-driven GameObject Tweaks
-
-You can manipulate Unity GameObjects at runtime (position, rotation, scale, active state) without writing any C# — just drop an `ObjectConfig.json` file inside any mod folder under `Modules/00-Mods/`.
-
-The plugin scans **all** `ObjectConfig.json` files found recursively under `Modules/00-Mods/` when the game starts.
-
-### Folder placement
-
-```
-<GameRoot>/
-  Modules/
-    00-Mods/
-      MyMod/
-        ObjectConfig.json   ← picked up automatically
-      AnotherMod/
-        ObjectConfig.json   ← also picked up
-```
-
-### File format
-
-```json
-{
-  "objects": [
-    {
-      "TargetObjectName": "menu_base(Clone)",
-      "TargetPath": "Canvas/aspect_parent/menu_parent/menu_base(Clone)",
-      "SceneName": "Title",
-      "Position": { "x": 0, "y": -50, "z": 0 },
-      "Rotation": { "x": 0, "y": 0,   "z": 0 },
-      "Scale":    { "x": 0.9, "y": 0.9, "z": 1.0 },
-      "SetActive": true,
-      "TextAlignment": "MiddleCenter",
-      "FontSize": 24,
-      "ResizeTextForBestFit": true,
-      "ResizeTextMaxSize": 36,
-      "ResizeTextMinSize": 12,
-      "TextColorWhite": true,
-      "DisableShadow": true
-    }
-  ]
-}
-```
-
-The `objects` array can contain as many entries as you need, across one file or spread across multiple files in different mod folders.
-
-### Fields
-
-| Field | Required | Description |
-|---|---|---|
-| `TargetObjectName` | **Yes** | Exact `GameObject` name to match (e.g. `"menu_base(Clone)"`). |
-| `TargetPath` | No | Hierarchy path suffix to disambiguate objects with the same name. Forward-slash notation, matched from the object upward. E.g. `"Canvas/aspect_parent/menu_base(Clone)"`. |
-| `SceneName` | No | Only apply this rule while this scene is active. Omit to apply in every scene. Case-insensitive. |
-| `Position` | No | Sets `transform.localPosition`. Provide `x`, `y`, `z` as floats. |
-| `Rotation` | No | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`. |
-| `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
-| `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
-| `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [text alignment values](#text-alignment-values) below. |
-| `FontSize` | No | Sets `Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
-| `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit` on the `UnityEngine.UI.Text` component (if present). Use `true` or `false`. |
-| `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
-| `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
-| `TextColorWhite` | No | Forces `Text.color` to `Color.white` on the `UnityEngine.UI.Text` component (if present). Re-enforced on every color write to prevent the game from overriding it. Use `true`. |
-| `DisableShadow` | No | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`. |
-
-> **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
-
-### When rules are applied
-
-Rules fire at two moments:
-
-1. **Scene load** — when a scene finishes loading, all GameObjects in the scene are scanned and matching rules are applied. This covers objects that are already active from the start.
-2. **SetActive(true)** — when any GameObject is enabled at runtime, matching rules are applied immediately. This covers UI panels and objects toggled on after load.
-
-### Using `TargetPath` to avoid wrong matches
-
-If multiple objects share the same name (common in FFPR), add `TargetPath` to target only the one you want:
-
-```json
-{
-  "TargetObjectName": "menu_base(Clone)",
-  "TargetPath": "RootObject/Canvas/aspect_parent/menu_parent/menu_base(Clone)",
-  "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
-}
-```
-
-The path is matched by walking up the transform hierarchy from the object, so it does not need to start from the scene root — a suffix is enough.
-
-> **Important:** Two common mistakes to avoid:
-> - The **last segment of `TargetPath` must match `TargetObjectName`** exactly. The matcher walks upward from the object itself, so the object's own name must appear at the end of the path.
-> - **No trailing slash.** A path ending with `/` produces an empty final segment that will never match any GameObject name, causing the rule to silently do nothing.
-
-### Hiding an object
-
-```json
-{
-  "TargetObjectName": "some_ui_element",
-  "SceneName": "MainMenu",
-  "SetActive": false
-}
-```
-
-> **Note on `SetActive: false` behaviour:** The rule uses a Harmony prefix that intercepts every `SetActive(true)` call and flips it to `false` before Unity processes it. This permanently prevents the object from becoming active — no flicker, no one-frame delay.
-
-### Changing text alignment
-
-If the target object has a `UnityEngine.UI.Text` component, you can set its horizontal and vertical alignment:
-
-```json
-{
-  "TargetObjectName": "some_label",
-  "TargetPath": "Canvas/panel/some_label",
-  "TextAlignment": "MiddleCenter"
-}
-```
-
-#### Text alignment values
-
-| Value | Description |
-|---|---|
-| `UpperLeft` | Top-left corner |
-| `UpperCenter` | Top-center |
-| `UpperRight` | Top-right corner |
-| `MiddleLeft` | Vertically centered, left-aligned |
-| `MiddleCenter` | Fully centered |
-| `MiddleRight` | Vertically centered, right-aligned |
-| `LowerLeft` | Bottom-left corner |
-| `LowerCenter` | Bottom-center |
-| `LowerRight` | Bottom-right corner |
-
-Values are case-insensitive. If the object has no `Text` component, or the value is unrecognized, a warning is written to the BepInEx log and the rule is skipped.
-
-### Combining multiple rules
-
-```json
-{
-  "objects": [
-    {
-      "TargetObjectName": "ui_root",
-      "TargetPath": "RootObject/sab_canvas/root/ui_root",
-      "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
-    },
-    {
-      "TargetObjectName": "title_logo",
-      "SceneName": "Title",
-      "Position": { "x": 0, "y": 80, "z": 0 }
-    }
-  ]
-}
-```
-
----
-
-## Title Screen Full Background Image (`TitlescreenFullBG`)
-
-You can inject a custom full-screen background image on the title screen by placing a texture file named `TitlescreenFullBG` in any mod folder. No config entry is required — if the file is absent nothing happens.
-
-### How it works
-
-The patch watches for the title screen's internal `background` object at:
-
-```
-background_canvas/ui_root/backgrou_root/background
-```
-
-When that object activates, a new `fullbg` GameObject is injected as a sibling immediately above it in the hierarchy:
-
-```
-background_canvas/ui_root/backgrou_root/
-  ├── background   ← original solid-color background (unchanged)
-  └── fullbg       ← injected — renders on top of background
-```
-
-`fullbg` is a `RawImage` stretched to fill its parent, so it completely covers `background`. The solid-color background underneath is still tinted by `UI-Title-Screen.TitleScreenBgColor` if configured — `fullbg` simply covers it.
-
-### Installation
-
-Drop any supported image file named `TitlescreenFullBG` into any mod folder:
+Drop any supported image named `TitlescreenFullBG` into any mod folder to inject a custom full-screen background image on the title screen. No config entry is required — if the file is absent, nothing happens.
 
 ```
 <GameRoot>/Modules/00-Mods/MyMod/TitlescreenFullBG.png
 ```
 
-Supported formats: `png`, `jpg`, `jpeg`, `tga`, `dds`.
+**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds`
 
-### Notes
+**How it works:**
 
-- If no `TitlescreenFullBG` file is found in the index, the patch is a complete no-op — no object is created, no log entries are written.
-- The object is only created once per activation cycle. Re-activating the title screen background does not create duplicates.
-- The image is stretched to fill its parent rect. For best results, use an image sized to your target resolution (e.g. 1920×1080).
-- The texture is kept alive with `DontDestroyOnLoad` so it survives any additive scene reloads on the title screen.
+The patch watches for the title screen's internal `background` object at:
 
+```
+background_canvas/ui_root/backgrou_root/background
+```
+
+When that object activates, a new `fullbg` `RawImage` GameObject is injected as a sibling immediately above it, stretched to fill the parent rect:
+
+```
+background_canvas/ui_root/backgrou_root/
+  ├── background   ← original solid-color background (still tinted by TitleScreenBgColor)
+  └── fullbg       ← injected — renders on top, covers background
+```
+
+**Notes:**
+
+- The object is only created once per activation cycle — no duplicates on re-activation.
+- The texture is kept alive with `DontDestroyOnLoad` to survive additive scene reloads.
+- For best results, use an image sized to your target resolution (e.g. 1920×1080).
+
+---
+
+## Dialogue System
+
+### Speaker Name Prefix
+
+`UI-Dialog.MessageSpeakerPrefix` (default `true`) — Prepends the speaker's name to the dialogue message text inside the message window, without modifying any game files.
+
+- `UI-Dialog.SpeakerNameUppercase` (default `false`) — Transform the speaker name to UPPERCASE before prepending.
+- When the active language is Japanese, the separator changes from `": "` to `「` automatically.
+- Guards against double-prefix if the setter fires twice on the same text.
+- Works as an alternative to Classic Text Box Framework for displaying speaker names.
+
+### Hide Speaker Tag Bubble
+
+`UI-Dialog.HideSpeakerTag` (default `true`) — Moves the `speker_root` bubble off-screen when it activates, so the speaker tag is invisible but the underlying object remains active.
+
+> **Note:** This will conflict with older mods that use the speaker tag bubble as a portrait display.
+
+### Speaker Portraits
+
+`UI-Dialog.EnableSpeakerPortraits` (default `true`) — Dynamically injects a speaker portrait image inside the message window during dialogue sequences.
+
+- Portraits are resolved from the texture index using the speaker ID. Place portrait images in any mod folder matching the speaker asset name.
+- `UI-Dialog.FlipSpeakerPortraits` (default `true`) — Flip all injected portraits horizontally.
+- Portrait images are cached in memory after first load.
+- Uses the same folder priority as the main texture system.
+- `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
+
+### Dialogue Font Size
+
+`UI-Dialog.DialogueFontSize` (default `36`) — Enforces a fixed font size on both the message text and speaker text components inside `MessageWindowView`.
+
+- Set to an integer (e.g. `36`, `40`, `48`) to apply a specific size.
+- Set to `Auto` to use the font's declared size in-game (effectively disables enforcement).
+- The patch also forces `resizeTextForBestFit` to `false` on dialogue text to prevent the game from overriding the size.
+- Works independently of `MessageSpeakerPrefix` — neither needs to be enabled for the other to function.
+
+---
 
 ## Font Diagnostic & Custom Font Swap
 
-This plugin includes a two-phase font mapping and replacement utility to swap game fonts with custom `.ttf` or `.otf` font files cleanly.
+This plugin includes a two-phase font mapping and replacement utility.
 
-### Phase 1 — Diagnostic Logging (Always-On by Default)
+### Phase 1 — Diagnostic Logging
 
-When the game initializes fonts, details about the font parameters are printed to the BepInEx console and log files. 
+When the game initializes fonts, `[FontMap]` log entries are written to `BepInEx/LogOutput.log`:
 
-- **Log File Location:** `<GameRoot>/BepInEx/LogOutput.log`
-- **What to look for:** Look for lines starting with `[FontMap]`. For example:
-  ```
-  [Info   :KupoUI.PR] [FontMap] FontType=Font09 | Language=En | FontName=PIXELREMASTERFONT.ttf | LineSpace=0.66 | Font=
-  ```
-This mapping shows exactly which `FontType` enum corresponds to which language and default asset file in the game.
+```
+[Info   :KupoUI.PR] [FontMap] FontType=Font09 | Language=En | FontName=PIXELREMASTERFONT.ttf | LineSpace=0.66 | Font=
+```
 
-Configuration for Phase 1 (in `faospark.kupoui.pr.cfg` under `BepInEx/config`):
-- `Diagnostics.LogFontMapping` (bool, default `true`): Set to `false` to disable diagnostic logging.
+This identifies which `FontType` enum value corresponds to which language and default asset.
 
-### Phase 2 — Custom Font File Swap (Off by Default)
+- `Z - Diagnostics.LogFontMapping` (default `false`) — Enable this diagnostic.
 
-You can place your custom font files (TrueType `.ttf` or OpenType `.otf`) inside the mod fonts directory and map them granularly using a configuration file.
+### Phase 2 — Custom Font Swap
 
-#### 1. Folder & Config Location
-All custom font files and configuration are placed under:
-- **Directory:** `<GameRoot>/Modules/00-Mods/Fonts/`
-- **Configuration File:** `<GameRoot>/Modules/00-Mods/Fonts/fontconfig.json`
-- **Help Documentation:** `<GameRoot>/Modules/00-Mods/Fonts/font-help.txt`
+`FontSwap.Enabled` (default `false`) — Enable font swapping. Once enabled, fonts are configured via `fontconfig.json`.
 
-*(Note: On first startup, the mod will automatically create the `Fonts/` folder, write the `font-help.txt` guide, and generate a default `fontconfig.json` containing the game's actual default font values for all supported languages.)*
+#### File Locations
 
-#### 2. Configuration File Format (`fontconfig.json`)
-The mapping file supports both **simple string mappings** (where the font family name defaults to the filename without extension) and **object-based mappings** (highly recommended for custom fonts to ensure the exact font family name and sizing is passed to the engine). 
+```
+<GameRoot>/Modules/00-Mods/Fonts/
+  fontconfig.json         ← your active font configuration
+  fontconfig-sample.json  ← auto-generated baseline defaults (overwritten on each launch)
+  font-help.txt           ← auto-generated help guide
+```
 
-When generated on startup, the file contains the game's actual default font settings structured by language, like so:
+All three files are created automatically on first startup.
+
+#### Configuration File Format
+
+The mapping file supports both **simple string values** and **object-based values**.
 
 ```json
 {
@@ -625,76 +519,96 @@ When generated on startup, the file contains the game's actual default font sett
 }
 ```
 
-To swap a font, simply edit the `"FontFile"` and `"FontName"` properties in the relevant block.
+| Field | Description |
+|---|---|
+| `FontFile` | **(Optional)** Filename of the `.ttf` or `.otf` file in `00-Mods/Fonts/`. Omit to use a pre-installed system font. |
+| `FontName` | Font family name (e.g. `"Segoe UI"`, `"Consolas"`). Required. If `FontFile` is provided, this registers and matches the custom file. |
+| `LineSpace` | Line height factor (e.g. `1.2`). Adjust if your font appears cramped or overflows dialogue boxes. |
+| `FontSize` | Integer target rendering size. If omitted, auto-scales to match the default font it replaces. |
 
-*   **`FontFile`**: **(Optional)** The filename of the `.ttf` or `.otf` file located directly in the `00-Mods/Fonts/` directory. Omit this if you are using a font already pre-installed in the Windows OS.
-*   **`FontName`**: The font family name (e.g. `"Harrington"`, `"Consolas"`, `"Segoe UI"`). If `FontFile` is provided, this registers and matches the custom file. If `FontFile` is omitted, it resolves directly to the matching pre-installed system font.
-*   **`LineSpace`**: A decimal factor representing the line height/spacing (e.g. `1.2`). Override this if your replacement font appears too cramped or overflows dialogue boxes vertically.
-*   **`FontSize`**: An integer representing the target rendering size (e.g. `32`). If omitted, it will automatically scale to match the size of the default font it replaces.
+#### Language-Specific Configuration Styles
 
-#### 3. Language-Specific Configurations
-There are three ways to customize fonts for specific game languages (e.g. `Ja`, `En`, `Fr`, `Ru`, `Pt`, `De`, `It`, `Th`, `Ko`, `Zht`, `Zhc`):
+##### Style A — Root-Level Language Specifier (single-language mods)
 
-##### Style A: Root-Level Language Specifier (Recommended for Single Language Mods)
-You can set a `"Language"` property at the root of the file. This acts as a scope modifier, so all configurations in the file apply to that language:
 ```json
 {
   "Language": "Pt",
-  "Font01": {
-    "FontFile": "portuguese_font.ttf",
-    "FontName": "PortugueseFont"
-  },
+  "Font01": { "FontFile": "portuguese_font.ttf", "FontName": "PortugueseFont" },
   "Default": "portuguese_fallback.ttf"
 }
 ```
 
-##### Style B: Nested Language Blocks (Recommended for Multi-Language Mods)
-You can organize configurations inside nested objects named after the language abbreviations:
+##### Style B — Nested Language Blocks (multi-language mods)
+
 ```json
 {
-  "Pt": {
-    "Font01": {
-      "FontFile": "portuguese_font.ttf",
-      "FontName": "PortugueseFont"
-    }
-  },
-  "Ja": {
-    "Font01": {
-      "FontFile": "japanese_font.ttf",
-      "FontName": "JapaneseFont"
-    }
-  }
+  "Pt": { "Font01": { "FontFile": "portuguese_font.ttf", "FontName": "PortugueseFont" } },
+  "Ja": { "Font01": { "FontFile": "japanese_font.ttf", "FontName": "JapaneseFont" } }
 }
 ```
 
-##### Style C: Flat Key Suffixes
-You can append `_` followed by the language abbreviation directly to the key names:
+##### Style C — Flat Key Suffixes
+
 ```json
 {
-  "Font01": {
-    "FontFile": "english_font.ttf",
-    "FontName": "EnglishFont"
-  },
-  "Font01_Ja": {
-    "FontFile": "japanese_font.ttf",
-    "FontName": "JapaneseFont",
-    "LineSpace": 0.83
-  },
+  "Font01": { "FontFile": "english_font.ttf", "FontName": "EnglishFont" },
+  "Font01_Ja": { "FontFile": "japanese_font.ttf", "FontName": "JapaneseFont", "LineSpace": 0.83 },
   "Default_Ja": "japanese_fallback_font.ttf"
 }
 ```
 
-##### Configuration Fallback Hierarchy
-When looking up a font for a specific `FontType` and language, the plugin searches in this order:
-1. Specific `FontType` + Specific Language (e.g. `Font01_Ja` or nested `Ja` block -> `Font01`)
-2. Specific `FontType` global fallback (e.g. `Font01`)
-3. `Default` + Specific Language (e.g. `Default_Ja` or nested `Ja` block -> `Default`)
-4. `Default` global fallback (e.g. `Default`)
+#### Fallback Lookup Order
 
-#### 4. Enabling the Swap
-Once you have configured your `fontconfig.json` and placed your font files:
-1. Open `<GameRoot>/BepInEx/config/faospark.kupoui.pr.cfg`.
-2. Set **`FontSwap.Enabled`** to `true`.
+When looking up a font for a specific `FontType` and language:
+
+1. Specific FontType + Specific Language (e.g. `Font01_Ja` or nested `Ja` → `Font01`)
+2. Specific FontType global fallback (e.g. `Font01`)
+3. `Default` + Specific Language (e.g. `Default_Ja` or nested `Ja` → `Default`)
+4. `Default` global fallback
+
+#### Supported Languages
+
+`En`, `Ja`, `Fr`, `De`, `It`, `Ru`, `Pt`, `Th`, `Ko`, `Zht`, `Zhc`
+
+#### Enabling the Swap
+
+1. Open `BepInEx/config/faospark.kupoui.pr.cfg`.
+2. Set `FontSwap.Enabled` to `true`.
 3. Restart the game.
 
-*Custom fonts are cached in memory upon first load, ensuring there is zero performance impact or stutter during scene transitions.*
+> Custom fonts are cached in memory upon first load — zero performance impact during scene transitions.
+
+---
+
+## UI Tweaks
+
+### Scaled-Down Menu
+
+`UI.ScaledDownMenu` (default `true`) — Shrinks the in-game menu by 10% by setting `localScale` to `(0.9, 0.9, 1.0)` on:
+
+- `Canvas/aspect_parent/menu_parent/menu_base(Clone)`
+- `RootObject/sab_canvas/root/ui_root`
+
+### Save Highlight Color
+
+`UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
+
+Options: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable` (removes the highlight entirely).
+
+---
+
+## Utility
+
+### Disable Mouse Cursor
+
+`Utility.DisableMouseCursor` (default `false`) — Hides the OS mouse cursor inside the game window using the Unity `Cursor` API.
+
+### Force VSync
+
+`Utility.ForceVSync` (default `false`) — Forces `QualitySettings.vSyncCount = 1` and `Application.targetFrameRate = -1` on startup, and intercepts any game writes that would override these values.
+
+---
+
+## Optional Dependencies
+
+KupoUI.PR does not hard-reference `Memoria.FFPR` or `Magicite`. At runtime it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.

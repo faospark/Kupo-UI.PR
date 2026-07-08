@@ -8,13 +8,14 @@ namespace KupoUI.PR.ObjectConfig;
 
 /// <summary>
 /// Scans every <c>ObjectConfig.json</c> file found recursively under
-/// <c>&lt;GameRoot&gt;/Modules/00-Mods/</c> and exposes the merged list of
+/// <c>&lt;GameRoot&gt;/Modules/</c> and exposes the merged list of
 /// <see cref="ObjectConfigEntry"/> objects.
+/// Files inside <c>Shared/FF1</c>–<c>FF6</c> sub-folders are filtered to the
+/// detected current game tag so only the matching game's rules are applied.
 /// </summary>
 internal static class ObjectConfigLoader
 {
     private const string ConfigFileName = "ObjectConfig.json";
-    private const string ModsSubFolder  = "00-Mods";
 
     private static readonly List<ObjectConfigEntry> _entries = new();
 
@@ -22,7 +23,9 @@ internal static class ObjectConfigLoader
     internal static IReadOnlyList<ObjectConfigEntry> Entries => _entries;
 
     /// <summary>
-    /// Discovers and parses all <c>ObjectConfig.json</c> files.
+    /// Discovers and parses all <c>ObjectConfig.json</c> files found anywhere
+    /// under <paramref name="modulesRootPath"/>. Files inside
+    /// <c>Shared/FF1</c>–<c>FF6</c> sub-folders are filtered to the active game tag.
     /// Safe to call multiple times; previous entries are cleared on each call.
     /// </summary>
     /// <param name="modulesRootPath">
@@ -33,52 +36,44 @@ internal static class ObjectConfigLoader
         _entries.Clear();
         var filesToLoad = new List<string>();
 
-        // 1. Gather from 00-Mods (recursively)
-        var modsRoot = Path.Combine(modulesRootPath, ModsSubFolder);
-        if (Directory.Exists(modsRoot))
+        if (!Directory.Exists(modulesRootPath))
         {
-            var modsFiles = Directory.GetFiles(modsRoot, ConfigFileName, SearchOption.AllDirectories);
-            filesToLoad.AddRange(modsFiles);
-        }
-        else
-        {
-            KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Mods root not found, skipping: {modsRoot}");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Modules root not found, skipping: {modulesRootPath}");
+            return;
         }
 
-        // 2. Gather from Shared (recursively, filtering by game tag)
+        var gameTag = Textures.TextureResolver.CurrentGameTag;
         var sharedRoot = Path.Combine(modulesRootPath, "Shared");
-        if (Directory.Exists(sharedRoot))
-        {
-            var sharedFiles = Directory.GetFiles(sharedRoot, ConfigFileName, SearchOption.AllDirectories);
-            var gameTag = Textures.TextureResolver.CurrentGameTag;
+        var normalizedSharedRoot = sharedRoot.Replace('\\', '/').TrimEnd('/') + "/";
 
-            foreach (var file in sharedFiles)
+        // Gather all ObjectConfig.json files under Modules/ recursively.
+        var allFiles = Directory.GetFiles(modulesRootPath, ConfigFileName, SearchOption.AllDirectories);
+
+        foreach (var file in allFiles)
+        {
+            var normalizedFile = file.Replace('\\', '/');
+
+            // Apply game-tag filtering for files inside Shared/FFx/ sub-folders.
+            if (normalizedFile.StartsWith(normalizedSharedRoot, StringComparison.OrdinalIgnoreCase))
             {
-                var relPath = file.Substring(sharedRoot.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                var parts = relPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                if (parts.Length > 1)
-                {
-                    var firstSegment = parts[0];
-                    if (firstSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase)
-                        || firstSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase))
-                    {
-                        if (!firstSegment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
-                        {
-                            continue;
-                        }
-                    }
-                }
+                var relPath = normalizedFile.Substring(normalizedSharedRoot.Length);
+                var firstSegment = relPath.Split('/')[0];
 
-                filesToLoad.Add(file);
+                var isGameTagFolder =
+                    firstSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
+                    firstSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
+                    firstSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
+                    firstSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
+                    firstSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
+                    firstSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
+
+                if (isGameTagFolder && !firstSegment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // Skip configs for other games.
+                }
             }
-        }
-        else
-        {
-            KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Shared root not found, skipping: {sharedRoot}");
+
+            filesToLoad.Add(file);
         }
 
         if (filesToLoad.Count == 0)
