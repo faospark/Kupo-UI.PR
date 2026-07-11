@@ -47,6 +47,19 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> DiagnosticPortraitLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
 
+    /// <summary>
+    /// Speaker ID → display name registrations loaded from the "speakers" block of speaker-names.json.
+    /// Always applied when the speaker ID matches — not limited to blank-name fallback.
+    /// </summary>
+    internal static Dictionary<string, string> SpeakerNamesOverride { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Dialogue message key → (speakerId override, speakerName override) loaded from the "messageOverrides" block.
+    /// Takes highest priority — overrides both the game's speaker ID and name for a specific dialogue line.
+    /// </summary>
+    internal static Dictionary<string, (string SpeakerId, string SpeakerName)> MessageSpeakerOverrides { get; } =
+        new(StringComparer.OrdinalIgnoreCase);
+
     internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticsLogFontMappingConfig { get; private set; } = null!;
 
@@ -266,6 +279,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
         Log.LogInfo($"EnableSpeakerPortraits = {EnableSpeakerPortraitsConfig.Value}");
         Log.LogInfo($"PortraitLogging = {DiagnosticPortraitLoggingConfig.Value}");
+
+        LoadSpeakerNames();
     }
 
     public void OnDestroy()
@@ -536,9 +551,12 @@ Classic Font (English)
 - Default: sqex-MonoSix
 - To change it, update both Font08 and Font10
 
-Menu Numbers Font Type Pairing
+Menu Numbers Font Type Pairing in some instances
 - FOT-NewRodinPro-DB → Modern English (Font05)
 - PIXELREMASTERFONT → Classic English (Font09)
+
+ALL Arial values are suggested to be replaced with your Ideal Font choice 
+as Arial is declared multiple but is not bundled with the game at all (unlike the default fonts in general). 
 
 Not every font FONT* has to be edited
 Example fontconfig.json (Limited Scope Override):
@@ -867,6 +885,221 @@ Supported Languages:
         catch (Exception ex)
         {
             PluginLog.LogError($"[FontSwap] Failed to load fontconfig.json: {ex}");
+        }
+    }
+
+    /// <summary>
+    /// Returns the registered display name for <paramref name="speakerId"/> if one is defined in the "speakers" block.
+    /// Applied unconditionally — takes priority over whatever the game provides for that speaker.
+    /// </summary>
+    internal static bool TryGetSpeakerNameOverride(string speakerId, out string displayName)
+    {
+        displayName = null;
+        if (string.IsNullOrEmpty(speakerId) || speakerId.Equals("None", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        return SpeakerNamesOverride.TryGetValue(speakerId, out displayName);
+    }
+
+    /// <summary>
+    /// Returns per-message speaker overrides for <paramref name="messageId"/> if one is defined in the "messageOverrides" block.
+    /// Either or both of <paramref name="speakerId"/>/<paramref name="speakerName"/> may be non-null.
+    /// </summary>
+    internal static bool TryGetMessageOverride(string messageId, out string speakerId, out string speakerName)
+    {
+        speakerId = null;
+        speakerName = null;
+        if (string.IsNullOrEmpty(messageId) || messageId.Equals("None", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+        if (MessageSpeakerOverrides.TryGetValue(messageId, out var entry))
+        {
+            speakerId = entry.SpeakerId;
+            speakerName = entry.SpeakerName;
+            return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Scans all sub-folders under {GameRoot}/Modules/ recursively for files named
+    /// "speaker-names.json" and merges them all into <see cref="SpeakerNamesOverride"/>
+    /// and <see cref="MessageSpeakerOverrides"/>.
+    ///
+    /// Files are processed in alphabetical path order. Later files override earlier ones
+    /// for duplicate keys (last-writer wins), so more-specific mod folders take priority.
+    ///
+    /// Supported JSON format per file:
+    /// {
+    ///   "speakers": { "SPEAKER_77": "Crewman" },
+    ///   "messageOverrides": { "E0001_00_001_a_01": { "speakerName": "Crewman" } }
+    /// }
+    /// Backward-compatible with flat format: { "SPEAKER_77": "Crewman" }
+    /// </summary>
+    private void LoadSpeakerNames()
+    {
+        SpeakerNamesOverride.Clear();
+        MessageSpeakerOverrides.Clear();
+
+        // ── WRITE SAMPLE FILE ───────────────────────────────────────────────────
+        var defaultDir = Path.Combine(ModulesRootPath, "Shared", "SpeakerPortraits");
+        var samplePath = Path.Combine(defaultDir, "speaker-names-sample.json");
+        try
+        {
+            if (!Directory.Exists(defaultDir))
+            {
+                Directory.CreateDirectory(defaultDir);
+            }
+
+            var sampleJson =
+@"{
+  ""_comment"": ""speaker-names.json — place this file in any Modules/ sub-folder to activate it."",
+
+  ""speakers"": {
+    ""_comment"": ""Register speaker IDs here. The name is always used when that speaker is active."",
+    ""SPEAKER_1"":  ""Warrior of Light"",
+    ""SPEAKER_77"": ""Crewman"",
+    ""SPEAKER_80"": ""Old Man""
+  },
+
+  ""messageOverrides"": {
+    ""_comment"": ""Per-dialogue-key overrides. speakerId and speakerName are both optional."",
+    ""E0001_00_001_a_01"": { ""speakerId"": ""SPEAKER_77"", ""speakerName"": ""Crewman"" },
+    ""E0001_00_002_a_01"": { ""speakerName"": ""Old Man"" }
+  }
+}";
+            File.WriteAllText(samplePath, sampleJson);
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogWarning($"[SpeakerNames] Could not write sample file: {ex.Message}");
+        }
+
+        // ── SCAN ALL Modules/ SUB-FOLDERS ──────────────────────────────────────
+        if (!Directory.Exists(ModulesRootPath))
+        {
+            PluginLog.LogInfo($"[SpeakerNames] Modules root not found at '{ModulesRootPath}'. Speaker name overrides disabled.");
+            return;
+        }
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(ModulesRootPath, "speaker-names.json", SearchOption.AllDirectories);
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogError($"[SpeakerNames] Failed to scan Modules folder: {ex.Message}");
+            return;
+        }
+
+        if (files.Length == 0)
+        {
+            PluginLog.LogInfo($"[SpeakerNames] No speaker-names.json found under '{ModulesRootPath}'. Speaker name overrides disabled.");
+            return;
+        }
+
+        // ── LOAD AND MERGE EACH FILE ────────────────────────────────────────────
+        foreach (var configPath in files)
+        {
+            try
+            {
+                var json = File.ReadAllText(configPath);
+
+                // ── SPEAKERS BLOCK ──────────────────────────────────────────────
+                var speakersBlock = ReadSubObject(json, "speakers");
+                if (speakersBlock != null)
+                {
+                    // New structured format — parse the "speakers": { ... } block
+                    LoadFlatSpeakerPairs(speakersBlock);
+                }
+                else
+                {
+                    // Backward-compat: flat format { "SPEAKER_77": "Crewman" }
+                    LoadFlatSpeakerPairs(json);
+                }
+
+                // ── MESSAGE OVERRIDES BLOCK ─────────────────────────────────────
+                var msgBlock = ReadSubObject(json, "messageOverrides");
+                if (msgBlock != null)
+                {
+                    LoadMessageOverrides(msgBlock);
+                }
+
+                PluginLog.LogInfo($"[SpeakerNames] Loaded from '{configPath}'.");
+            }
+            catch (Exception ex)
+            {
+                PluginLog.LogError($"[SpeakerNames] Failed to load '{configPath}': {ex.Message}");
+            }
+        }
+
+        PluginLog.LogInfo(
+            $"[SpeakerNames] Merged {files.Length} file(s): " +
+            $"{SpeakerNamesOverride.Count} speaker registration(s), " +
+            $"{MessageSpeakerOverrides.Count} message override(s) total.");
+    }
+
+
+    /// <summary>
+    /// Parses flat "KEY": "Value" string pairs from <paramref name="json"/> into <see cref="SpeakerNamesOverride"/>.
+    /// Keys beginning with '_' are treated as comments and skipped.
+    /// </summary>
+    private static void LoadFlatSpeakerPairs(string json)
+    {
+        var matches = Regex.Matches(json, "\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
+        foreach (System.Text.RegularExpressions.Match m in matches)
+        {
+            var key = m.Groups[1].Value;
+            if (key.StartsWith("_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            SpeakerNamesOverride[key] = m.Groups[2].Value;
+        }
+    }
+
+    /// <summary>
+    /// Parses the "messageOverrides": { "msgKey": { "speakerId": "...", "speakerName": "..." } } block
+    /// into <see cref="MessageSpeakerOverrides"/>.
+    /// </summary>
+    private static void LoadMessageOverrides(string block)
+    {
+        // Match every "KEY": { entry (non-_-prefixed) and extract its balanced object
+        var entryPattern = new Regex("\"([^\"]+)\"\\s*:\\s*\\{");
+        foreach (System.Text.RegularExpressions.Match m in entryPattern.Matches(block))
+        {
+            var msgKey = m.Groups[1].Value;
+            if (msgKey.StartsWith("_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            // m.Index + m.Length - 1 is the position of the '{'
+            var obj = ExtractBalancedBraces(block, m.Index + m.Length - 1);
+            if (obj == null)
+            {
+                continue;
+            }
+
+            var idMatch = Regex.Match(obj, "\"speakerId\"\\s*:\\s*\"([^\"]*)\"", RegexOptions.IgnoreCase);
+            var nameMatch = Regex.Match(obj, "\"speakerName\"\\s*:\\s*\"([^\"]*)\"", RegexOptions.IgnoreCase);
+
+            string speakerId = idMatch.Success && !string.IsNullOrEmpty(idMatch.Groups[1].Value)
+                ? idMatch.Groups[1].Value
+                : null;
+            string speakerName = nameMatch.Success && !string.IsNullOrEmpty(nameMatch.Groups[1].Value)
+                ? nameMatch.Groups[1].Value
+                : null;
+
+            if (speakerId != null || speakerName != null)
+            {
+                MessageSpeakerOverrides[msgKey] = (speakerId, speakerName);
+                PluginLog.LogInfo($"[SpeakerNames] Message override: '{msgKey}' → speakerId='{speakerId ?? "(keep)"}' speakerName='{speakerName ?? "(keep)"}'.");
+            }
         }
     }
 

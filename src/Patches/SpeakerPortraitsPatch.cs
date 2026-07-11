@@ -556,11 +556,30 @@ internal static class SpeakerPortraitsPatch
         var view = FindMessageWindowView(__instance);
         if (view == null) return;
 
+        // Battle dialogue windows must not receive custom portraits.
+        if (IsBattleMessageWindow(view))
+        {
+            return;
+        }
+
         var msgText = view.messageText;
         if (msgText == null || msgText.Pointer != __instance.Pointer) return;
 
         string speakerId = MessageSpeakerPrefixPatch.LastSpeakerID;
         string speakerName = view.spekerText != null ? view.spekerText.text : null;
+
+        // Priority 1 — message-specific override (most precise, beats everything else).
+        if (KupoUIPRPlugin.TryGetMessageOverride(MessageSpeakerPrefixPatch.LastDialogueID, out var msgSpeakerId, out var msgSpeakerName))
+        {
+            if (!string.IsNullOrEmpty(msgSpeakerId)) speakerId = msgSpeakerId;
+            if (!string.IsNullOrEmpty(msgSpeakerName)) speakerName = msgSpeakerName;
+        }
+        // Priority 2 — speaker-ID registration (always applied when the speaker ID is registered).
+        else if (KupoUIPRPlugin.TryGetSpeakerNameOverride(speakerId, out var nameOverride))
+        {
+            speakerName = nameOverride;
+        }
+        // Priority 3 — game's own speaker text (no-op, already in speakerName).
 
         string imagePath = FindPortraitFile(speakerId, speakerName);
 
@@ -588,5 +607,23 @@ internal static class SpeakerPortraitsPatch
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Returns true if the given view is parented inside a battle_message_window(Clone),
+    /// which should not receive custom speaker portraits.
+    /// </summary>
+    private static bool IsBattleMessageWindow(MessageWindowView view)
+    {
+        var t = view.transform;
+        while (t != null)
+        {
+            if (t.name == "battle_message_window(Clone)")
+            {
+                return true;
+            }
+            t = t.parent;
+        }
+        return false;
     }
 }

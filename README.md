@@ -29,6 +29,7 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
   - [Speaker Name Prefix](#speaker-name-prefix)
   - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
   - [Speaker Portraits](#speaker-portraits)
+  - [Speaker Name Overrides](#speaker-name-overrides)
   - [Dialogue Font Size](#dialogue-font-size)
 - [Font Diagnostic & Custom Font Swap](#font-diagnostic--custom-font-swap)
 - [UI Tweaks](#ui-tweaks)
@@ -459,6 +460,103 @@ background_canvas/ui_root/backgrou_root/
 - Portrait images are cached in memory after first load.
 - Uses the same folder priority as the main texture system.
 - `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
+
+### Speaker Name Overrides
+
+`speaker-names.json` lets you register speaker IDs with display names and override speaker identity on a per-dialogue-key basis — all without touching game files.
+
+#### File Location
+
+`speaker-names.json` can be placed in **any sub-folder under `Modules/`** — the plugin scans all of them recursively and merges every file it finds.
+
+```
+<GameRoot>/Modules/
+  Shared/
+    SpeakerPortraits/
+      speaker-names.json         ← recommended location
+      speaker-names-sample.json  ← auto-generated reference (overwritten each launch)
+    FF2/
+      speaker-names.json         ← game-specific (only used when running FF2)
+  00-Mods/
+    MyMod/
+      speaker-names.json         ← mod-specific
+  01-UI-Themes/
+    MyTheme/
+      speaker-names.json         ← inside a theme pack
+```
+
+Files are loaded in **alphabetical path order**. When multiple files define the same key, the **last file wins** — so a file deeper in the folder hierarchy or later alphabetically takes priority.
+
+
+
+#### File Format
+
+```json
+{
+  "speakers": {
+    "SPEAKER_77": "Crewman",
+    "SPEAKER_80": "Old Man"
+  },
+  "messageOverrides": {
+    "E0001_00_001_a_01": { "speakerId": "SPEAKER_77", "speakerName": "Crewman" },
+    "E0001_00_002_a_01": { "speakerName": "Old Man" }
+  }
+}
+```
+
+#### `speakers` — Register speaker IDs
+
+Maps a speaker ID to a display name. **Always applied** when that speaker is active — overrides whatever name the game provides (not just a fallback for blank names).
+
+| Key | Value |
+|---|---|
+| Internal speaker ID (e.g. `SPEAKER_77`) | Display name (e.g. `Crewman`) |
+
+- Case-insensitive keys.
+- Keys beginning with `_` are treated as comments and skipped.
+- Applies to both the dialogue prefix text and portrait image lookup.
+
+#### `messageOverrides` — Override by dialogue key
+
+Overrides the speaker ID and/or name for a **specific dialogue message key**. Takes the highest priority — beats both the game's data and the `speakers` block.
+
+Each entry maps a dialogue key to an object with optional fields:
+
+| Field | Description |
+|---|---|
+| `speakerId` | Force a specific speaker ID for portrait lookup. Optional. |
+| `speakerName` | Force a specific display name for the prefix and portrait-by-name lookup. Optional. |
+
+Both fields are optional. You can provide just `speakerName` to relabel a line without changing portrait lookup, or just `speakerId` to redirect portrait resolution.
+
+#### Priority order
+
+When a dialogue line is displayed, the effective speaker name and ID are resolved in this order:
+
+| Priority | Source | Condition |
+|---|---|---|
+| 1 | `messageOverrides[dialogueKey]` | Most specific — wins everything |
+| 2 | `speakers[speakerId]` | Always applied when the speaker ID is registered |
+| 3 | Game's own speaker text | Used as-is if nothing above matches |
+
+#### How to find a speaker ID or dialogue key
+
+Enable `Z - Diagnostics.MessageSpeakerPrefixLogging = true` in the BepInEx config, then trigger the dialogue line. Look for a log entry like:
+
+```
+[MessageSpeakerPrefix] Dialogue matched. Key: 'E0001_00_001_a_01', SpeakerID: 'SPEAKER_77', SpeakerName: '(null)', Message: '...'
+```
+
+- `Key` → use as a `messageOverrides` key
+- `SpeakerID` → use as a `speakers` key
+
+#### Portrait images
+
+Portrait files are resolved using the **effective** speaker ID and name after overrides are applied. Drop either into the `SpeakerPortraits` folder:
+
+- `SPEAKER_77.png` — matched by speaker ID
+- `Crewman.png` — matched by display name
+
 
 ### Dialogue Font Size
 

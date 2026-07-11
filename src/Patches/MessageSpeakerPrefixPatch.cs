@@ -106,9 +106,24 @@ internal static class MessageSpeakerPrefixPatch
             return;
         }
 
-        // Get the speaker name.
+        // Get the speaker name from the game UI.
         var spekerText = view.spekerText;
         var speakerName = spekerText != null ? spekerText.text : null;
+        string effectiveSpeakerId = LastSpeakerID;
+
+        // Priority 1 — message-specific override (most precise, beats everything else).
+        if (KupoUIPRPlugin.TryGetMessageOverride(LastDialogueID, out var msgSpeakerId, out var msgSpeakerName))
+        {
+            if (!string.IsNullOrEmpty(msgSpeakerId)) effectiveSpeakerId = msgSpeakerId;
+            if (!string.IsNullOrEmpty(msgSpeakerName)) speakerName = msgSpeakerName;
+        }
+        // Priority 2 — speaker-ID registration (always applied when the speaker ID is registered).
+        else if (KupoUIPRPlugin.TryGetSpeakerNameOverride(effectiveSpeakerId, out var nameOverride))
+        {
+            speakerName = nameOverride;
+        }
+        // Priority 3 — game's own speaker text (no-op, already in speakerName).
+
 
         // Log speakerText and messageText IDs (both Instance ID and Native Pointer) along with the Dialogue Key
         int msgTextId = __instance.GetInstanceID();
