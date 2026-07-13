@@ -92,7 +92,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "FontSwap",
             "Enabled",
             false,
-            "If true, swaps default game fonts with custom font files defined in Modules/00-Mods/Fonts/fontconfig.json.");
+            "If true, swaps default game fonts with custom font files defined in Modules/Shared/Fonts/fontconfig.json.");
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",

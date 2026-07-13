@@ -103,7 +103,7 @@ BepInEx/config/faospark.kupoui.pr.cfg
 
 | Section | Key | Default | Description |
 |---|---|---|---|
-| `FontSwap` | `Enabled` | `false` | Enable custom font swap via `fontconfig.json`. |
+| `FontSwap` | `Enabled` | `false` | Enable custom font swap via `fontconfig.json` under `Modules/Shared/Fonts/`. |
 | `UI` | `SaveHighlightColor` | `Disable` | Save slot highlight color. Options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`. |
 | `UI` | `ScaledDownMenu` | `true` | Shrinks the in-game menu by 10%. |
 | `UI` | `TitleScreenBgColor` | `original` | Title screen background color. Options: `original`, `white`, `black`, `navy`, `crimson`, `violet`. |
@@ -151,8 +151,9 @@ Recommended structure created automatically on first run:
     03-UI-BgColor/        ← UI background color packs
     04-UI-Cursors/        ← cursor texture packs
     05-Button-Prompts/    ← button prompt texture packs
-    Shared/               ← cross-game textures and speaker portraits
+    Shared/               ← cross-game textures, speaker portraits, and custom fonts
       SpeakerPortraits/   ← portrait images resolved by speaker ID
+      Fonts/              ← font configuration files (fontconfig.json) and custom font files (.ttf/.otf)
       FF1/                ← FF1-specific textures (game-tag folder)
       FF2/
       FF3/
@@ -447,7 +448,9 @@ background_canvas/ui_root/backgrou_root/
 
 ### Hide Speaker Tag Bubble
 
-`UI-Dialog.HideSpeakerTag` (default `true`) — Moves the `speker_root` bubble off-screen when it activates, so the speaker tag is invisible but the underlying object remains active.
+`UI-Dialog.HideSpeakerTag` (default `true`) — Hides the speaker name tag:
+- For normal message windows, moves the `speker_root` bubble off-screen so the speaker tag is invisible but the underlying object remains active.
+- For battle message windows, deactivates the left and right individual `speaker` tag GameObjects entirely.
 
 > **Note:** This will conflict with older mods that use the speaker tag bubble as a portrait display.
 
@@ -460,6 +463,7 @@ background_canvas/ui_root/backgrou_root/
 - Portrait images are cached in memory after first load.
 - Uses the same folder priority as the main texture system.
 - `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
+- **Note:** Injected speaker portraits are automatically disabled inside battle message windows.
 
 ### Speaker Name Overrides
 
@@ -592,13 +596,13 @@ This identifies which `FontType` enum value corresponds to which language and de
 #### File Locations
 
 ```
-<GameRoot>/Modules/00-Mods/Fonts/
+<GameRoot>/Modules/Shared/Fonts/
   fontconfig.json         ← your active font configuration
   fontconfig-sample.json  ← auto-generated baseline defaults (overwritten on each launch)
   font-help.txt           ← auto-generated help guide
 ```
 
-All three files are created automatically on first startup.
+All three files are created automatically on first startup. Place any custom `.ttf` or `.otf` font files here too.
 
 #### Configuration File Format
 
@@ -619,7 +623,7 @@ The mapping file supports both **simple string values** and **object-based value
 
 | Field | Description |
 |---|---|
-| `FontFile` | **(Optional)** Filename of the `.ttf` or `.otf` file in `00-Mods/Fonts/`. Omit to use a pre-installed system font. |
+| `FontFile` | **(Optional)** Filename of the `.ttf` or `.otf` file in `Shared/Fonts/`. Omit to use a pre-installed system font. |
 | `FontName` | Font family name (e.g. `"Segoe UI"`, `"Consolas"`). Required. If `FontFile` is provided, this registers and matches the custom file. |
 | `LineSpace` | Line height factor (e.g. `1.2`). Adjust if your font appears cramped or overflows dialogue boxes. |
 | `FontSize` | Integer target rendering size. If omitted, auto-scales to match the default font it replaces. |
@@ -692,6 +696,10 @@ When looking up a font for a specific `FontType` and language:
 `UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
 
 Options: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable` (removes the highlight entirely).
+
+### Menu Portrait Aspect Ratio Preservation
+
+Automatically preserves the aspect ratio of custom character portraits displayed on the main menu screen (by setting `preserveAspect = true` and bypassing the default `SetNativeSize` execution on the `/chara_rect/front/front_parent/charac_parent/chara_image` UI Image component). This ensures that custom high-resolution character portraits do not stretch or distort.
 
 ---
 
