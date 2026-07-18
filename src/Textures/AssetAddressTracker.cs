@@ -135,6 +135,16 @@ internal static class AssetAddressTracker
                         if (sr != null)
                         {
                             RegisterSprite(sr.sprite, addressName);
+                            if (KupoUIPRPlugin.EnableCustomTextures && sr.sprite != null && !sr.sprite.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase))
+                            {
+                                if (addressName.IndexOf("Background", StringComparison.OrdinalIgnoreCase) >= 0)
+                                {
+                                    if (TextureResolver.TryCreateReplacementSprite(sr.sprite, out var replacement, addressName))
+                                    {
+                                        sr.sprite = replacement;
+                                    }
+                                }
+                            }
                         }
                         else if (img != null)
                         {

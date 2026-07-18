@@ -341,8 +341,8 @@ internal static class TextureResolver
 
         var originalPixelsPerUnit = original.pixelsPerUnit > 0f ? original.pixelsPerUnit : 100f;
         var originalRect = original.rect;
-        var targetWidth = metadata != null && metadata.Width > 0 ? metadata.Width : originalRect.width;
-        var targetHeight = metadata != null && metadata.Height > 0 ? metadata.Height : originalRect.height;
+        var targetWidth = originalRect.width;
+        var targetHeight = originalRect.height;
 
         if (targetWidth <= 0f || targetHeight <= 0f
             || replacementRect.width <= 0f || replacementRect.height <= 0f)
