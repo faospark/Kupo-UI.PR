@@ -71,11 +71,6 @@ internal static class AssetAddressTracker
 
         try
         {
-            if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-            {
-                KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Postfix called for addressName: {addressName}");
-            }
-
             var instance = ResourceManager.Instance;
             if (instance == null)
             {
@@ -111,11 +106,6 @@ internal static class AssetAddressTracker
                 return;
             }
 
-            if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-            {
-                KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Found asset in completeAssetDic: {addressName}, Type: {asset.GetIl2CppType().FullName}");
-            }
-
             AddressByPointer[asset.Pointer] = addressName;
 
             var sprite = asset.TryCast<Sprite>();
@@ -130,30 +120,6 @@ internal static class AssetAddressTracker
             }
             else if (go != null)
             {
-                if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-                {
-                    try
-                    {
-                        var comps = go.GetComponentsInChildren<Component>(true);
-                        var compNames = new List<string>();
-                        if (comps != null)
-                        {
-                            foreach (var c in comps)
-                            {
-                                if (c != null)
-                                {
-                                    compNames.Add(c.GetIl2CppType().Name);
-                                }
-                            }
-                        }
-                        KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Prefab '{addressName}' has components: {string.Join(", ", compNames)}");
-                    }
-                    catch
-                    {
-                        // Ignore log errors
-                    }
-                }
-
                 var components = go.GetComponentsInChildren<Component>(true);
                 if (components != null)
                 {
@@ -168,53 +134,26 @@ internal static class AssetAddressTracker
 
                         if (sr != null)
                         {
-                            if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-                            {
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Processing SpriteRenderer. Sprite is null: {sr.sprite == null}");
-                                if (sr.sprite != null)
-                                {
-                                    KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] SpriteName: '{sr.sprite.name}', Texture is null: {sr.sprite.texture == null}");
-                                }
-                            }
                             RegisterSprite(sr.sprite, addressName);
                         }
                         else if (img != null)
                         {
-                            if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-                            {
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Processing UI Image. Sprite is null: {img.sprite == null}");
-                            }
                             RegisterSprite(img.sprite, addressName);
                         }
                         else if (rawImg != null)
                         {
-                            if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-                            {
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Processing UI RawImage. Texture is null: {rawImg.texture == null}");
-                            }
                             RegisterTexture(rawImg.texture, addressName);
                         }
                         else if (r != null)
                         {
-                            if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-                            {
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Processing Renderer. Type: {r.GetIl2CppType().Name}, Materials count: {r.sharedMaterials?.Length ?? 0}");
-                            }
                             var sharedMats = r.sharedMaterials;
                             if (sharedMats != null)
                             {
                                 foreach (var mat in sharedMats)
                                 {
-                                    if (mat != null)
+                                    if (mat != null && mat.mainTexture != null)
                                     {
-                                        if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-                                        {
-                                            KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Material mainTexture is null: {mat.mainTexture == null}");
-                                        }
-                                        if (mat.mainTexture != null)
-                                        {
-                                            RegisterTexture(mat.mainTexture, addressName);
-                                        }
+                                        RegisterTexture(mat.mainTexture, addressName);
                                     }
                                 }
                             }
@@ -252,11 +191,6 @@ internal static class AssetAddressTracker
         var subAddress = GetSubAddress(addressName, name);
         AddressByPointer[sprite.Pointer] = subAddress;
 
-        if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-        {
-            KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Indexed Sprite pointer: {sprite.Pointer} -> {subAddress} (Source: {addressName})");
-        }
-
         if (sprite.texture != null)
         {
             RegisterTexture(sprite.texture, addressName);
@@ -278,11 +212,6 @@ internal static class AssetAddressTracker
 
         var subAddress = GetSubAddress(addressName, name);
         AddressByPointer[texture.Pointer] = subAddress;
-
-        if (KupoUIPRPlugin.IsTextureLoggerEnabled)
-        {
-            KupoUIPRPlugin.PluginLog.LogInfo($"[AssetAddressTracker] Indexed Texture pointer: {texture.Pointer} -> {subAddress} (Source: {addressName})");
-        }
     }
 
     private static string GetSubAddress(string addressName, string name)
