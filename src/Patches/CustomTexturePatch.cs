@@ -73,6 +73,12 @@ internal static class CustomTexturePatch
         }
 
         AssetAddressTracker.TryGetAddress(value, value.texture, out var assetAddress);
+        if (TryResolveMenuPortraitFromSpeakerPortraits(value, assetAddress, out var customSprite))
+        {
+            value = customSprite;
+            return;
+        }
+
         if (TextureResolver.TryCreateReplacementSprite(value, out var replacement, assetAddress))
         {
             value = replacement;
@@ -105,6 +111,16 @@ internal static class CustomTexturePatch
         }
 
         AssetAddressTracker.TryGetAddress(value, value.texture, out var assetAddress);
+        if (TryResolveMenuPortraitFromSpeakerPortraits(value, assetAddress, out var customSprite))
+        {
+            value = customSprite;
+            if (IsMenuPortraitImage(__instance))
+            {
+                __instance.preserveAspect = true;
+            }
+            return;
+        }
+
         if (TextureResolver.TryCreateReplacementSprite(value, out var replacement, assetAddress))
         {
             value = replacement;
@@ -148,6 +164,133 @@ internal static class CustomTexturePatch
 
         return TryBuildTransformPath(image.transform, out var path)
             && path.IndexOf(MenuPortraitPathFragment, StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+    private static bool TryResolveMenuPortraitFromSpeakerPortraits(Sprite original, string assetAddress, out Sprite customSprite)
+    {
+        customSprite = null;
+        if (!KupoUIPRPlugin.EnableCustomTextures || !KupoUIPRPlugin.EnableSpeakerPortraitsConfig.Value)
+        {
+            return false;
+        }
+
+        if (string.IsNullOrEmpty(assetAddress))
+        {
+            return false;
+        }
+
+        if (TryExtractSpeakerIdFromMenuPortraitAddress(assetAddress, out var speakerId))
+        {
+            string lookupId = speakerId;
+            string lookupName = null;
+
+            if (TryGetMappedSpeakerValue(assetAddress, out var mappedValue))
+            {
+                lookupId = mappedValue;
+                if (KupoUIPRPlugin.TryGetSpeakerNameOverride(mappedValue, out var nameOverride))
+                {
+                    lookupName = nameOverride;
+                }
+                else
+                {
+                    lookupName = mappedValue;
+                }
+            }
+            else
+            {
+                if (KupoUIPRPlugin.TryGetSpeakerNameOverride(speakerId, out var nameOverride))
+                {
+                    lookupName = nameOverride;
+                }
+                else
+                {
+                    var shortId = SpeakerPortraitsPatch.GetShortSpeakerId(speakerId);
+                    if (shortId != speakerId && KupoUIPRPlugin.TryGetSpeakerNameOverride(shortId, out var shortNameOverride))
+                    {
+                        lookupName = shortNameOverride;
+                    }
+                }
+            }
+
+            string imagePath = SpeakerPortraitsPatch.FindPortraitFile(lookupId, lookupName);
+            if (!string.IsNullOrEmpty(imagePath))
+            {
+                customSprite = SpeakerPortraitsPatch.GetOrCreatePortraitSprite(imagePath);
+                return customSprite != null;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryGetMappedSpeakerValue(string assetAddress, out string mappedValue)
+    {
+        mappedValue = null;
+        if (string.IsNullOrEmpty(assetAddress))
+        {
+            return false;
+        }
+
+        var path = assetAddress.Replace('\\', '/');
+
+        if (KupoUIPRPlugin.MenuPortraitMap.TryGetValue(path, out mappedValue))
+        {
+            return true;
+        }
+
+        const string assetsPrefix = "Assets/";
+        if (path.StartsWith(assetsPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var noAssets = path.Substring(assetsPrefix.Length);
+            if (KupoUIPRPlugin.MenuPortraitMap.TryGetValue(noAssets, out mappedValue))
+            {
+                return true;
+            }
+        }
+
+        if (TryExtractSpeakerIdFromMenuPortraitAddress(path, out var speakerId))
+        {
+            if (KupoUIPRPlugin.MenuPortraitMap.TryGetValue(speakerId, out mappedValue))
+            {
+                return true;
+            }
+
+            var shortId = SpeakerPortraitsPatch.GetShortSpeakerId(speakerId);
+            if (shortId != speakerId && KupoUIPRPlugin.MenuPortraitMap.TryGetValue(shortId, out mappedValue))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static bool TryExtractSpeakerIdFromMenuPortraitAddress(string assetAddress, out string speakerId)
+    {
+        speakerId = null;
+        if (string.IsNullOrEmpty(assetAddress))
+        {
+            return false;
+        }
+
+        var path = assetAddress.Replace('\\', '/');
+
+        const string faceMarker = "Chara/Face/";
+        var markerIdx = path.IndexOf(faceMarker, StringComparison.OrdinalIgnoreCase);
+        if (markerIdx < 0)
+        {
+            return false;
+        }
+
+        var relative = path.Substring(markerIdx + faceMarker.Length);
+        var parts = relative.Split('/');
+        if (parts.Length > 0 && !string.IsNullOrEmpty(parts[0]))
+        {
+            speakerId = parts[0];
+            return true;
+        }
+
+        return false;
     }
 
     private static bool TryBuildTransformPath(Transform transform, out string path)

@@ -29,6 +29,7 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
   - [Speaker Name Prefix](#speaker-name-prefix)
   - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
   - [Speaker Portraits](#speaker-portraits)
+  - [Menu Portraits Override](#menu-portraits-override-ff2-ff4-ff6)
   - [Speaker Name Overrides](#speaker-name-overrides)
   - [Dialogue Font Size](#dialogue-font-size)
 - [Font Diagnostic & Custom Font Swap](#font-diagnostic--custom-font-swap)
@@ -479,6 +480,43 @@ background_canvas/ui_root/backgrou_root/
 - Uses the same folder priority as the main texture system.
 - `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
 - **Note:** Injected speaker portraits are automatically disabled inside battle message windows.
+
+### Menu Portraits Override (FF2, FF4, FF6)
+
+In Final Fantasy 2, 4, and 6, character portraits are displayed in the main game menu. You can override these menu portraits by explicitly mapping them to your custom speaker portraits using `MenuPortraitMap.json` files.
+
+#### File Location
+
+`MenuPortraitMap.json` can be placed in **any sub-folder under `Modules/`**. The plugin scans all of them recursively at startup and merges them.
+
+```
+<GameRoot>/Modules/
+  Shared/
+    SpeakerPortraits/
+      MenuPortraitMap.json         ← recommended location
+      MenuPortraitMap-sample.json  ← auto-generated reference (overwritten each launch)
+```
+
+#### Mapping Format
+
+Inside `MenuPortraitMap.json`, define key-value pairs where the key is the menu portrait address or Speaker ID, and the value is the target Speaker ID/name or portrait image filename:
+
+```json
+{
+  "Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_P001/Default_00": "Cecil",
+  "FA_FF4_P002": "SPEAKER_05",
+  "P003": "Rydia"
+}
+```
+
+If mapped to a dialogue Speaker ID (like `SPEAKER_05`), the plugin will automatically resolve its display name from `speaker-names.json` (e.g., `"SPEAKER_05": "Kain"`) and search the BepInEx `SpeakerPortraits/` folders for either `SPEAKER_05.png` or `Kain.png`.
+
+#### Zero-Config Fallback (No JSON mapping needed)
+
+If no mapping is defined in `MenuPortraitMap.json`, the plugin automatically falls back to searching for a custom portrait matching:
+1. The full speaker ID (e.g. `FA_FF4_P001.png`)
+2. The shorthand ID (e.g. `P001.png`)
+3. The display name override in `speaker-names.json` (if any exists for that ID)
 
 ### Speaker Name Overrides
 

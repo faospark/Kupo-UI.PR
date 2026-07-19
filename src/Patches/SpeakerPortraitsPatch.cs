@@ -228,7 +228,23 @@ internal static class SpeakerPortraitsPatch
         return defaultPath;
     }
 
-    private static string FindPortraitFile(string speakerId, string speakerName)
+    internal static string GetShortSpeakerId(string speakerId)
+    {
+        if (string.IsNullOrEmpty(speakerId))
+        {
+            return speakerId;
+        }
+
+        var parts = speakerId.Split('_');
+        if (parts.Length >= 3 && parts[0].Equals("FA", StringComparison.OrdinalIgnoreCase) && parts[1].StartsWith("FF", StringComparison.OrdinalIgnoreCase))
+        {
+            return string.Join("_", parts, 2, parts.Length - 2);
+        }
+
+        return speakerId;
+    }
+
+    internal static string FindPortraitFile(string speakerId, string speakerName)
     {
         // Ensure the default directory exists so players know where to drop images
         GetOrCreateDefaultFolder();
@@ -244,6 +260,20 @@ internal static class SpeakerPortraitsPatch
                 if (match != null)
                 {
                     return match;
+                }
+            }
+
+            // 1b. Try the shorthand ID variant (e.g. "FA_FF4_P001" -> "P001")
+            var shortId = GetShortSpeakerId(speakerId);
+            if (shortId != speakerId)
+            {
+                foreach (var folder in folders)
+                {
+                    string match = FindFileRecursive(folder, shortId + ".png");
+                    if (match != null)
+                    {
+                        return match;
+                    }
                 }
             }
         }
@@ -303,7 +333,7 @@ internal static class SpeakerPortraitsPatch
     /// <summary>
     /// Loads a PNG from the filesystem into a Unity Sprite, utilizing caching and applying sidecar JSON metadata if present.
     /// </summary>
-    private static Sprite GetOrCreatePortraitSprite(string filePath)
+    internal static Sprite GetOrCreatePortraitSprite(string filePath)
     {
         if (_portraitCache.TryGetValue(filePath, out var cachedSprite) && cachedSprite != null)
         {

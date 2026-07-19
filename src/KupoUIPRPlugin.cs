@@ -60,6 +60,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static Dictionary<string, (string SpeakerId, string SpeakerName)> MessageSpeakerOverrides { get; } =
         new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>
+    /// Menu portrait asset address -> Speaker ID, name, or image filename override mapping.
+    /// Loaded from MenuPortraitMap.json files under BepInEx Modules folders.
+    /// </summary>
+    internal static Dictionary<string, string> MenuPortraitMap { get; } = new(StringComparer.OrdinalIgnoreCase);
+
     internal static ConfigEntry<bool> FontSwapEnabledConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticsLogFontMappingConfig { get; private set; } = null!;
 
@@ -281,6 +287,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"PortraitLogging = {DiagnosticPortraitLoggingConfig.Value}");
 
         LoadSpeakerNames();
+        LoadMenuPortraitMaps();
     }
 
     public void OnDestroy()
@@ -1041,6 +1048,84 @@ Supported Languages:
             $"[SpeakerNames] Merged {files.Length} file(s): " +
             $"{SpeakerNamesOverride.Count} speaker registration(s), " +
             $"{MessageSpeakerOverrides.Count} message override(s) total.");
+    }
+
+    private void LoadMenuPortraitMaps()
+    {
+        MenuPortraitMap.Clear();
+
+        // ── WRITE SAMPLE FILE ───────────────────────────────────────────────────
+        var defaultDir = Path.Combine(ModulesRootPath, "Shared", "SpeakerPortraits");
+        var samplePath = Path.Combine(defaultDir, "MenuPortraitMap-sample.json");
+        try
+        {
+            if (!Directory.Exists(defaultDir))
+            {
+                Directory.CreateDirectory(defaultDir);
+            }
+
+            var sampleJson =
+@"{
+  ""_comment"": ""MenuPortraitMap.json — Maps menu portrait asset addresses to speaker IDs, speaker names, or PNG filenames."",
+  ""Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_P001/Default_00"": ""Cecil"",
+  ""Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_P002/Default_00"": ""Kain"",
+  ""Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_N001/Default_00"": ""N001""
+}";
+            File.WriteAllText(samplePath, sampleJson);
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogWarning($"[MenuPortraitMap] Could not write sample file: {ex.Message}");
+        }
+
+        // ── SCAN ALL Modules/ SUB-FOLDERS ──────────────────────────────────────
+        if (!Directory.Exists(ModulesRootPath))
+        {
+            return;
+        }
+
+        string[] files;
+        try
+        {
+            files = Directory.GetFiles(ModulesRootPath, "MenuPortraitMap.json", SearchOption.AllDirectories);
+            Array.Sort(files, StringComparer.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogError($"[MenuPortraitMap] Failed to scan Modules folder: {ex.Message}");
+            return;
+        }
+
+        // ── LOAD AND MERGE EACH FILE ────────────────────────────────────────────
+        foreach (var configPath in files)
+        {
+            try
+            {
+                var json = File.ReadAllText(configPath);
+                LoadFlatMenuPortraitPairs(json);
+                PluginLog.LogInfo($"[MenuPortraitMap] Loaded from '{configPath}'.");
+            }
+            catch (Exception ex)
+            {
+                PluginLog.LogError($"[MenuPortraitMap] Failed to load '{configPath}': {ex.Message}");
+            }
+        }
+
+        PluginLog.LogInfo($"[MenuPortraitMap] Merged {files.Length} file(s): {MenuPortraitMap.Count} mapping(s) total.");
+    }
+
+    private static void LoadFlatMenuPortraitPairs(string json)
+    {
+        var matches = Regex.Matches(json, "\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
+        foreach (System.Text.RegularExpressions.Match m in matches)
+        {
+            var key = m.Groups[1].Value;
+            if (key.StartsWith("_", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            MenuPortraitMap[key] = m.Groups[2].Value;
+        }
     }
 
 
