@@ -109,6 +109,7 @@ internal static class AssetAddressTracker
             AddressByPointer[asset.Pointer] = addressName;
 
             var sprite = asset.TryCast<Sprite>();
+            var texture2d = asset.TryCast<Texture2D>();
             var go = asset.TryCast<GameObject>();
 
             // UI code can receive cloned Sprite instances later, but they usually still point
@@ -118,7 +119,18 @@ internal static class AssetAddressTracker
             {
                 AddressByPointer[sprite.texture.Pointer] = addressName;
             }
-            else if (go != null)
+
+            if (KupoUIPRPlugin.EnableCustomTextures && texture2d != null)
+            {
+                if (!(TextureResolver.IsLikelyAtlasTextureName(texture2d.name)
+                    && !TextureResolver.HasTextureOverride(texture2d.name)
+                    && !TextureResolver.HasPathOverride(addressName)))
+                {
+                    TextureResolver.TryReplaceTextureInPlace(texture2d, texture2d.name, addressName);
+                }
+            }
+
+            if (go != null)
             {
                 var components = go.GetComponentsInChildren<Component>(true);
                 if (components != null)

@@ -700,6 +700,14 @@ internal static class TextureResolver
             key = key.Substring(assetsPrefix.Length);
         }
 
+        // Strip file extension if present to match the path keys in PathTextureIndex.
+        var lastSlash = key.LastIndexOf('/');
+        var extDot = key.LastIndexOf('.');
+        if (extDot > lastSlash)
+        {
+            key = key.Substring(0, extDot);
+        }
+
         return key;
     }
 
@@ -1060,8 +1068,9 @@ internal static class TextureResolver
         var pathKey = relative.Substring(idx);
 
         // Strip file extension.
+        var lastSlash = pathKey.LastIndexOf('/');
         var extDot = pathKey.LastIndexOf('.');
-        if (extDot > 0)
+        if (extDot > lastSlash)
         {
             pathKey = pathKey.Substring(0, extDot);
         }
