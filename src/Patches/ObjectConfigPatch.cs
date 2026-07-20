@@ -69,6 +69,7 @@ internal static class ObjectConfigPatch
                     + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
                     + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
                     + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
+                    + (string.IsNullOrEmpty(e.ChildAlignment) ? "" : $" childAlignment={e.ChildAlignment}")
                     + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
                     + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : ""));
             }
@@ -304,6 +305,31 @@ internal static class ObjectConfigPatch
             {
                 KupoUIPRPlugin.PluginLog.LogWarning(
                     $"[ObjectConfig] TextAlignment specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (!string.IsNullOrEmpty(entry.ChildAlignment))
+        {
+            var layoutComp = go.GetComponent<LayoutGroup>();
+            if (layoutComp != null)
+            {
+                if (System.Enum.TryParse(entry.ChildAlignment, ignoreCase: true, out TextAnchor anchor))
+                {
+                    layoutComp.childAlignment = anchor;
+                }
+                else
+                {
+                    KupoUIPRPlugin.PluginLog.LogWarning(
+                        $"[ObjectConfig] Unknown ChildAlignment '{entry.ChildAlignment}' on '{go.name}'. "
+                        + "Valid values: UpperLeft, UpperCenter, UpperRight, "
+                        + "MiddleLeft, MiddleCenter, MiddleRight, "
+                        + "LowerLeft, LowerCenter, LowerRight.");
+                }
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] ChildAlignment specified for '{go.name}' but no LayoutGroup component found.");
             }
         }
 

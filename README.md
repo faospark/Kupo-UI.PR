@@ -343,6 +343,7 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
 | `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
 | `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [Text Alignment Values](#text-alignment-values). |
+| `ChildAlignment` | No | Sets `LayoutGroup.childAlignment` on the `UnityEngine.UI.LayoutGroup` component (if present, e.g. horizontal/vertical/grid layouts). See [Text Alignment Values](#text-alignment-values). |
 | `FontSize` | No | Sets `Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer. |
 | `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit`. Use `true` or `false`. |
 | `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize`. Provide an integer. |
@@ -403,7 +404,7 @@ The path is matched by walking up the transform hierarchy, so it does not need t
 | `LowerCenter` | Bottom-center |
 | `LowerRight` | Bottom-right corner |
 
-Values are case-insensitive. If the object has no `Text` component, or the value is unrecognized, a warning is written to the log and the field is skipped.
+Values are case-insensitive. If the object has no corresponding component (`Text` for `TextAlignment`, or `LayoutGroup` for `ChildAlignment`), or the value is unrecognized, a warning is written to the log and the field is skipped.
 
 ---
 

@@ -164,6 +164,7 @@ internal static class ObjectConfigLoader
             SceneName        = ReadString(block, "SceneName")?.Trim(),
             SetActive        = ReadBool(block, "SetActive"),
             TextAlignment    = ReadString(block, "TextAlignment")?.Trim(),
+            ChildAlignment   = ReadString(block, "ChildAlignment")?.Trim(),
             FontSize         = ReadInt(block, "FontSize"),
             ResizeTextForBestFit = ReadBool(block, "ResizeTextForBestFit"),
             ResizeTextMaxSize    = ReadInt(block, "ResizeTextMaxSize"),
