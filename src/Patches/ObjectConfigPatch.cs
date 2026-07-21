@@ -27,8 +27,10 @@ internal static class ObjectConfigPatch
 {
     private static string _modulesRootPath;
     private static bool _hasTextColorWhiteRules;
+    private static bool _hasColorRules;
     private static bool _hasDisableShadowRules;
     private static bool _isApplyingColor;
+    private static bool _isProcessingSetActive;
 
     /// <summary>
     /// Called once from <see cref="KupoUIPRPlugin.Load"/> to bootstrap the system.
@@ -38,8 +40,8 @@ internal static class ObjectConfigPatch
         _modulesRootPath = modulesRootPath;
         ObjectConfigLoader.Load(_modulesRootPath);
 
-        // Check if any rule requires forcing text color to white or disabling shadows
         _hasTextColorWhiteRules = false;
+        _hasColorRules = false;
         _hasDisableShadowRules = false;
         var entries = ObjectConfigLoader.Entries;
         foreach (var e in entries)
@@ -47,6 +49,10 @@ internal static class ObjectConfigPatch
             if (e.TextColorWhite == true)
             {
                 _hasTextColorWhiteRules = true;
+            }
+            if (e.Color.HasValue)
+            {
+                _hasColorRules = true;
             }
             if (e.DisableShadow == true)
             {
@@ -71,11 +77,21 @@ internal static class ObjectConfigPatch
                     + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
                     + (string.IsNullOrEmpty(e.ChildAlignment) ? "" : $" childAlignment={e.ChildAlignment}")
                     + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
+                    + (e.Color.HasValue                      ? $" color=#{FormatColorToHex(e.Color.Value)}" : "")
                     + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : ""));
             }
         }
 
         KupoUIPRPlugin.PluginLog.LogInfo("[ObjectConfig] Patch initialized.");
+    }
+
+    private static string FormatColorToHex(Color color)
+    {
+        byte r = (byte)Mathf.Clamp((int)(color.r * 255f + 0.5f), 0, 255);
+        byte g = (byte)Mathf.Clamp((int)(color.g * 255f + 0.5f), 0, 255);
+        byte b = (byte)Mathf.Clamp((int)(color.b * 255f + 0.5f), 0, 255);
+        byte a = (byte)Mathf.Clamp((int)(color.a * 255f + 0.5f), 0, 255);
+        return $"{r:X2}{g:X2}{b:X2}{a:X2}";
     }
 
     // -------------------------------------------------------------------------
@@ -105,7 +121,7 @@ internal static class ObjectConfigPatch
             // Only care about rules that want the object kept inactive.
             if (!entry.SetActive.HasValue || entry.SetActive.Value) continue;
 
-            if (__instance.name != entry.TargetObjectName) continue;
+            if (!IsNameMatch(__instance.name, entry.TargetObjectName)) continue;
 
             if (!string.IsNullOrEmpty(entry.SceneName)
                 && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase))
@@ -141,13 +157,21 @@ internal static class ObjectConfigPatch
     [HarmonyPostfix]
     private static void SetActivePostfix(GameObject __instance, bool value)
     {
-        if (!value)
+        if (!value || __instance == null || _isProcessingSetActive)
         {
             return;
         }
 
-        var sceneName = SceneManager.GetActiveScene().name;
-        ApplyToHierarchy(__instance, sceneName);
+        _isProcessingSetActive = true;
+        try
+        {
+            var sceneName = SceneManager.GetActiveScene().name;
+            ApplyToHierarchy(__instance, sceneName);
+        }
+        finally
+        {
+            _isProcessingSetActive = false;
+        }
     }
 
 
@@ -228,7 +252,7 @@ internal static class ObjectConfigPatch
         {
             // Log near-misses: name matched but scene or path did not, so the user
             // can see what the game actually reports vs. what the config expects.
-            if (go.name == entry.TargetObjectName)
+            if (IsNameMatch(go.name, entry.TargetObjectName))
             {
                 if (!string.IsNullOrEmpty(entry.SceneName)
                     && !entry.SceneName.Equals(currentScene, StringComparison.OrdinalIgnoreCase))
@@ -258,29 +282,39 @@ internal static class ObjectConfigPatch
         if (entry.Position.HasValue)
         {
             var p = entry.Position.Value;
-            t.localPosition = new Vector3(p.X, p.Y, p.Z);
+            var targetPos = new Vector3(p.X, p.Y, p.Z);
+            if (Vector3.SqrMagnitude(t.localPosition - targetPos) > 1e-6f)
+            {
+                t.localPosition = targetPos;
+            }
         }
 
         if (entry.Rotation.HasValue)
         {
             var r = entry.Rotation.Value;
-            t.localEulerAngles = new Vector3(r.X, r.Y, r.Z);
+            var targetRot = new Vector3(r.X, r.Y, r.Z);
+            if (Vector3.SqrMagnitude(t.localEulerAngles - targetRot) > 1e-6f)
+            {
+                t.localEulerAngles = targetRot;
+            }
         }
 
         if (entry.Scale.HasValue)
         {
             var s = entry.Scale.Value;
-            t.localScale = new Vector3(s.X, s.Y, s.Z);
+            var targetScale = new Vector3(s.X, s.Y, s.Z);
+            if (Vector3.SqrMagnitude(t.localScale - targetScale) > 1e-6f)
+            {
+                t.localScale = targetScale;
+            }
         }
 
         if (entry.SetActive.HasValue)
         {
-            // For false: the prefix will block any future SetActive(true) on this
-            // object. Calling SetActive(false) here handles the current state
-            // (the object may be active right now from a parent activation or
-            // scene-load scan). The prefix re-enforces this on every subsequent
-            // SetActive(true) attempt — no deferred component needed.
-            go.SetActive(entry.SetActive.Value);
+            if (go.activeSelf != entry.SetActive.Value)
+            {
+                go.SetActive(entry.SetActive.Value);
+            }
         }
 
         if (!string.IsNullOrEmpty(entry.TextAlignment))
@@ -290,7 +324,10 @@ internal static class ObjectConfigPatch
             {
                 if (System.Enum.TryParse(entry.TextAlignment, ignoreCase: true, out TextAnchor anchor))
                 {
-                    textComp.alignment = anchor;
+                    if (textComp.alignment != anchor)
+                    {
+                        textComp.alignment = anchor;
+                    }
                 }
                 else
                 {
@@ -315,7 +352,10 @@ internal static class ObjectConfigPatch
             {
                 if (System.Enum.TryParse(entry.ChildAlignment, ignoreCase: true, out TextAnchor anchor))
                 {
-                    layoutComp.childAlignment = anchor;
+                    if (layoutComp.childAlignment != anchor)
+                    {
+                        layoutComp.childAlignment = anchor;
+                    }
                 }
                 else
                 {
@@ -338,7 +378,10 @@ internal static class ObjectConfigPatch
             var textComp = go.GetComponent<Text>();
             if (textComp != null)
             {
-                textComp.fontSize = entry.FontSize.Value;
+                if (textComp.fontSize != entry.FontSize.Value)
+                {
+                    textComp.fontSize = entry.FontSize.Value;
+                }
             }
             else
             {
@@ -352,7 +395,10 @@ internal static class ObjectConfigPatch
             var textComp = go.GetComponent<Text>();
             if (textComp != null)
             {
-                textComp.resizeTextForBestFit = entry.ResizeTextForBestFit.Value;
+                if (textComp.resizeTextForBestFit != entry.ResizeTextForBestFit.Value)
+                {
+                    textComp.resizeTextForBestFit = entry.ResizeTextForBestFit.Value;
+                }
             }
             else
             {
@@ -366,7 +412,10 @@ internal static class ObjectConfigPatch
             var textComp = go.GetComponent<Text>();
             if (textComp != null)
             {
-                textComp.resizeTextMaxSize = entry.ResizeTextMaxSize.Value;
+                if (textComp.resizeTextMaxSize != entry.ResizeTextMaxSize.Value)
+                {
+                    textComp.resizeTextMaxSize = entry.ResizeTextMaxSize.Value;
+                }
             }
             else
             {
@@ -380,7 +429,10 @@ internal static class ObjectConfigPatch
             var textComp = go.GetComponent<Text>();
             if (textComp != null)
             {
-                textComp.resizeTextMinSize = entry.ResizeTextMinSize.Value;
+                if (textComp.resizeTextMinSize != entry.ResizeTextMinSize.Value)
+                {
+                    textComp.resizeTextMinSize = entry.ResizeTextMinSize.Value;
+                }
             }
             else
             {
@@ -389,17 +441,45 @@ internal static class ObjectConfigPatch
             }
         }
 
-        if (entry.TextColorWhite.HasValue && entry.TextColorWhite.Value)
+        if (entry.TextColorWhite.HasValue && entry.TextColorWhite.Value && !entry.Color.HasValue)
         {
             var textComp = go.GetComponent<Text>();
             if (textComp != null)
             {
-                EnforceWhiteColor(textComp);
+                if (textComp.color != Color.white)
+                {
+                    EnforceGraphicColor(textComp, Color.white);
+                }
             }
             else
             {
                 KupoUIPRPlugin.PluginLog.LogWarning(
                     $"[ObjectConfig] TextColorWhite specified for '{go.name}' but no Text component found.");
+            }
+        }
+
+        if (entry.Color.HasValue)
+        {
+            var graphics = go.GetComponents<Graphic>();
+            if (graphics == null || graphics.Length == 0)
+            {
+                graphics = go.GetComponentsInChildren<Graphic>(true);
+            }
+
+            if (graphics != null && graphics.Length > 0)
+            {
+                foreach (var g in graphics)
+                {
+                    if (g != null && g.color != entry.Color.Value)
+                    {
+                        EnforceGraphicColor(g, entry.Color.Value);
+                    }
+                }
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] Color specified for '{go.name}' but no Graphic component found.");
             }
         }
 
@@ -423,7 +503,7 @@ internal static class ObjectConfigPatch
             }
         }
 
-        KupoUIPRPlugin.PluginLog.LogInfo(
+        KupoUIPRPlugin.PluginLog.LogDebug(
             $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
     }
 
@@ -440,20 +520,27 @@ internal static class ObjectConfigPatch
     [HarmonyPrefix]
     private static void GraphicColorSetterPrefix(Graphic __instance, ref Color value)
     {
-        if (!_hasTextColorWhiteRules || _isApplyingColor) return;
+        if ((!_hasTextColorWhiteRules && !_hasColorRules) || _isApplyingColor) return;
         if (__instance == null) return;
 
         var sceneName = SceneManager.GetActiveScene().name;
         foreach (var entry in ObjectConfigLoader.Entries)
         {
-            if (entry.TextColorWhite != true) continue;
-            if (__instance.name != entry.TargetObjectName) continue;
+            if (entry.TextColorWhite != true && !entry.Color.HasValue) continue;
+            if (!IsNameMatch(__instance.name, entry.TargetObjectName)) continue;
             if (!string.IsNullOrEmpty(entry.SceneName)
                 && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) continue;
             if (!string.IsNullOrEmpty(entry.TargetPath)
                 && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
 
-            value = Color.white;
+            if (entry.Color.HasValue)
+            {
+                value = entry.Color.Value;
+            }
+            else if (entry.TextColorWhite == true)
+            {
+                value = Color.white;
+            }
             return;
         }
     }
@@ -474,7 +561,7 @@ internal static class ObjectConfigPatch
         foreach (var entry in ObjectConfigLoader.Entries)
         {
             if (entry.DisableShadow != true) continue;
-            if (__instance.name != entry.TargetObjectName) continue;
+            if (!IsNameMatch(__instance.name, entry.TargetObjectName)) continue;
             if (!string.IsNullOrEmpty(entry.SceneName)
                 && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) continue;
             if (!string.IsNullOrEmpty(entry.TargetPath)
@@ -486,16 +573,16 @@ internal static class ObjectConfigPatch
     }
 
     /// <summary>
-    /// Sets the color of a <see cref="Graphic"/> component to white, guarded by
+    /// Sets the color of a <see cref="Graphic"/> component to the target color, guarded by
     /// a re-entrancy flag to prevent infinite loops when Harmony intercepts the setter.
     /// </summary>
-    private static void EnforceWhiteColor(Text textComp)
+    private static void EnforceGraphicColor(Graphic graphicComp, Color color)
     {
-        if (_isApplyingColor) return;
+        if (_isApplyingColor || graphicComp == null) return;
         _isApplyingColor = true;
         try
         {
-            textComp.color = Color.white;
+            graphicComp.color = color;
         }
         finally
         {
@@ -506,6 +593,13 @@ internal static class ObjectConfigPatch
     // -------------------------------------------------------------------------
     // Hierarchy path matching (mirrors ScaledDownMenuPatch logic)
     // -------------------------------------------------------------------------
+
+    private static bool IsNameMatch(string name1, string name2)
+    {
+        if (name1 == null || name2 == null) return false;
+        if (string.Equals(name1, name2, StringComparison.Ordinal)) return true;
+        return string.Equals(name1.Trim(), name2.Trim(), StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// Walks up the transform hierarchy and verifies that the path from some
@@ -519,8 +613,7 @@ internal static class ObjectConfigPatch
         var current = target.transform;
         for (var i = parts.Length - 1; i >= 0; i--)
         {
-            var segment = parts[i].Trim();
-            if (current == null || !string.Equals(current.name, segment, StringComparison.Ordinal))
+            if (current == null || !IsNameMatch(current.name, parts[i]))
             {
                 return false;
             }

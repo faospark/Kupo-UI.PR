@@ -93,6 +93,14 @@ internal sealed class ObjectConfigEntry
     internal bool? TextColorWhite { get; set; }
 
     /// <summary>
+    /// When present and the GameObject has one or more <c>UnityEngine.UI.Graphic</c> components
+    /// (e.g. <c>Text</c>, <c>Image</c>, <c>RawImage</c>), forces their color to the specified value.
+    /// Re-enforced on every color write to prevent game overrides.
+    /// Accepts hex strings (e.g. "#FF0000", "#FF0000FF"), color names ("white", "red"), or RGBA objects.
+    /// </summary>
+    internal UnityEngine.Color? Color { get; set; }
+
+    /// <summary>
     /// When <c>true</c> and the GameObject has one or more
     /// <c>UnityEngine.UI.Shadow</c> components, disables them all.
     /// </summary>

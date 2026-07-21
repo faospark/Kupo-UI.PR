@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.RegularExpressions;
 using BepInEx;
+using UnityEngine;
 
 namespace KupoUI.PR.ObjectConfig;
 
@@ -210,6 +211,29 @@ internal static class ObjectConfigLoader
             };
         }
 
+        // Color
+        var colorStr = ReadString(block, "Color");
+        if (!string.IsNullOrWhiteSpace(colorStr))
+        {
+            if (TryParseColorString(colorStr, out var parsedColor))
+            {
+                entry.Color = parsedColor;
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] Unable to parse Color string '{colorStr}' in: {sourceFile}");
+            }
+        }
+        else
+        {
+            var colorBlock = ReadSubObject(block, "Color");
+            if (colorBlock != null)
+            {
+                entry.Color = ParseColorObject(colorBlock);
+            }
+        }
+
         return entry;
     }
 
@@ -282,6 +306,112 @@ internal static class ObjectConfigLoader
         }
 
         return ExtractBalancedBraces(json, match.Index + match.Length - 1);
+    }
+
+    private static readonly Dictionary<string, Color> NamedColors = new(StringComparer.OrdinalIgnoreCase)
+    {
+        { "red", Color.red },
+        { "green", Color.green },
+        { "blue", Color.blue },
+        { "white", Color.white },
+        { "black", Color.black },
+        { "yellow", Color.yellow },
+        { "cyan", Color.cyan },
+        { "magenta", Color.magenta },
+        { "gray", Color.gray },
+        { "grey", Color.gray },
+        { "clear", Color.clear },
+        { "navy", new Color(0f, 0f, 0.5f, 1f) },
+        { "crimson", new Color(0.86f, 0.08f, 0.24f, 1f) },
+        { "violet", new Color(0.93f, 0.51f, 0.93f, 1f) },
+        { "orange", new Color(1f, 0.65f, 0f, 1f) },
+    };
+
+    private static bool TryParseColorString(string str, out Color color)
+    {
+        color = default;
+        if (string.IsNullOrWhiteSpace(str)) return false;
+
+        str = str.Trim();
+
+        if (NamedColors.TryGetValue(str, out color))
+        {
+            return true;
+        }
+
+        if (str.StartsWith("#"))
+        {
+            str = str.Substring(1);
+        }
+
+        if (str.Length == 3)
+        {
+            if (byte.TryParse(new string(str[0], 2), System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+                byte.TryParse(new string(str[1], 2), System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+                byte.TryParse(new string(str[2], 2), System.Globalization.NumberStyles.HexNumber, null, out var b))
+            {
+                color = new Color(r / 255f, g / 255f, b / 255f, 1f);
+                return true;
+            }
+        }
+        else if (str.Length == 4)
+        {
+            if (byte.TryParse(new string(str[0], 2), System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+                byte.TryParse(new string(str[1], 2), System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+                byte.TryParse(new string(str[2], 2), System.Globalization.NumberStyles.HexNumber, null, out var b) &&
+                byte.TryParse(new string(str[3], 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+            {
+                color = new Color(r / 255f, g / 255f, b / 255f, a / 255f);
+                return true;
+            }
+        }
+        else if (str.Length == 6)
+        {
+            if (byte.TryParse(str.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+                byte.TryParse(str.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+                byte.TryParse(str.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b))
+            {
+                color = new Color(r / 255f, g / 255f, b / 255f, 1f);
+                return true;
+            }
+        }
+        else if (str.Length == 8)
+        {
+            if (byte.TryParse(str.Substring(0, 2), System.Globalization.NumberStyles.HexNumber, null, out var r) &&
+                byte.TryParse(str.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out var g) &&
+                byte.TryParse(str.Substring(4, 2), System.Globalization.NumberStyles.HexNumber, null, out var b) &&
+                byte.TryParse(str.Substring(6, 2), System.Globalization.NumberStyles.HexNumber, null, out var a))
+            {
+                color = new Color(r / 255f, g / 255f, b / 255f, a / 255f);
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static Color ParseColorObject(string colorBlock)
+    {
+        var r = ReadFloat(colorBlock, "r");
+        var g = ReadFloat(colorBlock, "g");
+        var b = ReadFloat(colorBlock, "b");
+        var hasA = Regex.IsMatch(colorBlock, "\"a\"\\s*:", RegexOptions.IgnoreCase);
+        var a = hasA ? ReadFloat(colorBlock, "a") : (r > 1f || g > 1f || b > 1f ? 255f : 1f);
+
+        // If any component is > 1.0, assume 0..255 scale
+        if (r > 1f || g > 1f || b > 1f || a > 1f)
+        {
+            r /= 255f;
+            g /= 255f;
+            b /= 255f;
+            a /= 255f;
+        }
+
+        return new Color(
+            Mathf.Clamp01(r),
+            Mathf.Clamp01(g),
+            Mathf.Clamp01(b),
+            Mathf.Clamp01(a));
     }
 
     // ---- Structural helpers -------------------------------------------------

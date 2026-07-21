@@ -323,6 +323,7 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
       "ResizeTextMaxSize": 36,
       "ResizeTextMinSize": 12,
       "TextColorWhite": true,
+      "Color": "#FF5500",
       "DisableShadow": true
     }
   ]
@@ -348,7 +349,8 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `ResizeTextForBestFit` | No | Sets `Text.resizeTextForBestFit`. Use `true` or `false`. |
 | `ResizeTextMaxSize` | No | Sets `Text.resizeTextMaxSize`. Provide an integer. |
 | `ResizeTextMinSize` | No | Sets `Text.resizeTextMinSize`. Provide an integer. |
-| `TextColorWhite` | No | Forces `Text.color` to `Color.white`. Re-enforced on every color write to prevent game overrides. Use `true`. |
+| `TextColorWhite` | No | Legacy shortcut to force `Text.color` to white. Use `Color` for custom colors. |
+| `Color` | No | Forces `Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name (`"red"`, `"white"`), or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). |
 | `DisableShadow` | No | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`. |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
