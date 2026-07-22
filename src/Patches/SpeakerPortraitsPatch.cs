@@ -595,7 +595,11 @@ internal static class SpeakerPortraitsPatch
         }
 
         var msgText = view.messageText;
-        if (msgText == null || msgText.Pointer != __instance.Pointer) return;
+        var spekerText = view.spekerText;
+        bool isMsgText = msgText != null && msgText.Pointer == __instance.Pointer;
+        bool isSpeakerText = spekerText != null && spekerText.Pointer == __instance.Pointer;
+
+        if (!isMsgText && !isSpeakerText) return;
 
         MessageSpeakerPrefixPatch.GetDialogueContext(view, out var speakerId, out var speakerName, out var dialogueId);
 

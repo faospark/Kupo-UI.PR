@@ -40,9 +40,14 @@ internal static class MessageSpeakerPrefixPatch
 
     private static bool IsDialogueKey(string key)
     {
-        if (string.IsNullOrEmpty(key) || key.Equals("None", StringComparison.OrdinalIgnoreCase)) return false;
+        if (string.IsNullOrEmpty(key) || key.Length < 2 || key.Equals("None", StringComparison.OrdinalIgnoreCase)) return false;
         char firstChar = char.ToUpperInvariant(key[0]);
-        return firstChar == 'E' || firstChar == 'B' || firstChar == 'Q' || firstChar == 'S' || firstChar == 'P';
+        if (char.IsLetter(firstChar))
+        {
+            char secondChar = key[1];
+            return char.IsDigit(secondChar) || secondChar == '_';
+        }
+        return false;
     }
 
     internal static void ResetWindowState(MessageWindowView view)
