@@ -534,7 +534,7 @@ internal static class SpeakerPortraitsPatch
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
             rectTransform.sizeDelta = new Vector2(256f, 256f);
-            rectTransform.localPosition = new Vector3(-522f, 0f, 0f);
+            rectTransform.localPosition = new Vector3(-526f, 0f, 0f);
             rectTransform.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
         }
     }

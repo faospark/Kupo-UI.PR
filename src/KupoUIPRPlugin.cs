@@ -570,7 +570,6 @@ Example fontconfig.json (Limited Scope Override):
 {
   ""En"": {
     ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
-    ""Font05"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
     ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
     ""Font08"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
     ""Font09"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
@@ -766,7 +765,6 @@ Supported Languages:
 @"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See fontconfig-sample.json for all baseline default values.""," + "\n" +
 @"  ""En"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
-@"    ""Font05"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
 @"    ""Font08"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.88 }," + "\n" +
 @"    ""Font09"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.88 }," + "\n" +
