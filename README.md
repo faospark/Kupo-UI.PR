@@ -316,6 +316,7 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
       "Position": { "x": 0, "y": -50, "z": 0 },
       "Rotation": { "x": 0, "y": 0,   "z": 0 },
       "Scale":    { "x": 0.9, "y": 0.9, "z": 1.0 },
+      "Size":     { "x": 300, "y": 100 },
       "SetActive": true,
       "TextAlignment": "MiddleCenter",
       "FontSize": 24,
@@ -342,6 +343,7 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `Position` | No | Sets `transform.localPosition`. Provide `x`, `y`, `z` as floats. |
 | `Rotation` | No | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`. |
 | `Scale` | No | Sets `transform.localScale`. Provide `x`, `y`, `z`. |
+| `Size` | No | Sets absolute width and height on `UnityEngine.RectTransform` component (if present) via `SetSizeWithCurrentAnchors`. Provide `x` (width) and `y` (height) floats. |
 | `SetActive` | No | Calls `gameObject.SetActive(value)`. Use `true` or `false`. |
 | `TextAlignment` | No | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [Text Alignment Values](#text-alignment-values). |
 | `ChildAlignment` | No | Sets `LayoutGroup.childAlignment` on the `UnityEngine.UI.LayoutGroup` component (if present, e.g. horizontal/vertical/grid layouts). See [Text Alignment Values](#text-alignment-values). |

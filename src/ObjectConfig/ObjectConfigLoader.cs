@@ -211,6 +211,18 @@ internal static class ObjectConfigLoader
             };
         }
 
+        // Size
+        var sizeBlock = ReadSubObject(block, "Size");
+        if (sizeBlock != null)
+        {
+            entry.Size = new Vec3
+            {
+                X = ReadFloat(sizeBlock, "x"),
+                Y = ReadFloat(sizeBlock, "y"),
+                Z = ReadFloat(sizeBlock, "z"),
+            };
+        }
+
         // Color
         var colorStr = ReadString(block, "Color");
         if (!string.IsNullOrWhiteSpace(colorStr))

@@ -40,6 +40,12 @@ internal sealed class ObjectConfigEntry
     internal Vec3? Scale { get; set; }
 
     /// <summary>
+    /// When present and the GameObject has a <c>UnityEngine.RectTransform</c> component,
+    /// sets its width and height using <c>SetSizeWithCurrentAnchors</c>.
+    /// </summary>
+    internal Vec3? Size { get; set; }
+
+    /// <summary>
     /// When present, calls <c>gameObject.SetActive(value)</c>.
     /// Note: Setting this to <c>false</c> inside a <c>SetActive(true)</c> postfix will
     /// immediately deactivate the object again.

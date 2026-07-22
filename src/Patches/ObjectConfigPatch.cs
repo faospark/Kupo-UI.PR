@@ -73,6 +73,7 @@ internal static class ObjectConfigPatch
                     + (e.Position.HasValue  ? $" pos=({e.Position.Value.X},{e.Position.Value.Y},{e.Position.Value.Z})"    : "")
                     + (e.Rotation.HasValue  ? $" rot=({e.Rotation.Value.X},{e.Rotation.Value.Y},{e.Rotation.Value.Z})"    : "")
                     + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
+                    + (e.Size.HasValue      ? $" size=({e.Size.Value.X},{e.Size.Value.Y})"                               : "")
                     + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
                     + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
                     + (string.IsNullOrEmpty(e.ChildAlignment) ? "" : $" childAlignment={e.ChildAlignment}")
@@ -306,6 +307,22 @@ internal static class ObjectConfigPatch
             if (Vector3.SqrMagnitude(t.localScale - targetScale) > 1e-6f)
             {
                 t.localScale = targetScale;
+            }
+        }
+
+        if (entry.Size.HasValue)
+        {
+            var rectTransform = go.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                var s = entry.Size.Value;
+                rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, s.X);
+                rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, s.Y);
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[ObjectConfig] Size specified for '{go.name}' but no RectTransform component found.");
             }
         }
 
