@@ -545,6 +545,8 @@ internal static class SpeakerPortraitsPatch
     private static void ClearPortraits(MessageWindowView view)
     {
         if (view == null) return;
+        MessageSpeakerPrefixPatch.ResetWindowState(view);
+
         var parent = view.transform.Find("message_root/message_root/root");
         if (parent != null)
         {
@@ -595,21 +597,7 @@ internal static class SpeakerPortraitsPatch
         var msgText = view.messageText;
         if (msgText == null || msgText.Pointer != __instance.Pointer) return;
 
-        string speakerId = MessageSpeakerPrefixPatch.LastSpeakerID;
-        string speakerName = view.spekerText != null ? view.spekerText.text : null;
-
-        // Priority 1 — message-specific override (most precise, beats everything else).
-        if (KupoUIPRPlugin.TryGetMessageOverride(MessageSpeakerPrefixPatch.LastDialogueID, out var msgSpeakerId, out var msgSpeakerName))
-        {
-            if (!string.IsNullOrEmpty(msgSpeakerId)) speakerId = msgSpeakerId;
-            if (!string.IsNullOrEmpty(msgSpeakerName)) speakerName = msgSpeakerName;
-        }
-        // Priority 2 — speaker-ID registration (always applied when the speaker ID is registered).
-        else if (KupoUIPRPlugin.TryGetSpeakerNameOverride(speakerId, out var nameOverride))
-        {
-            speakerName = nameOverride;
-        }
-        // Priority 3 — game's own speaker text (no-op, already in speakerName).
+        MessageSpeakerPrefixPatch.GetDialogueContext(view, out var speakerId, out var speakerName, out var dialogueId);
 
         string imagePath = FindPortraitFile(speakerId, speakerName);
 

@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Last.Management;
 using Last.Message;
@@ -18,6 +19,15 @@ internal static class MessageSpeakerPrefixPatch
 {
     private const string Separator = ": ";
 
+    private class MessageWindowState
+    {
+        public string DialogueId = "None";
+        public string SpeakerId = "None";
+        public string SpeakerName;
+    }
+
+    private static readonly ConditionalWeakTable<MessageWindowView, MessageWindowState> _viewStates = new();
+
     /// <summary>
     /// Stores the last dialogue ID captured from the game's event interpreter or localization manager.
     /// </summary>
@@ -27,6 +37,64 @@ internal static class MessageSpeakerPrefixPatch
     /// Stores the last speaker ID captured from the localization manager.
     /// </summary>
     public static string LastSpeakerID { get; private set; } = "None";
+
+    private static bool IsDialogueKey(string key)
+    {
+        if (string.IsNullOrEmpty(key) || key.Equals("None", StringComparison.OrdinalIgnoreCase)) return false;
+        char firstChar = char.ToUpperInvariant(key[0]);
+        return firstChar == 'E' || firstChar == 'B' || firstChar == 'Q' || firstChar == 'S';
+    }
+
+    internal static void ResetWindowState(MessageWindowView view)
+    {
+        if (view != null && _viewStates.TryGetValue(view, out var state))
+        {
+            state.DialogueId = "None";
+            state.SpeakerId = "None";
+            state.SpeakerName = null;
+        }
+    }
+
+    internal static void GetDialogueContext(MessageWindowView view, out string speakerId, out string speakerName, out string dialogueId)
+    {
+        var state = _viewStates.GetOrCreateValue(view);
+
+        var viewSpeakerText = view != null && view.spekerText != null ? view.spekerText.text : null;
+
+        // Since LastDialogueID and LastSpeakerID only track dialogue keys, they are stable throughout the active dialogue.
+        if (IsDialogueKey(LastDialogueID))
+        {
+            state.DialogueId = LastDialogueID;
+
+            // Update SpeakerId only if a valid speaker ID is returned or if we need to fall back
+            if (!string.IsNullOrEmpty(LastSpeakerID) && !LastSpeakerID.Equals("None", StringComparison.OrdinalIgnoreCase))
+            {
+                state.SpeakerId = LastSpeakerID;
+            }
+            else if (string.IsNullOrWhiteSpace(viewSpeakerText))
+            {
+                state.SpeakerId = "None";
+            }
+
+            state.SpeakerName = viewSpeakerText;
+        }
+
+        speakerId = state.SpeakerId ?? "None";
+        speakerName = !string.IsNullOrWhiteSpace(viewSpeakerText) ? viewSpeakerText : state.SpeakerName;
+        dialogueId = state.DialogueId ?? "None";
+
+        // Priority 1 — message-specific override (most precise, beats everything else).
+        if (KupoUIPRPlugin.TryGetMessageOverride(dialogueId, out var msgSpeakerId, out var msgSpeakerName))
+        {
+            if (!string.IsNullOrEmpty(msgSpeakerId)) speakerId = msgSpeakerId;
+            if (!string.IsNullOrEmpty(msgSpeakerName)) speakerName = msgSpeakerName;
+        }
+        // Priority 2 — speaker-ID registration (always applied when the speaker ID is registered).
+        else if (KupoUIPRPlugin.TryGetSpeakerNameOverride(speakerId, out var nameOverride))
+        {
+            speakerName = nameOverride;
+        }
+    }
 
     /// <summary>
     /// Reentrancy guard: set to <c>true</c> while we are rewriting <c>value</c>
@@ -51,9 +119,9 @@ internal static class MessageSpeakerPrefixPatch
     [HarmonyPrefix]
     private static void GetMessagePrefix(string key, bool isReplace)
     {
-        // Dialogue and menu keys in FFPR typically start with prefixes like 'E' (event), 'M' (menu), 'S' (system), etc.
-        // Caching the last requested key allows us to bind it when Text.text is set immediately after.
-        if (!string.IsNullOrEmpty(key))
+        // Dialogue keys in FFPR typically start with prefixes like 'E' (event), 'B' (battle), 'Q' (quest), 'S' (system), etc.
+        // We only capture these keys to avoid background UI/menu string lookups from overwriting the active dialogue context.
+        if (IsDialogueKey(key))
         {
             LastDialogueID = key;
             LastSpeakerID = "None";
@@ -106,24 +174,9 @@ internal static class MessageSpeakerPrefixPatch
             return;
         }
 
-        // Get the speaker name from the game UI.
+        // Get effective speaker ID, speaker name, and dialogue ID for this view context.
+        GetDialogueContext(view, out var effectiveSpeakerId, out var speakerName, out var effectiveDialogueId);
         var spekerText = view.spekerText;
-        var speakerName = spekerText != null ? spekerText.text : null;
-        string effectiveSpeakerId = LastSpeakerID;
-
-        // Priority 1 — message-specific override (most precise, beats everything else).
-        if (KupoUIPRPlugin.TryGetMessageOverride(LastDialogueID, out var msgSpeakerId, out var msgSpeakerName))
-        {
-            if (!string.IsNullOrEmpty(msgSpeakerId)) effectiveSpeakerId = msgSpeakerId;
-            if (!string.IsNullOrEmpty(msgSpeakerName)) speakerName = msgSpeakerName;
-        }
-        // Priority 2 — speaker-ID registration (always applied when the speaker ID is registered).
-        else if (KupoUIPRPlugin.TryGetSpeakerNameOverride(effectiveSpeakerId, out var nameOverride))
-        {
-            speakerName = nameOverride;
-        }
-        // Priority 3 — game's own speaker text (no-op, already in speakerName).
-
 
         // Log speakerText and messageText IDs (both Instance ID and Native Pointer) along with the Dialogue Key
         int msgTextId = __instance.GetInstanceID();
@@ -135,8 +188,8 @@ internal static class MessageSpeakerPrefixPatch
         {
             KupoUIPRPlugin.PluginLog.LogInfo(
                 $"[MessageSpeakerPrefix] Dialogue matched. " +
-                $"Key: '{LastDialogueID}', " +
-                $"SpeakerID: '{LastSpeakerID}', " +
+                $"Key: '{effectiveDialogueId}', " +
+                $"SpeakerID: '{effectiveSpeakerId}', " +
                 $"MessageText ID: {msgTextId} (Ptr: {msgTextPtr}), " +
                 $"SpeakerText ID: {speakerTextId} (Ptr: {speakerTextPtr}), " +
                 $"SpeakerName: '{speakerName ?? "(null)"}', " +
