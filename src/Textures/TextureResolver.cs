@@ -958,16 +958,35 @@ internal static class TextureResolver
         // this avoids a potentially large upfront array that is then immediately iterated.
         foreach (var file in Directory.EnumerateFiles(layerPath, "*.*", SearchOption.AllDirectories))
         {
+            var relPath = file.Substring(layerPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var sepIdx = relPath.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
+            var firstSegment = sepIdx >= 0 ? relPath.Substring(0, sepIdx) : relPath;
+
             if (excludeGameTags)
             {
-                var relPath = file.Substring(layerPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-                // [OPT-8] Extract the first segment without splitting the whole string into an array.
-                var sepIdx = relPath.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
-                var firstSegment = sepIdx >= 0 ? relPath.Substring(0, sepIdx) : relPath;
                 if (KnownGameTags.Contains(firstSegment))
                 {
                     continue;
                 }
+            }
+
+            // Apply generic game-tag folder filtering for files inside any FFx/ sub-folders anywhere in the path.
+            var pathSegments = relPath.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var shouldSkip = false;
+
+            for (int i = 0; i < pathSegments.Length - 1; i++)
+            {
+                var segment = pathSegments[i];
+                if (KnownGameTags.Contains(segment) && !segment.Equals(_currentGameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    shouldSkip = true;
+                    break;
+                }
+            }
+
+            if (shouldSkip)
+            {
+                continue;
             }
 
             var extension = Path.GetExtension(file);

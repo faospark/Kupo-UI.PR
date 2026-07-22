@@ -42,7 +42,7 @@ internal static class MessageSpeakerPrefixPatch
     {
         if (string.IsNullOrEmpty(key) || key.Equals("None", StringComparison.OrdinalIgnoreCase)) return false;
         char firstChar = char.ToUpperInvariant(key[0]);
-        return firstChar == 'E' || firstChar == 'B' || firstChar == 'Q' || firstChar == 'S';
+        return firstChar == 'E' || firstChar == 'B' || firstChar == 'Q' || firstChar == 'S' || firstChar == 'P';
     }
 
     internal static void ResetWindowState(MessageWindowView view)

@@ -54,24 +54,30 @@ internal static class ObjectConfigLoader
         {
             var normalizedFile = file.Replace('\\', '/');
 
-            // Apply game-tag filtering for files inside Shared/FFx/ sub-folders.
-            if (normalizedFile.StartsWith(normalizedSharedRoot, StringComparison.OrdinalIgnoreCase))
+            // Apply game-tag filtering for files inside any FFx/ sub-folders anywhere in the path.
+            var pathSegments = normalizedFile.Split('/');
+            var skipFile = false;
+
+            foreach (var segment in pathSegments)
             {
-                var relPath = normalizedFile.Substring(normalizedSharedRoot.Length);
-                var firstSegment = relPath.Split('/')[0];
-
                 var isGameTagFolder =
-                    firstSegment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
-                    firstSegment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
-                    firstSegment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
-                    firstSegment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
-                    firstSegment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
-                    firstSegment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
+                    segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
+                    segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
 
-                if (isGameTagFolder && !firstSegment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
                 {
-                    continue; // Skip configs for other games.
+                    skipFile = true;
+                    break;
                 }
+            }
+
+            if (skipFile)
+            {
+                continue; // Skip configs for other games.
             }
 
             filesToLoad.Add(file);
