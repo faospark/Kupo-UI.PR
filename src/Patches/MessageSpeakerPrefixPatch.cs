@@ -71,7 +71,7 @@ internal static class MessageSpeakerPrefixPatch
             {
                 state.SpeakerId = LastSpeakerID;
             }
-            else if (string.IsNullOrWhiteSpace(viewSpeakerText))
+            else if (string.IsNullOrWhiteSpace(viewSpeakerText) || !string.Equals(state.SpeakerName, viewSpeakerText, StringComparison.OrdinalIgnoreCase))
             {
                 state.SpeakerId = "None";
             }
