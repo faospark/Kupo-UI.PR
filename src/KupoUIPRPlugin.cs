@@ -73,7 +73,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
     {
         public string FontName { get; set; } = "";
         public float? LineSpace { get; set; }
-        public int? FontSize { get; set; }
     }
     internal static Dictionary<(Last.Management.FontManager.FontType, Last.Data.Parameters.Language?), FontConfigEntry> FontConfigMapping { get; } = new();
     internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, string> FontParameterLanguages { get; } = new();
@@ -340,7 +339,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
         {
             var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
             var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
-            var sizeMatch = Regex.Match(objStr, "\"FontSize\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
 
             var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : "";
 
@@ -349,19 +347,13 @@ public sealed class KupoUIPRPlugin : BasePlugin
             {
                 space = parsedSpace;
             }
-            int? size = null;
-            if (sizeMatch.Success && int.TryParse(sizeMatch.Groups[1].Value, out var parsedSize))
-            {
-                size = parsedSize;
-            }
 
             if (!string.IsNullOrEmpty(fontName))
             {
                 return new FontConfigEntry
                 {
                     FontName = fontName,
-                    LineSpace = space,
-                    FontSize = size
+                    LineSpace = space
                 };
             }
         }
@@ -453,7 +445,7 @@ How to Customize:
 3. In fontconfig.json, create the corresponding language block (ensure it matches the language you are playing in-game) and intentionally define the specific FontType key you want to change.
 4. Edit the configuration block:
    - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"").
-   - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) or ""FontSize"" (integer) if needed.
+   - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) if needed.
 5. Restart the game to apply changes.
 
 Understanding Language Blocks 
@@ -727,7 +719,7 @@ Supported Languages:
             {
                 FontConfigMapping[(fontType, lang)] = entry;
                 var langStr = lang.HasValue ? lang.Value.ToString() : "Global";
-                PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> name='{entry.FontName}' (LineSpace={entry.LineSpace}, FontSize={entry.FontSize})");
+                PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> name='{entry.FontName}' (LineSpace={entry.LineSpace})");
             }
 
             // Cache enum arrays once — Enum.GetValues allocates a new array on every call

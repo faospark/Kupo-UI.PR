@@ -23,13 +23,9 @@ namespace KupoUI.PR.Patches
             var fontName = configEntry.FontName;
             if (string.IsNullOrEmpty(fontName) || string.Equals(fontName, "Arial", StringComparison.OrdinalIgnoreCase)) return;
 
-            // Determine target font size: check config first, fallback to original font size, fallback to 32.
+            // Determine target font size: fallback to original font size, fallback to 32.
             int targetSize = 32;
-            if (configEntry.FontSize.HasValue)
-            {
-                targetSize = configEntry.FontSize.Value;
-            }
-            else if (__result.FontInstance != null && __result.FontInstance.fontSize > 0)
+            if (__result.FontInstance != null && __result.FontInstance.fontSize > 0)
             {
                 targetSize = __result.FontInstance.fontSize;
             }
