@@ -423,98 +423,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
             }
         }
 
-        var helpPath = Path.Combine(fontsDir, "font-help.txt");
-        if (!File.Exists(helpPath))
-        {
-            try
-            {
-                var helpText =
-@"KupoUI.PR Font Swap Help Guide
-=============================
-
-This directory manages custom font swapping for KupoUI.PR.
-
-Files:
-- fontconfig.json: Holds active font configurations. Copy target blocks or specific keys from fontconfig-sample.json here to customize them.
-- fontconfig-sample.json: Holds game's default baseline values for all supported languages. Overwritten on game launch.
-- font-help.txt: This help file.
-
-How to Customize:
-1. Open fontconfig-sample.json to reference the game's default font names.
-2. Identify the language block (e.g. ""En"", ""Ja"", ""Th"", etc.) and the specific FontType (Font01..Font10) you wish to change. Note that font enums differ per language.
-3. In fontconfig.json, create the corresponding language block (ensure it matches the language you are playing in-game) and intentionally define the specific FontType key you want to change.
-4. Edit the configuration block:
-   - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"").
-   - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) if needed.
-5. Restart the game to apply changes.
-
-Understanding Language Blocks 
-{
-  ""En"": {
-    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" },
-    ""Font02"": { ""FontName"": ""Arial"" },
-    ""Font03"": { ""FontName"": ""Arial"" },
-    ""Font04"": { ""FontName"": ""Arial"" },
-    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" },
-    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" },
-    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" },
-    ""Font08"": { ""FontName"": ""sqex-MonoSix"" },
-    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" },
-    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }
-  }
-}
-Each language has its own set of FontTypes and implementations. Seeing FOT-NewRodinPro-DB for numbers 
-in one language does not mean it is used everywhere. 
-Example:
-Modern Font (English)
-- Default: SE-ALPSTN__
-- To change it, update both Font01 and Font07
-
-Classic Font (English)
-- Default: sqex-MonoSix
-- To change it, update both Font08 and Font10
-
-Menu Numbers Font Type Pairing in some instances
-- FOT-NewRodinPro-DB → Modern English (Font05)
-- PIXELREMASTERFONT → Classic English (Font09)
-
-ALL Arial values are suggested to be replaced with your Ideal Font choice 
-as Arial is declared multiple but is not bundled with the game at all (unlike the default fonts in general). 
-
-Not every font FONT* has to be edited
-Example fontconfig.json (Limited Scope Override):
-{
-  ""En"": {
-    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
-    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
-    ""Font08"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
-    ""Font09"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
-    ""Font10"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  }
-  }
-}
-
-Supported Languages:
-- En (English)
-- Ja (Japanese)
-- Fr (French)
-- De (German)
-- It (Italian)
-- Ru (Russian)
-- Pt (Portuguese)
-- Th (Thai)
-- Ko (Korean)
-- Zht (Traditional Chinese)
-- Zhc (Simplified Chinese)
-";
-                File.WriteAllText(helpPath, helpText);
-            }
-            catch (Exception ex)
-            {
-                PluginLog.LogError($"[FontSwap] Failed to generate font-help.txt: {ex}");
-            }
-        }
-
-        var samplePath = Path.Combine(fontsDir, "fontconfig-sample.json");
         var templateJson =
 @"{
   ""En"": {
@@ -662,14 +570,97 @@ Supported Languages:
   }
 }";
 
+        var helpPath = Path.Combine(fontsDir, "font-help.txt");
         try
         {
-            File.WriteAllText(samplePath, templateJson);
-            PluginLog.LogInfo($"[FontSwap] Generated/Updated baseline template at {samplePath}");
+            var helpText =
+@"KupoUI.PR Font Swap Help Guide
+=============================
+
+This directory manages custom font swapping for KupoUI.PR.
+
+Files:
+- fontconfig.json: Holds active font configurations. Copy target blocks or specific keys from the baseline template below here to customize them.
+- font-help.txt: This help file (contains baseline default values at the bottom).
+
+How to Customize:
+1. Reference the game's default baseline font names at the bottom of this file.
+2. Identify the language block (e.g. ""En"", ""Ja"", ""Th"", etc.) and the specific FontType (Font01..Font10) you wish to change. Note that font enums differ per language.
+3. In fontconfig.json, create the corresponding language block (ensure it matches the language you are playing in-game) and intentionally define the specific FontType key you want to change.
+4. Edit the configuration block:
+   - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"").
+   - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) if needed.
+5. Restart the game to apply changes.
+
+Understanding Language Blocks 
+{
+  ""En"": {
+    ""Font01"": { ""FontName"": ""SE-ALPSTN__"" },
+    ""Font02"": { ""FontName"": ""Arial"" },
+    ""Font03"": { ""FontName"": ""Arial"" },
+    ""Font04"": { ""FontName"": ""Arial"" },
+    ""Font05"": { ""FontName"": ""FOT-NewRodinPro-DB"" },
+    ""Font06"": { ""FontName"": ""FOT-NewCezannePro-B"" },
+    ""Font07"": { ""FontName"": ""SE-ALPSTN__"" },
+    ""Font08"": { ""FontName"": ""sqex-MonoSix"" },
+    ""Font09"": { ""FontName"": ""PIXELREMASTERFONT"" },
+    ""Font10"": { ""FontName"": ""sqex-MonoSix"" }
+  }
+}
+Each language has its own set of FontTypes and implementations. Seeing FOT-NewRodinPro-DB for numbers 
+in one language does not mean it is used everywhere. 
+Example:
+Modern Font (English)
+- Default: SE-ALPSTN__
+- To change it, update both Font01 and Font07
+
+Classic Font (English)
+- Default: sqex-MonoSix
+- To change it, update both Font08 and Font10
+
+Menu Numbers Font Type Pairing in some instances
+- FOT-NewRodinPro-DB → Modern English (Font05)
+- PIXELREMASTERFONT → Classic English (Font09)
+
+ALL Arial values are suggested to be replaced with your Ideal Font choice 
+as Arial is declared multiple but is not bundled with the game at all (unlike the default fonts in general). 
+
+Not every font FONT* has to be edited
+Example fontconfig.json (Limited Scope Override):
+{
+  ""En"": {
+    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
+    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
+    ""Font08"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
+    ""Font09"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
+    ""Font10"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  }
+  }
+}
+
+Supported Languages:
+- En (English)
+- Ja (Japanese)
+- Fr (French)
+- De (German)
+- It (Italian)
+- Ru (Russian)
+- Pt (Portuguese)
+- Th (Thai)
+- Ko (Korean)
+- Zht (Traditional Chinese)
+- Zhc (Simplified Chinese)
+
+================================================================================
+BASELINE TEMPLATE DEFAULT VALUES (Copy keys/blocks from here into fontconfig.json):
+================================================================================
+" + templateJson;
+
+            File.WriteAllText(helpPath, helpText);
+            PluginLog.LogInfo($"[FontSwap] Generated/Updated help guide at {helpPath}");
         }
         catch (Exception ex)
         {
-            PluginLog.LogError($"[FontSwap] Failed to generate baseline template fontconfig-sample.json: {ex}");
+            PluginLog.LogError($"[FontSwap] Failed to generate font-help.txt: {ex}");
         }
 
         if (!File.Exists(configPath))
@@ -678,7 +669,7 @@ Supported Languages:
             {
                 var minimalConfigJson =
 @"{" + "\n" +
-@"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See fontconfig-sample.json for all baseline default values.""," + "\n" +
+@"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See font-help.txt for all baseline default values.""," + "\n" +
 @"  ""En"": {" + "\n" +
 @"    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
 @"    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
