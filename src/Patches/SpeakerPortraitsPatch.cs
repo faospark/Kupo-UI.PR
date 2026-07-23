@@ -403,6 +403,52 @@ internal static class SpeakerPortraitsPatch
 
 
 
+    private static void ParsePadding(out float left, out float top, out float right, out float bottom)
+    {
+        left = 0f;
+        top = 0f;
+        right = 0f;
+        bottom = 0f;
+
+        var val = KupoUIPRPlugin.SpeakerPortraitsPaddingConfig.Value;
+        if (string.IsNullOrEmpty(val)) return;
+
+        var parts = val.Split(',');
+        if (parts.Length >= 4)
+        {
+            float.TryParse(parts[0], out left);
+            float.TryParse(parts[1], out top);
+            float.TryParse(parts[2], out right);
+            float.TryParse(parts[3], out bottom);
+        }
+        else if (parts.Length == 1)
+        {
+            if (float.TryParse(parts[0], out var all))
+            {
+                left = all;
+                top = all;
+                right = all;
+                bottom = all;
+            }
+        }
+    }
+
+    private static void ApplyPaddingAndSizing(RectTransform rectTransform, bool shouldFlip)
+    {
+        if (rectTransform == null) return;
+
+        ParsePadding(out var left, out var top, out var right, out var bottom);
+
+        float w = 256f - left - right;
+        float h = 256f - top - bottom;
+        float x = -526f + (left - right) / 2f;
+        float y = 0f + (bottom - top) / 2f;
+
+        rectTransform.sizeDelta = new Vector2(w, h);
+        rectTransform.localPosition = new Vector3(x, y, 0f);
+        rectTransform.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
+    }
+
     private static void InjectPortrait(MessageWindowView view, string speakerId, string speakerName, string imagePath)
     {
         if (view == null) return;
@@ -479,7 +525,8 @@ internal static class SpeakerPortraitsPatch
             {
                 lastText.localPosition = new Vector3(129.5999f, 0f, 0f);
             }
-            existingPortrait.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
+            var rect = existingPortrait.GetComponent<RectTransform>();
+            ApplyPaddingAndSizing(rect, shouldFlip);
             return;
         }
 
@@ -533,9 +580,7 @@ internal static class SpeakerPortraitsPatch
             rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
             rectTransform.pivot = new Vector2(0.5f, 0.5f);
 
-            rectTransform.sizeDelta = new Vector2(256f, 256f);
-            rectTransform.localPosition = new Vector3(-526f, 0f, 0f);
-            rectTransform.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
+            ApplyPaddingAndSizing(rectTransform, shouldFlip);
         }
     }
 

@@ -46,6 +46,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> EnableSpeakerPortraitsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticPortraitLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> SpeakerPortraitsPaddingConfig { get; private set; } = null!;
 
     /// <summary>
     /// Speaker ID → display name registrations loaded from the "speakers" block of speaker-names.json.
@@ -143,6 +144,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "FlipSpeakerPortraits",
             true,
             "If true, flips all speaker portraits horizontally.");
+
+        SpeakerPortraitsPaddingConfig = Config.Bind(
+            "UI-Dialog",
+            "SpeakerPortraitsPadding",
+            "0,0,0,0",
+            "Padding for speaker portraits. Format: 'left,top,right,bottom' in pixels (e.g. '10,15,0,20').");
 
         UIThemesFolderConfig = Config.Bind(
             "UI and Customizations",
@@ -275,6 +282,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
         Log.LogInfo($"EnableSpeakerPortraits = {EnableSpeakerPortraitsConfig.Value}");
         Log.LogInfo($"PortraitLogging = {DiagnosticPortraitLoggingConfig.Value}");
+        Log.LogInfo($"SpeakerPortraitsPadding = {SpeakerPortraitsPaddingConfig.Value}");
 
         LoadSpeakerNames();
         LoadMenuPortraitMaps();

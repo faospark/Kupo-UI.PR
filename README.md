@@ -114,7 +114,8 @@ BepInEx/config/faospark.kupoui.pr.cfg
 | `UI-Dialog`             | `HideSpeakerTag`              | `true`     | Move the speaker tag bubble off-screen. May conflict with mods that use the bubble as portraits.                              |
 | `UI-Dialog`             | `EnableSpeakerPortraits`      | `true`     | Dynamically inject speaker portraits during dialogue.                                                                         |
 | `UI-Dialog`             | `FlipSpeakerPortraits`        | `true`     | Flip all injected speaker portraits horizontally.                                                                             |
-| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under `Modules/01-UI-Themes/` for UI theme overrides.                                                                  |
+| `UI-Dialog`             | `SpeakerPortraitsPadding`     | `0,0,0,0`  | Padding for speaker portraits in `left,top,right,bottom` pixels format (e.g. `10,15,0,20`).                                  |
+| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under `Modules/01-UI-Themes/` for UI theme overrides.                                                                  |                                                                  |
 | `UI and Customizations` | `UiFramesFolder`              | _(empty)_  | Folder under `Modules/02-UI-Frames/` for UI frame overrides.                                                                  |
 | `UI and Customizations` | `UIBgColorFolder`             | _(empty)_  | Folder under `Modules/03-UI-BgColor/` for UI background overrides.                                                            |
 | `UI and Customizations` | `CursorsFolder`               | _(empty)_  | Folder under `Modules/04-UI-Cursors/` for cursor overrides.                                                                   |
@@ -482,6 +483,7 @@ background_canvas/ui_root/backgrou_root/
 
 - Portraits are resolved from the texture index using the speaker ID. Place portrait images in any mod folder matching the speaker asset name.
 - `UI-Dialog.FlipSpeakerPortraits` (default `true`) — Flip all injected portraits horizontally.
+- `UI-Dialog.SpeakerPortraitsPadding` (default `0,0,0,0`) — Offset padding `left,top,right,bottom` in pixels to shrink and shift the injected portrait container.
 - Portrait images are cached in memory after first load.
 - Uses the same folder priority as the main texture system.
 - `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
