@@ -71,7 +71,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
     internal class FontConfigEntry
     {
-        public string FontFile { get; set; } = "";
         public string FontName { get; set; } = "";
         public float? LineSpace { get; set; }
         public int? FontSize { get; set; }
@@ -80,15 +79,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, string> FontParameterLanguages { get; } = new();
     internal static Dictionary<string, UnityEngine.Font> LoadedFonts { get; } = new(StringComparer.OrdinalIgnoreCase);
 
-    // Windows GDI P/Invokes to register font files temporarily for our process
-    [DllImport("gdi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    private static extern int AddFontResourceEx(string lpszFilename, uint fl, IntPtr pdv);
 
-    [DllImport("gdi32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-    private static extern bool RemoveFontResourceEx(string lpszFilename, uint fl, IntPtr pdv);
-
-    private const uint FR_PRIVATE = 0x10;
-    private static readonly HashSet<string> RegisteredFontFiles = new(StringComparer.OrdinalIgnoreCase);
 
     public override void Load()
     {
@@ -98,7 +89,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "FontSwap",
             "Enabled",
             false,
-            "If true, swaps default game fonts with custom font files defined in Modules/Shared/Fonts/fontconfig.json.");
+            "If true, swaps default game fonts with custom fonts defined in Modules/Shared/Fonts/fontconfig.json.");
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
@@ -290,19 +281,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         LoadMenuPortraitMaps();
     }
 
-    public void OnDestroy()
-    {
-        foreach (var path in RegisteredFontFiles)
-        {
-            try
-            {
-                RemoveFontResourceEx(path, FR_PRIVATE, IntPtr.Zero);
-                PluginLog.LogInfo($"[FontSwap] Unregistered font file: {Path.GetFileName(path)}");
-            }
-            catch { }
-        }
-        RegisteredFontFiles.Clear();
-    }
+
 
     private static (bool enabled, bool logDiscoveries, bool logResolutions, bool logMisses) ResolveDiagnosticTextureLoggerConfig(string configValue)
     {
@@ -324,38 +303,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         return (enabled, logDiscoveries, logResolutions, logMisses);
     }
 
-    private void RegisterFontFile(string fontFile)
-    {
-        var fontFilePath = Path.Combine(ModulesRootPath, "Shared", "Fonts", fontFile);
-        if (File.Exists(fontFilePath))
-        {
-            var normalizedPath = Path.GetFullPath(fontFilePath);
-            if (!RegisteredFontFiles.Contains(normalizedPath))
-            {
-                try
-                {
-                    int result = AddFontResourceEx(normalizedPath, FR_PRIVATE, IntPtr.Zero);
-                    if (result > 0)
-                    {
-                        RegisteredFontFiles.Add(normalizedPath);
-                        PluginLog.LogInfo($"[FontSwap] Registered font file with OS: '{fontFile}' ({result} font(s) added)");
-                    }
-                    else
-                    {
-                        PluginLog.LogWarning($"[FontSwap] AddFontResourceEx returned 0 for '{fontFile}'. LastError={Marshal.GetLastWin32Error()}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    PluginLog.LogError($"[FontSwap] Failed to register font file '{fontFile}': {ex}");
-                }
-            }
-        }
-        else
-        {
-            PluginLog.LogWarning($"[FontSwap] Font file not found at: {fontFilePath}");
-        }
-    }
+
 
     private static string ExtractBalancedBraces(string json, int openBraceIndex)
     {
@@ -390,13 +338,11 @@ public sealed class KupoUIPRPlugin : BasePlugin
         var objStr = ReadSubObject(json, keyName);
         if (objStr != null)
         {
-            var fileMatch = Regex.Match(objStr, "\"FontFile\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
             var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
             var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
             var sizeMatch = Regex.Match(objStr, "\"FontSize\"\\s*:\\s*(\\d+)", RegexOptions.IgnoreCase);
 
-            var file = fileMatch.Success ? fileMatch.Groups[1].Value : "";
-            var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : Path.GetFileNameWithoutExtension(file);
+            var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : "";
 
             float? space = null;
             if (spaceMatch.Success && float.TryParse(spaceMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedSpace))
@@ -409,16 +355,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
                 size = parsedSize;
             }
 
-            if (!string.IsNullOrEmpty(file))
-            {
-                RegisterFontFile(file);
-            }
-
             if (!string.IsNullOrEmpty(fontName))
             {
                 return new FontConfigEntry
                 {
-                    FontFile = file,
                     FontName = fontName,
                     LineSpace = space,
                     FontSize = size
@@ -427,30 +367,16 @@ public sealed class KupoUIPRPlugin : BasePlugin
         }
         else
         {
-            // Match string: "KeyName" : "MyFont.ttf" or "KeyName" : "Consolas"
+            // Match string: "KeyName" : "Consolas"
             var strMatch = Regex.Match(json, $"\"{keyName}\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
             if (strMatch.Success)
             {
                 var value = strMatch.Groups[1].Value;
                 if (!string.IsNullOrEmpty(value))
                 {
-                    var hasExtension = value.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase) ||
-                                       value.EndsWith(".otf", StringComparison.OrdinalIgnoreCase);
-
-                    string file = "";
-                    string fontName = value;
-
-                    if (hasExtension)
-                    {
-                        file = value;
-                        fontName = Path.GetFileNameWithoutExtension(file);
-                        RegisterFontFile(file);
-                    }
-
                     return new FontConfigEntry
                     {
-                        FontFile = file,
-                        FontName = fontName
+                        FontName = value
                     };
                 }
             }
@@ -488,7 +414,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
     {
         FontConfigMapping.Clear();
         LoadedFonts.Clear();
-        RegisteredFontFiles.Clear();
 
         var fontsDir = Path.Combine(ModulesRootPath, "Shared", "Fonts");
         var configPath = Path.Combine(fontsDir, "fontconfig.json");
@@ -527,8 +452,7 @@ How to Customize:
 2. Identify the language block (e.g. ""En"", ""Ja"", ""Th"", etc.) and the specific FontType (Font01..Font10) you wish to change. Note that font enums differ per language.
 3. In fontconfig.json, create the corresponding language block (ensure it matches the language you are playing in-game) and intentionally define the specific FontType key you want to change.
 4. Edit the configuration block:
-   - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"") or a custom font name.
-   - (Optional *does not work atm) Set ""FontFile"" if you wish to use a custom font file placed in the ""Fonts/"" directory.
+   - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"").
    - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) or ""FontSize"" (integer) if needed.
 5. Restart the game to apply changes.
 
@@ -803,7 +727,7 @@ Supported Languages:
             {
                 FontConfigMapping[(fontType, lang)] = entry;
                 var langStr = lang.HasValue ? lang.Value.ToString() : "Global";
-                PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> file='{entry.FontFile}' name='{entry.FontName}' (LineSpace={entry.LineSpace}, FontSize={entry.FontSize})");
+                PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> name='{entry.FontName}' (LineSpace={entry.LineSpace}, FontSize={entry.FontSize})");
             }
 
             // Cache enum arrays once — Enum.GetValues allocates a new array on every call

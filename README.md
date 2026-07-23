@@ -152,9 +152,9 @@ Recommended structure created automatically on first run:
     03-UI-BgColor/        ← UI background color packs
     04-UI-Cursors/        ← cursor texture packs
     05-Button-Prompts/    ← button prompt texture packs
-    Shared/               ← cross-game textures, speaker portraits, and custom fonts
+    Shared/               ← cross-game textures, speaker portraits, and custom font configurations
       SpeakerPortraits/   ← portrait images resolved by speaker ID
-      Fonts/              ← font configuration files (fontconfig.json) and custom font files (.ttf/.otf)
+      Fonts/              ← font configuration files (fontconfig.json)
       FF1/                ← FF1-specific textures (game-tag folder)
       FF2/
       FF3/
@@ -660,7 +660,7 @@ This identifies which `FontType` enum value corresponds to which language and de
   font-help.txt           ← auto-generated help guide
 ```
 
-All three files are created automatically on first startup. Place any custom `.ttf` or `.otf` font files here too.
+All three files are created automatically on first startup.
 
 #### Configuration File Format
 
@@ -669,20 +669,19 @@ The mapping file supports both **simple string values** and **object-based value
 ```json
 {
   "En": {
-    "Font01": { "FontFile": "SE-ALPSTN__.TTF", "FontName": "SE-ALPSTN__", "LineSpace": 1.0 },
-    "Font02": { "FontFile": "Arial.ttf", "FontName": "Arial", "LineSpace": 1.2 },
-    "Default": { "FontFile": "Arial.ttf", "FontName": "Arial", "LineSpace": 1.2 }
+    "Font01": { "FontName": "Segoe UI", "LineSpace": 1.0 },
+    "Font02": { "FontName": "Arial", "LineSpace": 1.2 },
+    "Default": { "FontName": "Arial", "LineSpace": 1.2 }
   },
   "Ja": {
-    "Font01": { "FontFile": "FOT-NewRodinPro-DB.otf", "FontName": "FOT-NewRodinPro-DB", "LineSpace": 0.73 }
+    "Font01": { "FontName": "FOT-NewRodinPro-DB", "LineSpace": 0.73 }
   }
 }
 ```
 
 | Field | Description |
 |---|---|
-| `FontFile` | **(Optional)** Filename of the `.ttf` or `.otf` file in `Shared/Fonts/`. Omit to use a pre-installed system font. |
-| `FontName` | Font family name (e.g. `"Segoe UI"`, `"Consolas"`). Required. If `FontFile` is provided, this registers and matches the custom file. |
+| `FontName` | Font family name (e.g. `"Segoe UI"`, `"Consolas"`). Required. |
 | `LineSpace` | Line height factor (e.g. `1.2`). Adjust if your font appears cramped or overflows dialogue boxes. |
 | `FontSize` | Integer target rendering size. If omitted, auto-scales to match the default font it replaces. |
 
@@ -693,8 +692,8 @@ The mapping file supports both **simple string values** and **object-based value
 ```json
 {
   "Language": "Pt",
-  "Font01": { "FontFile": "portuguese_font.ttf", "FontName": "PortugueseFont" },
-  "Default": "portuguese_fallback.ttf"
+  "Font01": { "FontName": "PortugueseFont" },
+  "Default": "PortugueseFallbackFont"
 }
 ```
 
@@ -702,8 +701,8 @@ The mapping file supports both **simple string values** and **object-based value
 
 ```json
 {
-  "Pt": { "Font01": { "FontFile": "portuguese_font.ttf", "FontName": "PortugueseFont" } },
-  "Ja": { "Font01": { "FontFile": "japanese_font.ttf", "FontName": "JapaneseFont" } }
+  "Pt": { "Font01": { "FontName": "PortugueseFont" } },
+  "Ja": { "Font01": { "FontName": "JapaneseFont" } }
 }
 ```
 
@@ -711,9 +710,9 @@ The mapping file supports both **simple string values** and **object-based value
 
 ```json
 {
-  "Font01": { "FontFile": "english_font.ttf", "FontName": "EnglishFont" },
-  "Font01_Ja": { "FontFile": "japanese_font.ttf", "FontName": "JapaneseFont", "LineSpace": 0.83 },
-  "Default_Ja": "japanese_fallback_font.ttf"
+  "Font01": { "FontName": "EnglishFont" },
+  "Font01_Ja": { "FontName": "JapaneseFont", "LineSpace": 0.83 },
+  "Default_Ja": "JapaneseFallbackFont"
 }
 ```
 
