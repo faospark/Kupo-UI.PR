@@ -378,6 +378,7 @@ internal static class SpeakerPortraitsPatch
 
                 var rect = new Rect(0, 0, texture.width, texture.height);
                 var sprite = Sprite.Create(texture, rect, pivot, ppu, 0, SpriteMeshType.FullRect, border);
+                sprite.name = Path.GetFileNameWithoutExtension(filePath) + "_Custom";
 
                 texture.hideFlags |= HideFlags.DontSave;
                 sprite.hideFlags |= HideFlags.DontSave;

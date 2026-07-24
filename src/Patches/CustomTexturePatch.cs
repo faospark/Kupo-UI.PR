@@ -114,10 +114,7 @@ internal static class CustomTexturePatch
         if (TryResolveMenuPortraitFromSpeakerPortraits(value, assetAddress, out var customSprite))
         {
             value = customSprite;
-            if (IsMenuPortraitImage(__instance))
-            {
-                __instance.preserveAspect = true;
-            }
+            __instance.preserveAspect = true;
             return;
         }
 
@@ -162,8 +159,14 @@ internal static class CustomTexturePatch
             return false;
         }
 
+        if (image.name.Equals("chara_image", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
         return TryBuildTransformPath(image.transform, out var path)
-            && path.IndexOf(MenuPortraitPathFragment, StringComparison.OrdinalIgnoreCase) >= 0;
+            && (path.IndexOf(MenuPortraitPathFragment, StringComparison.OrdinalIgnoreCase) >= 0
+                || path.IndexOf("chara_image", StringComparison.OrdinalIgnoreCase) >= 0);
     }
 
     private static bool TryResolveMenuPortraitFromSpeakerPortraits(Sprite original, string assetAddress, out Sprite customSprite)
