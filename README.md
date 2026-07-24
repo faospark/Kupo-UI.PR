@@ -739,6 +739,15 @@ When looking up a font for a specific `FontType` and language:
 
 > Custom fonts are cached in memory upon first load — zero performance impact during scene transitions.
 
+##### Note for Linux & Steam Deck Users (via Proton)
+
+To use custom system fonts when running the game on Linux or Steam Deck via Proton:
+1. Locate your game's Wine prefix (compatdata directory), e.g.:
+   `.../SteamApps/compatdata/<AppID>/pfx/drive_c/windows/Fonts/`
+   *(Where `<AppID>` is the Steam Application ID of the specific Pixel Remaster game, e.g. `377840` for Final Fantasy II)*.
+2. Copy your custom `.ttf` or `.otf` file into the `Fonts` directory inside the prefix.
+3. In `fontconfig.json`, configure `"FontName"` using the exact **Font Family Name** of the font (e.g. `"Segoe UI"`), not the file name.
+
 ---
 
 ## UI Tweaks
