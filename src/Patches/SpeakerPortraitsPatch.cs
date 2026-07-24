@@ -440,9 +440,19 @@ internal static class SpeakerPortraitsPatch
 
         ParsePadding(out var left, out var top, out var right, out var bottom);
 
-        float w = 256f - left - right;
         float h = 256f - top - bottom;
-        float x = -526f + (left - right) / 2f;
+        float w = 256f - left - right;
+
+        var image = rectTransform.GetComponent<Image>();
+        var sprite = image != null ? image.sprite : null;
+        if (sprite != null && sprite.rect.height > 0f)
+        {
+            float aspect = sprite.rect.width / sprite.rect.height;
+            w = h * aspect;
+        }
+
+        // Align to the left (outer/start edge) of the dialogue portrait box
+        float x = -654f + left + w / 2f;
         float y = 0f + (bottom - top) / 2f;
 
         rectTransform.sizeDelta = new Vector2(w, h);
