@@ -459,6 +459,19 @@ public sealed class KupoUIPRPlugin : BasePlugin
         // ── LOAD AND MERGE EACH FILE ────────────────────────────────────────────
         foreach (var configPath in files)
         {
+            var normalizedPath = configPath.Replace('\\', '/');
+            var pathSegments = normalizedPath.Split('/');
+            var skipFile = false;
+            foreach (var segment in pathSegments)
+            {
+                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                {
+                    skipFile = true;
+                    break;
+                }
+            }
+            if (skipFile) continue;
+
             try
             {
                 var json = File.ReadAllText(configPath);
@@ -546,6 +559,19 @@ public sealed class KupoUIPRPlugin : BasePlugin
         // ── LOAD AND MERGE EACH FILE ────────────────────────────────────────────
         foreach (var configPath in files)
         {
+            var normalizedPath = configPath.Replace('\\', '/');
+            var pathSegments = normalizedPath.Split('/');
+            var skipFile = false;
+            foreach (var segment in pathSegments)
+            {
+                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                {
+                    skipFile = true;
+                    break;
+                }
+            }
+            if (skipFile) continue;
+
             try
             {
                 var json = File.ReadAllText(configPath);

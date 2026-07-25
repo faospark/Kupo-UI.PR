@@ -185,6 +185,19 @@ internal static class SpeakerPortraitsPatch
             var matches = Directory.GetDirectories(root, "SpeakerPortraits", SearchOption.AllDirectories);
             foreach (var match in matches)
             {
+                var normalizedMatch = match.Replace('\\', '/');
+                var pathSegments = normalizedMatch.Split('/');
+                var skipFolder = false;
+                foreach (var segment in pathSegments)
+                {
+                    if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                    {
+                        skipFolder = true;
+                        break;
+                    }
+                }
+                if (skipFolder) continue;
+
                 int priority = GetFolderPriority(match, root);
                 if (priority >= 0)
                 {
@@ -314,9 +327,23 @@ internal static class SpeakerPortraitsPatch
         try
         {
             var files = Directory.GetFiles(dir, fileName, SearchOption.AllDirectories);
-            if (files.Length > 0)
+            foreach (var file in files)
             {
-                return files[0];
+                var normalizedFile = file.Replace('\\', '/');
+                var pathSegments = normalizedFile.Split('/');
+                var skipFile = false;
+                foreach (var segment in pathSegments)
+                {
+                    if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                    {
+                        skipFile = true;
+                        break;
+                    }
+                }
+                if (!skipFile)
+                {
+                    return file;
+                }
             }
         }
         catch (Exception ex)

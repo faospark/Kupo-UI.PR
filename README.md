@@ -115,7 +115,8 @@ BepInEx/config/faospark.kupoui.pr.cfg
 | `UI-Dialog`             | `EnableSpeakerPortraits`      | `true`     | Dynamically inject speaker portraits during dialogue.                                                                         |
 | `UI-Dialog`             | `FlipSpeakerPortraits`        | `true`     | Flip all injected speaker portraits horizontally.                                                                             |
 | `UI-Dialog`             | `SpeakerPortraitsPadding`     | `0,0,0,0`  | Padding for speaker portraits in `left,top,right,bottom` pixels format (e.g. `10,15,0,20`).                                  |
-| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under `Modules/01-UI-Themes/` for UI theme overrides.                                                                  |                                                                  |
+| `UI-Dialog`             | `SpeakerPortraitsTextOffset`  | `0`        | X-axis offset (in pixels) for the dialogue text box when speaker portraits are active. Positive moves right, negative left. Recommended: `-75` for FF2. |
+| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under `Modules/01-UI-Themes/` for UI theme overrides.                                                                  |
 | `UI and Customizations` | `UiFramesFolder`              | _(empty)_  | Folder under `Modules/02-UI-Frames/` for UI frame overrides.                                                                  |
 | `UI and Customizations` | `UIBgColorFolder`             | _(empty)_  | Folder under `Modules/03-UI-BgColor/` for UI background overrides.                                                            |
 | `UI and Customizations` | `CursorsFolder`               | _(empty)_  | Folder under `Modules/04-UI-Cursors/` for cursor overrides.                                                                   |
@@ -185,6 +186,10 @@ Priority is highest to lowest:
 11. `Shared/` (cross-game, lowest priority)
 
 Use the file name **without extension** to match the in-game texture/sprite name (e.g. `window_frame.png` replaces the asset named `window_frame`).
+
+### Ignoring / Blocking Folders
+
+If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, `ObjectConfig.json`, `speaker-names.json`, `MenuPortraitMap.json`, or portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
 
 ### Path-Based Overrides
 
@@ -484,6 +489,7 @@ background_canvas/ui_root/backgrou_root/
 - Portraits are resolved from the texture index using the speaker ID. Place portrait images in any mod folder matching the speaker asset name.
 - `UI-Dialog.FlipSpeakerPortraits` (default `true`) — Flip all injected portraits horizontally.
 - `UI-Dialog.SpeakerPortraitsPadding` (default `0,0,0,0`) — Offset padding `left,top,right,bottom` in pixels to shrink and shift the injected portrait container.
+- `UI-Dialog.SpeakerPortraitsTextOffset` (default `0`) — X-axis offset (in pixels) for the dialogue text box (`lastText`) when speaker portraits are active. Positive values move it to the right, negative values to the left. `-75` is recommended for FF2.
 - Portrait images are cached in memory after first load.
 - Uses the same folder priority as the main texture system.
 - `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
@@ -672,12 +678,12 @@ The mapping file supports both **simple string values** and **object-based value
 ```json
 {
   "En": {
-    "Font01": { "FontName": "Segoe UI", "LineSpace": 1.0 },
-    "Font02": { "FontName": "Arial", "LineSpace": 1.2 },
+    "Font01": { "FontName": "Segoe UI", "LineSpace": 1.0, "YOffset": 4.0 },
+    "Font02": { "FontName": "Arial", "LineSpace": 1.2, "YOffset": 2.0 },
     "Default": { "FontName": "Arial", "LineSpace": 1.2 }
   },
   "Ja": {
-    "Font01": { "FontName": "FOT-NewRodinPro-DB", "LineSpace": 0.73 }
+    "Font01": { "FontName": "FOT-NewRodinPro-DB", "LineSpace": 0.73, "YOffset": 1.5 }
   }
 }
 ```

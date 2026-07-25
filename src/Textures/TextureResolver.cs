@@ -958,6 +958,22 @@ internal static class TextureResolver
         // this avoids a potentially large upfront array that is then immediately iterated.
         foreach (var file in Directory.EnumerateFiles(layerPath, "*.*", SearchOption.AllDirectories))
         {
+            var normalizedFile = file.Replace('\\', '/');
+            var fullPathSegments = normalizedFile.Split('/');
+            var skipBlock = false;
+            foreach (var segment in fullPathSegments)
+            {
+                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                {
+                    skipBlock = true;
+                    break;
+                }
+            }
+            if (skipBlock)
+            {
+                continue;
+            }
+
             var relPath = file.Substring(layerPath.Length).TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
             var sepIdx = relPath.IndexOfAny(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar });
             var firstSegment = sepIdx >= 0 ? relPath.Substring(0, sepIdx) : relPath;

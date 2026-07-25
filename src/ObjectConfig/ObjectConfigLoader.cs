@@ -60,6 +60,12 @@ internal static class ObjectConfigLoader
 
             foreach (var segment in pathSegments)
             {
+                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                {
+                    skipFile = true;
+                    break;
+                }
+
                 var isGameTagFolder =
                     segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
                     segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
