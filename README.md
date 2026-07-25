@@ -686,6 +686,7 @@ The mapping file supports both **simple string values** and **object-based value
 | ----------- | ------------------------------------------------------------------------------------------------- |
 | `FontName`  | Font family name (e.g. `"Segoe UI"`, `"Consolas"`). Required.                                     |
 | `LineSpace` | Line height factor (e.g. `1.2`). Adjust if your font appears cramped or overflows dialogue boxes. |
+| `YOffset`   | Vertical offset in pixels (e.g. `2.0` to adjust upward, `-1.5` to adjust downward). Optional.     |
 
 #### Language-Specific Configuration Styles
 

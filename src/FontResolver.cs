@@ -11,6 +11,7 @@ namespace KupoUI.PR
     {
         public string FontName { get; set; } = "";
         public float? LineSpace { get; set; }
+        public float? YOffset { get; set; }
     }
 
     internal static class FontResolver
@@ -20,6 +21,7 @@ namespace KupoUI.PR
         internal static Dictionary<(FontManager.FontType, Last.Data.Parameters.Language?), FontConfigEntry> FontConfigMapping { get; } = new();
         internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, string> FontParameterLanguages { get; } = new();
         internal static Dictionary<string, UnityEngine.Font> LoadedFonts { get; } = new(StringComparer.OrdinalIgnoreCase);
+        internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, float> SwappedFontYOffsets { get; } = new();
 
         internal static void Initialize(string modulesRootPath)
         {
@@ -35,6 +37,7 @@ namespace KupoUI.PR
             {
                 var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
                 var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+                var yOffsetMatch = Regex.Match(objStr, "\"YOffset\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
 
                 var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : "";
 
@@ -44,12 +47,19 @@ namespace KupoUI.PR
                     space = parsedSpace;
                 }
 
+                float? yOffset = null;
+                if (yOffsetMatch.Success && float.TryParse(yOffsetMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedYOffset))
+                {
+                    yOffset = parsedYOffset;
+                }
+
                 if (!string.IsNullOrEmpty(fontName))
                 {
                     return new FontConfigEntry
                     {
                         FontName = fontName,
-                        LineSpace = space
+                        LineSpace = space,
+                        YOffset = yOffset
                     };
                 }
             }
@@ -100,6 +110,7 @@ namespace KupoUI.PR
         {
             FontConfigMapping.Clear();
             LoadedFonts.Clear();
+            SwappedFontYOffsets.Clear();
 
             var fontsDir = Path.Combine(_modulesRootPath, "Shared", "Fonts");
             var configPath = Path.Combine(fontsDir, "fontconfig.json");
@@ -284,6 +295,7 @@ How to Customize:
 4. Edit the configuration block:
    - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"").
    - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) if needed.
+   - Adjust ""YOffset"" (floating point pixels, e.g. 2.0 to move text up, -1.5 to move down) if needed.
 5. Restart the game to apply changes.
 
 Understanding Language Blocks 
@@ -363,8 +375,8 @@ BASELINE TEMPLATE DEFAULT VALUES (Copy keys/blocks from here into fontconfig.jso
 @"{" + "\n" +
 @"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See font-help.txt for all baseline default values.""," + "\n" +
 @"  ""En"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.90 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.90 }," + "\n" +
+@"    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.90, ""YOffset"": 4 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.90, ""YOffset"": 4 }" + "\n" +
 @"  }" + "\n" +
 @"}";
                     File.WriteAllText(configPath, minimalConfigJson);

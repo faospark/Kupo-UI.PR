@@ -2,6 +2,7 @@ using System;
 using HarmonyLib;
 using Last.Management;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace KupoUI.PR.Patches
 {
@@ -41,6 +42,9 @@ namespace KupoUI.PR.Patches
                     {
                         __result.FontInstance = fontInstance;
                     }
+
+                    float effectiveYOffset = configEntry.YOffset ?? 0f;
+                    FontResolver.SwappedFontYOffsets[fontInstance.Pointer] = effectiveYOffset;
 
                     if (configEntry.LineSpace.HasValue)
                     {
@@ -130,6 +134,34 @@ namespace KupoUI.PR.Patches
             }
 
             return null;
+        }
+    }
+
+    [HarmonyPatch(typeof(Text), "OnPopulateMesh")]
+    class Text_OnPopulateMesh_Patch
+    {
+        [HarmonyPostfix]
+        static void Postfix(Text __instance, VertexHelper toFill)
+        {
+            if (__instance == null || toFill == null) return;
+            if (!KupoUIPRPlugin.FontSwapEnabledConfig.Value) return;
+
+            var font = __instance.font;
+            if (font == null) return;
+
+            if (FontResolver.SwappedFontYOffsets.TryGetValue(font.Pointer, out var yOffset))
+            {
+                if (Math.Abs(yOffset) < 0.001f) return;
+
+                int count = toFill.currentVertCount;
+                UIVertex vertex = default;
+                for (int i = 0; i < count; i++)
+                {
+                    toFill.PopulateUIVertex(ref vertex, i);
+                    vertex.position.y += yOffset;
+                    toFill.SetUIVertex(vertex, i);
+                }
+            }
         }
     }
 }
