@@ -10,8 +10,8 @@ namespace KupoUI.PR.Patches
         {
             if (__result == null) return;
 
-            KupoUIPRPlugin.FontParameterLanguages.TryRemove(__result.Pointer, out _);
-            KupoUIPRPlugin.FontParameterLanguages.TryAdd(__result.Pointer, __1.ToString());
+            FontResolver.FontParameterLanguages.TryRemove(__result.Pointer, out _);
+            FontResolver.FontParameterLanguages.TryAdd(__result.Pointer, __1.ToString());
 
             // Phase 1: Diagnostic Logging (Always-On by Default)
             if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)

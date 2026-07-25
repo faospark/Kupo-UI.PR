@@ -16,9 +16,9 @@ namespace KupoUI.PR.Patches
 
             // Retrieve the language associated with this FontParameter instance.
             string language = null;
-            KupoUIPRPlugin.FontParameterLanguages.TryGetValue(__result.Pointer, out language);
+            FontResolver.FontParameterLanguages.TryGetValue(__result.Pointer, out language);
 
-            if (!KupoUIPRPlugin.TryGetFontConfig(type, language, out var configEntry)) return;
+            if (!FontResolver.TryGetFontConfig(type, language, out var configEntry)) return;
 
             var fontName = configEntry.FontName;
             if (string.IsNullOrEmpty(fontName) || string.Equals(fontName, "Arial", StringComparison.OrdinalIgnoreCase)) return;
@@ -105,7 +105,7 @@ namespace KupoUI.PR.Patches
         private static Font GetOrCreateFont(string fontName, int fontSize)
         {
             var cacheKey = $"{fontName}_{fontSize}";
-            if (KupoUIPRPlugin.LoadedFonts.TryGetValue(cacheKey, out var fontInstance))
+            if (FontResolver.LoadedFonts.TryGetValue(cacheKey, out var fontInstance))
             {
                 return fontInstance;
             }
@@ -115,7 +115,7 @@ namespace KupoUI.PR.Patches
                 fontInstance = Font.CreateDynamicFontFromOSFont(fontName, fontSize);
                 if (fontInstance != null)
                 {
-                    KupoUIPRPlugin.LoadedFonts[cacheKey] = fontInstance;
+                    FontResolver.LoadedFonts[cacheKey] = fontInstance;
                     KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Successfully created dynamic font from OS: '{fontName}' at size {fontSize}");
                     return fontInstance;
                 }
