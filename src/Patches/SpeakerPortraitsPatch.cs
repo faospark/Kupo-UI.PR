@@ -14,6 +14,12 @@ namespace KupoUI.PR.Patches;
 [HarmonyPatch]
 internal static class SpeakerPortraitsPatch
 {
+    private class OriginalPosition
+    {
+        public Vector3 Value;
+    }
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MessageWindowView, OriginalPosition> _originalNewPageImagePositions = new();
+
     private static readonly Dictionary<string, Sprite> _portraitCache = new(StringComparer.OrdinalIgnoreCase);
     private static List<string> _cachedFolders;
 
@@ -460,6 +466,37 @@ internal static class SpeakerPortraitsPatch
         rectTransform.localScale = shouldFlip ? new Vector3(-1f, 1f, 1f) : Vector3.one;
     }
 
+    private static void SetNewPageImagePosition(MessageWindowView view, bool active)
+    {
+        if (view == null) return;
+        var newPageImage = view.transform.Find("message_root/message_root/icon_root/new_page_image");
+        if (newPageImage == null) return;
+
+        if (active)
+        {
+            if (!_originalNewPageImagePositions.TryGetValue(view, out _))
+            {
+                _originalNewPageImagePositions.Add(view, new OriginalPosition { Value = newPageImage.localPosition });
+            }
+            newPageImage.localPosition = new Vector3(140f, 0f, 0f);
+            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
+            {
+                KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Set new_page_image position to (140.0, 0.0, 0.0)");
+            }
+        }
+        else
+        {
+            if (_originalNewPageImagePositions.TryGetValue(view, out var orig))
+            {
+                newPageImage.localPosition = orig.Value;
+                if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Reset new_page_image position to {orig.Value}");
+                }
+            }
+        }
+    }
+
     private static void InjectPortrait(MessageWindowView view, string speakerId, string speakerName, string imagePath)
     {
         if (view == null) return;
@@ -499,6 +536,8 @@ internal static class SpeakerPortraitsPatch
                 if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset lastText position to (0.0, 0.0, 0.0)");
             }
 
+            SetNewPageImagePosition(view, false);
+
             // Set all custom portraits to inactive
             for (int i = 0; i < parent.childCount; i++)
             {
@@ -534,8 +573,11 @@ internal static class SpeakerPortraitsPatch
             }
             if (lastText != null)
             {
-                lastText.localPosition = new Vector3(129.5999f, 0f, 0f);
+                lastText.localPosition = new Vector3(130f + KupoUIPRPlugin.SpeakerPortraitsTextOffsetConfig.Value, 0f, 0f);
             }
+
+            SetNewPageImagePosition(view, true);
+
             var rect = existingPortrait.GetComponent<RectTransform>();
             ApplyPaddingAndSizing(rect, shouldFlip);
             return;
@@ -547,6 +589,8 @@ internal static class SpeakerPortraitsPatch
             // Reset to defaults directly if sprite failed to load
             if (battleWindow != null) battleWindow.localScale = Vector3.one;
             if (lastText != null) lastText.localPosition = Vector3.zero;
+
+            SetNewPageImagePosition(view, false);
 
             // Set all custom portraits to inactive
             for (int i = 0; i < parent.childCount; i++)
@@ -568,9 +612,11 @@ internal static class SpeakerPortraitsPatch
         }
         if (lastText != null)
         {
-            lastText.localPosition = new Vector3(129.5999f, 0f, 0f);
-            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Set lastText position to 129.5999");
+            lastText.localPosition = new Vector3(130f + KupoUIPRPlugin.SpeakerPortraitsTextOffsetConfig.Value, 0f, 0f);
+            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Set lastText position to {lastText.localPosition.x}");
         }
+
+        SetNewPageImagePosition(view, true);
 
         if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
         {
@@ -621,6 +667,8 @@ internal static class SpeakerPortraitsPatch
 
         var lastText = view.transform.Find("message_root/message_root/root/last_text");
         if (lastText != null) lastText.localPosition = Vector3.zero;
+
+        SetNewPageImagePosition(view, false);
     }
 
     // ── HARMONY HOOKS ────────────────────────────────────────────────────

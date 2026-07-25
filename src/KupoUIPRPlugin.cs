@@ -47,6 +47,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> DiagnosticPortraitLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SpeakerPortraitsPaddingConfig { get; private set; } = null!;
+    internal static ConfigEntry<float> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
 
     /// <summary>
     /// Speaker ID → display name registrations loaded from the "speakers" block of speaker-names.json.
@@ -112,8 +113,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
         DialogueFontSizeConfig = Config.Bind(
             "UI-Dialog",
             "DialogueFontSize",
-            "36",
-            "Font size to use for Dialogue Text UI. Default is 36. This value can scale up to 48-ish; you can even set to Auto to use the font's declared size in game");
+            "Auto",
+            "Font size to use for Dialogue Text UI. Default is Auto. This value can scale up to 48-ish; you can even set to Auto to use the font's declared size in game");
 
         MessageSpeakerPrefixConfig = Config.Bind(
             "UI-Dialog",
@@ -150,6 +151,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "SpeakerPortraitsPadding",
             "0,0,0,0",
             "Padding for speaker portraits. Format: 'left,top,right,bottom' in pixels (e.g. '10,15,0,20').");
+
+        SpeakerPortraitsTextOffsetConfig = Config.Bind(
+            "UI-Dialog",
+            "SpeakerPortraitsTextOffset",
+            0f,
+            "X-axis offset (in pixels) for the dialogue text box (lastText) when speaker portraits are active. Positive values move it to the right, negative values to the left. -75 is recommended for FF2 ");
 
         UIThemesFolderConfig = Config.Bind(
             "UI and Customizations",
@@ -283,6 +290,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"EnableSpeakerPortraits = {EnableSpeakerPortraitsConfig.Value}");
         Log.LogInfo($"PortraitLogging = {DiagnosticPortraitLoggingConfig.Value}");
         Log.LogInfo($"SpeakerPortraitsPadding = {SpeakerPortraitsPaddingConfig.Value}");
+        Log.LogInfo($"SpeakerPortraitsTextOffset = {SpeakerPortraitsTextOffsetConfig.Value}");
 
         LoadSpeakerNames();
         LoadMenuPortraitMaps();
@@ -638,12 +646,10 @@ Example fontconfig.json (Limited Scope Override):
 {
   ""En"": {
     ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
-    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
-    ""Font08"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
-    ""Font09"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  },
-    ""Font10"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.85  }
+    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  }
   }
 }
+The example above replaced the horrible font used for the English langauge of the game. 
 
 Supported Languages:
 - En (English)
@@ -679,11 +685,8 @@ BASELINE TEMPLATE DEFAULT VALUES (Copy keys/blocks from here into fontconfig.jso
 @"{" + "\n" +
 @"  ""NOTE"": ""To customize fonts, define desired language blocks or font keys here. See font-help.txt for all baseline default values.""," + "\n" +
 @"  ""En"": {" + "\n" +
-@"    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
-@"    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.88 }," + "\n" +
-@"    ""Font08"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.88 }," + "\n" +
-@"    ""Font09"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.88 }," + "\n" +
-@"    ""Font10"": { ""FontName"": ""Courier New"", ""LineSpace"": 0.88 }" + "\n" +
+@"    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.90 }," + "\n" +
+@"    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.90 }," + "\n" +
 @"  }" + "\n" +
 @"}";
                 File.WriteAllText(configPath, minimalConfigJson);
