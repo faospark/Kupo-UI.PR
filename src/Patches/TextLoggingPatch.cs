@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
 using HarmonyLib;
+using Last.Management;
+using Last.Message;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,6 +12,7 @@ namespace KupoUI.PR.Patches
     internal static class TextLoggingPatch
     {
         private static readonly ConcurrentDictionary<IntPtr, string> _lastLoggedValues = new();
+        internal static readonly ConcurrentDictionary<string, string> ValueToKeyMap = new(StringComparer.Ordinal);
 
         [HarmonyPrefix]
         private static void TextSetterPrefix(Text __instance, ref string value)
@@ -40,8 +43,15 @@ namespace KupoUI.PR.Patches
             {
                 return;
             }
+
+            // Find matching localization key if available
+            string key = "None";
+            if (ValueToKeyMap.TryGetValue(value, out var resolvedKey))
+            {
+                key = resolvedKey;
+            }
             
-            KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Value: '{value}'");
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{key}' | Value: '{value}'");
         }
 
         private static string GetGameObjectPath(GameObject obj)
@@ -56,6 +66,22 @@ namespace KupoUI.PR.Patches
                 path = current.name + "/" + path;
             }
             return path;
+        }
+    }
+
+    [HarmonyPatch(typeof(MessageManager), nameof(MessageManager.GetMessage), new[] { typeof(string), typeof(bool) })]
+    internal static class MessageManagerGetMessagePatch
+    {
+        [HarmonyPostfix]
+        private static void GetMessagePostfix(string key, bool isReplace, string __result)
+        {
+            if (string.IsNullOrEmpty(key) || string.IsNullOrEmpty(__result))
+            {
+                return;
+            }
+
+            // Keep track of resolved values to map them back to their keys
+            TextLoggingPatch.ValueToKeyMap[__result] = key;
         }
     }
 }
