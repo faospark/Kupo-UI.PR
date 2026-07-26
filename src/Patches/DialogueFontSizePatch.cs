@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using HarmonyLib;
 using Last.Message;
 using UnityEngine;
@@ -55,8 +55,7 @@ internal static class DialogueFontSizePatch
     {
         if (__instance is Text textComp && IsDialogueText(textComp, out var targetSize))
         {
-            if (textComp.fontSize != targetSize)
-                textComp.fontSize = targetSize;
+            ApplyFontSize(textComp, targetSize);
             if (textComp.resizeTextForBestFit)
                 textComp.resizeTextForBestFit = false;
         }
@@ -68,8 +67,7 @@ internal static class DialogueFontSizePatch
     {
         if (__instance is Text textComp && IsDialogueText(textComp, out var targetSize))
         {
-            if (textComp.fontSize != targetSize)
-                textComp.fontSize = targetSize;
+            ApplyFontSize(textComp, targetSize);
             if (textComp.resizeTextForBestFit)
                 textComp.resizeTextForBestFit = false;
         }
@@ -133,6 +131,13 @@ internal static class DialogueFontSizePatch
             text.fontSize = size;
             KupoUIPRPlugin.PluginLog.LogDebug(
                 $"[DialogueFontSize] fontSize set to {size} on '{text.name}'.");
+        }
+
+        if (KupoUIPRPlugin.DialogueTextWrapConfig.Value && text.horizontalOverflow != HorizontalWrapMode.Wrap)
+        {
+            text.horizontalOverflow = HorizontalWrapMode.Wrap;
+            KupoUIPRPlugin.PluginLog.LogDebug(
+                $"[DialogueFontSize] horizontalOverflow set to Wrap on '{text.name}'.");
         }
     }
 }

@@ -39,6 +39,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> SpeakerNameUppercaseConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> HideSpeakerTagConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DialogueTextWrapConfig { get; private set; } = null!;
+    internal static ConfigEntry<int> DialogueLineLengthLimitConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticMessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticLogAllTextsConfig { get; private set; } = null!;
@@ -127,6 +129,18 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "HideSpeakerTag",
             true,
             "If true, hides the speaker name tag bubble by moving it off-screen. Will conflict with older mods that uses the box as portraits");
+
+        DialogueTextWrapConfig = Config.Bind(
+            "UI-Dialog",
+            "DialogueTextWrap",
+            true,
+            "If true, forces built-in text wrapping on dialogue text boxes to prevent horizontal overflow.");
+
+        DialogueLineLengthLimitConfig = Config.Bind(
+            "UI-Dialog",
+            "DialogueLineLengthLimit",
+            0,
+            "If greater than 0, forces dialogue text to wrap at this maximum character count per line. Useful when prepending speaker names to prevent text overflow.");
 
         EnableSpeakerPortraitsConfig = Config.Bind(
             "UI-Dialog",
@@ -280,6 +294,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
         Log.LogInfo($"SpeakerNameUppercase = {SpeakerNameUppercaseConfig.Value}");
         Log.LogInfo($"HideSpeakerTag = {HideSpeakerTagConfig.Value}");
+        Log.LogInfo($"DialogueTextWrap = {DialogueTextWrapConfig.Value}");
+        Log.LogInfo($"DialogueLineLengthLimit = {DialogueLineLengthLimitConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {DiagnosticMessageSpeakerPrefixLoggingConfig.Value}");
         Log.LogInfo($"LogAllTexts = {DiagnosticLogAllTextsConfig.Value}");

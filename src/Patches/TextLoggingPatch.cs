@@ -34,6 +34,12 @@ namespace KupoUI.PR.Patches
 
             // Generate full hierarchy path of the GameObject
             string path = GetGameObjectPath(__instance.gameObject);
+
+            // Skip logging dialogue text components here since they are logged by MessageSpeakerPrefixPatch
+            if (path.Contains("message_window") || path.Contains("last_text") || path.Contains("spekerText"))
+            {
+                return;
+            }
             
             KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Value: '{value}'");
         }

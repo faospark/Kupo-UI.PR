@@ -1,4 +1,5 @@
 using System;
+using System.Text;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Last.Management;
@@ -237,6 +238,11 @@ internal static class MessageSpeakerPrefixPatch
                 try
                 {
                     value = prefix + value;
+                    int limit = KupoUIPRPlugin.DialogueLineLengthLimitConfig.Value;
+                    if (limit > 0)
+                    {
+                        value = WrapText(value, limit);
+                    }
                 }
                 finally
                 {
@@ -281,5 +287,128 @@ internal static class MessageSpeakerPrefixPatch
         }
 
         return null;
+    }
+
+    internal static string WrapText(string text, int maxCharsPerLine)
+    {
+        if (string.IsNullOrEmpty(text) || maxCharsPerLine <= 0)
+            return text;
+
+        // Normalize newlines to spaces, avoiding double spaces if adjacent spaces already exist
+        string tempText = text.Replace("\r\n", "\n");
+        StringBuilder sb = new StringBuilder();
+        for (int j = 0; j < tempText.Length; j++)
+        {
+            if (tempText[j] == '\n')
+            {
+                bool hasAdjacentSpace = (j > 0 && tempText[j - 1] == ' ') || 
+                                       (j < tempText.Length - 1 && tempText[j + 1] == ' ');
+                if (!hasAdjacentSpace)
+                {
+                    sb.Append(' ');
+                }
+            }
+            else
+            {
+                sb.Append(tempText[j]);
+            }
+        }
+        string normalized = sb.ToString();
+
+        // Check if there are spaces. If not (e.g. Japanese), wrap by character.
+        bool useCharWrap = !normalized.Contains(" ");
+
+        StringBuilder result = new StringBuilder();
+        int currentLineLength = 0;
+        int i = 0;
+
+        while (i < normalized.Length)
+        {
+            // Parse rich-text tags without counting their length
+            if (normalized[i] == '<')
+            {
+                int tagClose = normalized.IndexOf('>', i);
+                if (tagClose != -1)
+                {
+                    string tag = normalized.Substring(i, tagClose - i + 1);
+                    result.Append(tag);
+                    i = tagClose + 1;
+                    continue;
+                }
+            }
+
+            if (useCharWrap)
+            {
+                // Character wrap: append character by character
+                char c = normalized[i];
+                if (currentLineLength >= maxCharsPerLine)
+                {
+                    result.Append('\n');
+                    currentLineLength = 0;
+                }
+                result.Append(c);
+                currentLineLength++;
+                i++;
+            }
+            else
+            {
+                // Word wrap: find next space or tag
+                int nextSpace = normalized.IndexOf(' ', i);
+                int nextTag = normalized.IndexOf('<', i);
+                int endOfToken = normalized.Length;
+
+                if (nextSpace != -1 && nextSpace < endOfToken) endOfToken = nextSpace;
+                if (nextTag != -1 && nextTag < endOfToken) endOfToken = nextTag;
+
+                string token = normalized.Substring(i, endOfToken - i);
+                int tokenLength = token.Length;
+
+                if (currentLineLength + tokenLength > maxCharsPerLine && currentLineLength > 0)
+                {
+                    result.Append('\n');
+                    currentLineLength = 0;
+                    if (token == " ")
+                    {
+                        i = endOfToken;
+                        continue;
+                    }
+                }
+
+                result.Append(token);
+                currentLineLength += tokenLength;
+                i = endOfToken;
+
+                if (i < normalized.Length && normalized[i] == ' ')
+                {
+                    int lookAhead = i + 1;
+                    while (lookAhead < normalized.Length && normalized[lookAhead] == ' ')
+                    {
+                        lookAhead++;
+                    }
+
+                    int nextWordEnd = lookAhead;
+                    while (nextWordEnd < normalized.Length && normalized[nextWordEnd] != ' ' && normalized[nextWordEnd] != '<')
+                    {
+                        nextWordEnd++;
+                    }
+                    int nextWordLength = nextWordEnd - lookAhead;
+
+                    if (currentLineLength + 1 + nextWordLength > maxCharsPerLine)
+                    {
+                        result.Append('\n');
+                        currentLineLength = 0;
+                        i = lookAhead;
+                    }
+                    else
+                    {
+                        result.Append(' ');
+                        currentLineLength++;
+                        i++;
+                    }
+                }
+            }
+        }
+
+        return result.ToString();
     }
 }
