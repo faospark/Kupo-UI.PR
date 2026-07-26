@@ -1,5 +1,6 @@
 using System;
 using HarmonyLib;
+using KupoUI.PR.Compatibility;
 using KupoUI.PR.ObjectConfig;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -185,6 +186,7 @@ internal static class ObjectConfigPatch
     [HarmonyPostfix]
     private static void SceneLoadedPostfix(Scene scene, LoadSceneMode mode)
     {
+        ExternalModDetector.LogLoadedOptionalMods(KupoUIPRPlugin.PluginLog);
         var sceneName = scene.name;
         KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Scene loaded: '{sceneName}' (mode={mode}). Scanning hierarchy...");
 

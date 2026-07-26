@@ -258,8 +258,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
             CursorsFolderConfig.Value,
             ButtonPromptsFolderConfig.Value);
 
-        ExternalModDetector.LogLoadedOptionalMods(Log);
-
         var harmony = new Harmony(PluginGuid);
         harmony.PatchAll();
         ForceVSyncPatch.ApplyNow();
