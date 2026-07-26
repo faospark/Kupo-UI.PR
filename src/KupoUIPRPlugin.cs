@@ -41,6 +41,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> HideSpeakerTagConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticMessageSpeakerPrefixLoggingConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticLogAllTextsConfig { get; private set; } = null!;
     internal static bool IsTextureLoggerEnabled { get; private set; }
 
     internal static ConfigEntry<bool> EnableSpeakerPortraitsConfig { get; private set; } = null!;
@@ -194,6 +195,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             false,
             "If true, logs speaker name replacements.");
 
+        DiagnosticLogAllTextsConfig = Config.Bind(
+            "Z - Diagnostics",
+            "LogAllTexts",
+            false,
+            "If true, logs all texts assigned to UnityEngine.UI.Text components to the console.");
+
         DiagnosticTextureLoggerConfig = Config.Bind(
             "Z - Diagnostics",
             "TextureLogger",
@@ -275,6 +282,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"HideSpeakerTag = {HideSpeakerTagConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefixLogging = {DiagnosticMessageSpeakerPrefixLoggingConfig.Value}");
+        Log.LogInfo($"LogAllTexts = {DiagnosticLogAllTextsConfig.Value}");
         Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
         Log.LogInfo($"DiagnosticsLogFontMapping = {DiagnosticsLogFontMappingConfig.Value}");
 
