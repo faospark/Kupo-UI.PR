@@ -735,7 +735,6 @@ public sealed class KupoUIPRPlugin : BasePlugin
             if (speakerId != null || speakerName != null)
             {
                 MessageSpeakerOverrides[msgKey] = (speakerId, speakerName);
-                PluginLog.LogInfo($"[SpeakerNames] Message override: '{msgKey}' → speakerId='{speakerId ?? "(keep)"}' speakerName='{speakerName ?? "(keep)"}'.");
             }
         }
     }

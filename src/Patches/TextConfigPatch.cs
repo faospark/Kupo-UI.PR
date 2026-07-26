@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using HarmonyLib;
 using KupoUI.PR.TextConfig;
@@ -13,6 +14,9 @@ namespace KupoUI.PR.Patches
     {
         private static bool _isApplyingText;
         private static string _cachedLanguage;
+        // Populated by GetMessagePostfix: maps resolved text value → its message key.
+        // Used to reverse-look up the real system ID (e.g. MSG_ITEM_NAME_38) from item name strings.
+        internal static readonly Dictionary<string, string> ReverseMessageMap = new(StringComparer.Ordinal);
 
         internal static void Initialize(string modulesRootPath)
         {
@@ -124,6 +128,13 @@ namespace KupoUI.PR.Patches
         [HarmonyPostfix]
         private static void GetMessagePostfix(string key, bool isReplace, ref string __result)
         {
+            // Cache the raw game value before any overrides so we can reverse-look up the real key from a name string.
+            if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(__result))
+            {
+                string cleanRaw = Regex.Replace(__result, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+                ReverseMessageMap[cleanRaw] = key;
+            }
+
             var entries = TextConfigLoader.Entries;
             if (entries.Count == 0 || string.IsNullOrEmpty(__result)) return;
 
@@ -334,6 +345,9 @@ namespace KupoUI.PR.Patches
         // Nested helper class to isolate JIT references to Last.UI.ItemListContentData
         private static class ItemListContentViewHelper
         {
+            // Prefix populates this; Postfix reads it — avoids re-scanning entries with hard-coded key formats.
+            private static readonly Dictionary<int, string> _pendingIconSwaps = new();
+
             internal static void ProcessUpdateView(Il2CppSystem.Object cellObj, Il2CppSystem.Object dataObj)
             {
                 var data = dataObj.TryCast<Last.UI.ItemListContentData>();
@@ -349,22 +363,28 @@ namespace KupoUI.PR.Patches
                 // Override details
                 string overriddenName = name;
                 string overriddenDesc = description;
-                OverrideItem(itemId, ref overriddenName, ref overriddenDesc);
+                OverrideItem(itemId, ref overriddenName, ref overriddenDesc, out string matchedNameKey);
 
-                if (overriddenName != name)
+                var icMatch = Regex.Match(overriddenName, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                if (icMatch.Success && KupoUI.PR.IconsConfig.IconsConfigLoader.HasSprite(icMatch.Groups[1].Value))
                 {
-                    // Map any custom <IC_...> tag to the native <IC_BAG> tag so the native engine
-                    // builds and enables the icon layout hierarchy for this item slot.
-                    if (Regex.IsMatch(overriddenName, @"<IC_[A-Za-z0-9_]+>", RegexOptions.IgnoreCase))
-                    {
-                        string nativeName = Regex.Replace(overriddenName, @"<IC_[A-Za-z0-9_]+>", "<IC_BAG>", RegexOptions.IgnoreCase);
-                        data._Name_k__BackingField = nativeName;
-                    }
-                    else
+                    string tag = icMatch.Groups[1].Value;
+                    _pendingIconSwaps[itemId] = tag;
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Prefix: item ID {itemId} | tag '{tag}' stashed (key: '{matchedNameKey}')");
+                    
+                    string nativeName = Regex.Replace(overriddenName, @"<IC_[A-Za-z0-9_]+>", "<IC_BAG>", RegexOptions.IgnoreCase);
+                    data._Name_k__BackingField = nativeName;
+                }
+                else
+                {
+                    _pendingIconSwaps.Remove(itemId);
+                    if (overriddenName != name)
                     {
                         data._Name_k__BackingField = overriddenName;
                     }
                 }
+
                 if (overriddenDesc != description)
                 {
                     data._Description_k__BackingField = overriddenDesc;
@@ -378,29 +398,10 @@ namespace KupoUI.PR.Patches
 
                 int itemId = data.ItemId;
 
-                // To get the overridden name with the custom tag, we need to look up the TextConfig
-                // entries directly by item key, since the data.Name backing field has already been
-                // rewritten to the <IC_BAG>-mapped version by the Prefix.
-                string tagName = null;
-                string nameKey = $"MSG_ITEM_{itemId}";
-                string nameAltKey = $"ITEM_{itemId}";
-                foreach (var entry in TextConfigLoader.Entries)
-                {
-                    if (!TextConfigPatch.MatchesLanguage(entry.Language)) continue;
-                    if (!string.IsNullOrEmpty(entry.Key) &&
-                        (string.Equals(entry.Key, nameKey, StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(entry.Key, nameAltKey, StringComparison.OrdinalIgnoreCase)))
-                    {
-                        var m = Regex.Match(entry.NewText, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
-                        if (m.Success)
-                        {
-                            tagName = m.Groups[1].Value;
-                            break;
-                        }
-                    }
-                }
-
-                if (tagName == null) return;
+                // The Prefix already resolved the correct tag via OverrideItem (which handles all key formats).
+                // Simply consume what it stashed — no re-scanning needed, no key-format collisions possible.
+                if (!_pendingIconSwaps.TryGetValue(itemId, out string tagName))
+                    return;
 
                 var cell = cellObj.TryCast<Last.UI.ItemListContentView>();
                 if (cell != null)
@@ -415,7 +416,7 @@ namespace KupoUI.PR.Patches
                             if (iconTextComp != null)
                             {
                                 if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
-                                    KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Postfix: Swapping native icon with custom sprite for tag '{tagName}' on item ID {itemId}.");
+                                    KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Postfix: swapped sprite for tag '{tagName}' on item ID {itemId}.");
 
                                 // 1. Activate the icon container (iconBase field) that UseIconImage enables
                                 var iconBase = iconTextComp.iconBase;
@@ -453,35 +454,53 @@ namespace KupoUI.PR.Patches
                 }
             }
 
+            private static string GetCleanText(string text)
+            {
+                if (string.IsNullOrEmpty(text)) return text;
+                return Regex.Replace(text, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+            }
+
             private static void LogItem(int itemId, string name, string description)
             {
                 if (!KupoUIPRPlugin.DiagnosticLogAllTextsConfig.Value) return;
 
                 if (!string.IsNullOrEmpty(name))
                 {
-                    string key = $"MSG_ITEM_{itemId}";
+                    string cleanName = GetCleanText(name);
+                    // Resolve real system key via reverse map (e.g. MSG_ITEM_NAME_38 not MSG_ITEM_9)
+                    string realNameKey = TextConfigPatch.ReverseMessageMap.TryGetValue(cleanName, out var rk) ? rk : $"MSG_ITEM_{itemId}";
                     string path = $"Inventory/ItemSlot/{itemId}/Name";
                     if (!TextLoggingPatch.IsLogged(path, name))
                     {
-                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{key}' | Value: '{name}'");
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{realNameKey}' | Value: '{name}'");
                     }
                 }
 
                 if (!string.IsNullOrEmpty(description))
                 {
-                    string key = $"MSG_ITEM_DESC_{itemId}";
+                    string cleanDesc = GetCleanText(description);
+                    string realDescKey = TextConfigPatch.ReverseMessageMap.TryGetValue(cleanDesc, out var dk) ? dk : $"MSG_ITEM_DESC_{itemId}";
                     string path = $"Inventory/ItemSlot/{itemId}/Description";
                     if (!TextLoggingPatch.IsLogged(path, description))
                     {
-                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{key}' | Value: '{description}'");
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{realDescKey}' | Value: '{description}'");
                     }
                 }
             }
 
-            private static void OverrideItem(int itemId, ref string name, ref string description)
+            private static void OverrideItem(int itemId, ref string name, ref string description, out string matchedNameKey)
             {
+                matchedNameKey = null;
                 var entries = TextConfigLoader.Entries;
                 if (entries.Count == 0) return;
+
+                string cleanName = GetCleanText(name);
+                string cleanDesc = GetCleanText(description);
+
+                // Prefer the real system key resolved from the reverse map (e.g. MSG_ITEM_NAME_38).
+                // Fall back to slot-position keys only if not found.
+                string realNameKey = TextConfigPatch.ReverseMessageMap.TryGetValue(cleanName, out var rk) ? rk : null;
+                string realDescKey = TextConfigPatch.ReverseMessageMap.TryGetValue(cleanDesc, out var dk) ? dk : null;
 
                 string nameKey = $"MSG_ITEM_{itemId}";
                 string nameAltKey = $"ITEM_{itemId}";
@@ -497,12 +516,17 @@ namespace KupoUI.PR.Patches
                     {
                         if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(name, entry.OriginalText, StringComparison.Ordinal))
                         {
+                            matchedNameKey = $"(OriginalText) {entry.OriginalText}";
                             name = entry.NewText;
                         }
                         else if (!string.IsNullOrEmpty(entry.Key) &&
-                                 (string.Equals(entry.Key, nameKey, StringComparison.OrdinalIgnoreCase) ||
+                                 (// Real system key (e.g. MSG_ITEM_NAME_38)
+                                  (!string.IsNullOrEmpty(realNameKey) && string.Equals(entry.Key, realNameKey, StringComparison.OrdinalIgnoreCase)) ||
+                                  // Slot-position fallback keys
+                                  string.Equals(entry.Key, nameKey, StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(entry.Key, nameAltKey, StringComparison.OrdinalIgnoreCase)))
                         {
+                            matchedNameKey = entry.Key;
                             name = entry.NewText;
                         }
                     }
@@ -515,7 +539,8 @@ namespace KupoUI.PR.Patches
                             description = entry.NewText;
                         }
                         else if (!string.IsNullOrEmpty(entry.Key) &&
-                                 (string.Equals(entry.Key, descKey, StringComparison.OrdinalIgnoreCase) ||
+                                 ((!string.IsNullOrEmpty(realDescKey) && string.Equals(entry.Key, realDescKey, StringComparison.OrdinalIgnoreCase)) ||
+                                  string.Equals(entry.Key, descKey, StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(entry.Key, descAltKey, StringComparison.OrdinalIgnoreCase)))
                         {
                             description = entry.NewText;

@@ -111,6 +111,11 @@ namespace KupoUI.PR.IconsConfig
             }
         }
 
+        internal static bool HasSprite(string tag)
+        {
+            return !string.IsNullOrEmpty(tag) && _sprites.ContainsKey(tag);
+        }
+
         internal static Sprite GetSprite(string tag)
         {
             if (_sprites.TryGetValue(tag, out var sprite))
