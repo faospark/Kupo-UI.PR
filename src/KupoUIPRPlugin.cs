@@ -87,7 +87,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "FontSwap",
             "Enabled",
             false,
-            "If true, swaps default game fonts with custom fonts defined in Modules/Shared/Fonts/fontconfig.json.");
+            "If true, swaps default game fonts with custom fonts defined in Modules/Shared/fontconfig.json.");
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
@@ -290,6 +290,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         harmony.PatchAll();
         ForceVSyncPatch.ApplyNow();
         ObjectConfigPatch.Initialize(ModulesRootPath);
+        TextConfigPatch.Initialize(ModulesRootPath);
 
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");
@@ -317,6 +318,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
         LoadSpeakerNames();
         LoadMenuPortraitMaps();
+        WriteTextConfigSample();
     }
 
 
@@ -628,6 +630,42 @@ public sealed class KupoUIPRPlugin : BasePlugin
                 continue;
             }
             MenuPortraitMap[key] = m.Groups[2].Value;
+        }
+    }
+
+    private void WriteTextConfigSample()
+    {
+        var defaultDir = Path.Combine(ModulesRootPath, "Shared");
+        var samplePath = Path.Combine(defaultDir, "TextConfig-sample.json");
+        try
+        {
+            if (!Directory.Exists(defaultDir))
+            {
+                Directory.CreateDirectory(defaultDir);
+            }
+
+            var sampleJson =
+@"{
+  ""_comment"": ""TextConfig-sample.json — Scopes language and overrides menu and dialogue texts additively."",
+  ""Language"": ""En"",
+  ""texts"": {
+    ""MSG_SYSTEM_002"": ""Go Back!"",
+    ""MSG_SYSTEM_022"": ""Confirm Override"",
+    ""Confirm"": ""Yes""
+  },
+  ""objects"": [
+    {
+      ""TargetObjectName"": ""value_text"",
+      ""TargetPath"": ""LocationParent/location/value_text"",
+      ""NewText"": ""Tower of Worship (Modified)""
+    }
+  ]
+}";
+            File.WriteAllText(samplePath, sampleJson);
+        }
+        catch (Exception ex)
+        {
+            PluginLog.LogWarning($"[TextConfig] Could not write sample file: {ex.Message}");
         }
     }
 

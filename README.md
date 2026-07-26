@@ -22,6 +22,9 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
   - [Fields](#fields)
   - [When Rules Are Applied](#when-rules-are-applied)
   - [Text Alignment Values](#text-alignment-values)
+- [TextConfig.json — Data-Driven Text Customization](#textconfigjson--data-driven-text-customization)
+  - [File Format](#file-format-1)
+  - [Language Scoping](#language-scoping)
 - [Title Screen](#title-screen)
   - [Title Screen Background Color](#title-screen-background-color)
   - [Title Screen Full Background Image](#title-screen-full-background-image)
@@ -51,6 +54,7 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
 - Optional sidecar JSON metadata per texture (size, pivot, border, filter, flip, etc.)
 - DDS texture support (DXT1, DXT5, uncompressed RGBA32)
 - Data-driven GameObject tweaks via `ObjectConfig.json` (no C# required)
+- Data-driven menu and UI text customization/localization via `TextConfig.json` (no C# required)
 - Custom full-screen title background image injection
 - Configurable title screen background color
 - Speaker name prepended to dialogue messages
@@ -104,7 +108,7 @@ BepInEx/config/faospark.kupoui.pr.cfg
 
 | Section                 | Key                           | Default    | Description                                                                                                                   |
 | ----------------------- | ----------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/Shared/Fonts/`.                                                  |
+| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/Shared/`.                                                        |
 | `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`. |
 | `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                              |
 | `UI`                    | `TitleScreenBgColor`          | `original` | Title screen background color. Options: `original`, `white`, `black`, `navy`, `crimson`, `violet`.                            |
@@ -154,9 +158,8 @@ Recommended structure created automatically on first run:
     03-UI-BgColor/        ← UI background color packs
     04-UI-Cursors/        ← cursor texture packs
     05-Button-Prompts/    ← button prompt texture packs
-    Shared/               ← cross-game textures, speaker portraits, and custom font configurations
+    Shared/               ← cross-game textures, speaker portraits, and custom font/text configurations (fontconfig.json, TextConfig-sample.json)
       SpeakerPortraits/   ← portrait images resolved by speaker ID
-      Fonts/              ← font configuration files (fontconfig.json)
       FF1/                ← FF1-specific textures (game-tag folder)
       FF2/
       FF3/
@@ -440,6 +443,56 @@ Values are case-insensitive. If the object has no corresponding component (`Text
 
 ---
 
+## TextConfig.json — Data-Driven Text Customization
+
+Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere recursively under the `Modules/` directory. They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
+
+### File Format
+
+`TextConfig.json` files support:
+1. **`Language`**: (Optional) Declared at the file root level to scope all rules inside this file to a specific game language.
+2. **`texts`**: A simple key-value dictionary (`"Key": "ReplacementText"`) to quickly replace localization strings by their database ID (e.g. `MSG_SYSTEM_002`) or original string.
+3. **`objects`**: An array of GameObject override rules (similar to `ObjectConfig.json` targets) to replace the text of specific UI elements by their path/name hierarchy.
+
+#### Example `TextConfig.json`
+
+```json
+{
+  "Language": "Ja",
+  "texts": {
+    "MSG_SYSTEM_002": "HHELLO WORLD",
+    "MSG_SYSTEM_022": "戻る",
+    "Confirm": "はい"
+  },
+  "objects": [
+    {
+      "TargetObjectName": "value_text",
+      "TargetPath": "LocationParent/location/value_text",
+      "NewText": "別のテキスト"
+    }
+  ]
+}
+```
+
+### Language Scoping
+
+If the `"Language"` parameter is set, the text overrides will only apply when that language is active in the game's settings. 
+
+Supported language values:
+* `En` (English)
+* `Ja` (Japanese)
+* `Fr` (French)
+* `De` (German)
+* `It` (Italian)
+* `Ru` (Russian)
+* `Pt` (Portuguese)
+* `Th` (Thai)
+* `Ko` (Korean)
+* `Zht` (Traditional Chinese)
+* `Zhc` (Simplified Chinese)
+
+---
+
 ## Title Screen
 
 ### Title Screen Background Color
@@ -686,7 +739,7 @@ This identifies which `FontType` enum value corresponds to which language and de
 #### File Locations
 
 ```
-<GameRoot>/Modules/Shared/Fonts/
+<GameRoot>/Modules/Shared/
   fontconfig.json         ← your active font configuration
   font-help.txt           ← auto-generated help guide (contains baseline defaults at the bottom)
 ```

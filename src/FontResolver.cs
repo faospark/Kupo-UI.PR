@@ -112,7 +112,7 @@ namespace KupoUI.PR
             LoadedFonts.Clear();
             SwappedFontYOffsets.Clear();
 
-            var fontsDir = Path.Combine(_modulesRootPath, "Shared", "Fonts");
+            var fontsDir = Path.Combine(_modulesRootPath, "Shared");
             var configPath = Path.Combine(fontsDir, "fontconfig.json");
 
             if (!Directory.Exists(fontsDir))
