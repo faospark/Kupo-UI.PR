@@ -19,6 +19,45 @@ namespace KupoUI.PR.Patches
             KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Patch initialized.");
         }
 
+        internal static void PatchItemListContentData(Harmony harmony)
+        {
+            var viewType = AccessTools.TypeByName("Last.UI.ItemListContentView");
+            if (viewType != null)
+            {
+                try
+                {
+                    var updateViewMethod = AccessTools.Method(viewType, "UpdateView");
+                    if (updateViewMethod != null)
+                    {
+                        harmony.Patch(updateViewMethod, prefix: new HarmonyMethod(typeof(TextConfigPatch), nameof(ItemListContentViewUpdateViewPrefix)));
+                        KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Dynamically patched Last.UI.ItemListContentView.UpdateView.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch ItemListContentView: {ex}");
+                }
+            }
+
+            var iconTextViewType = AccessTools.TypeByName("Last.UI.IconTextView");
+            if (iconTextViewType != null)
+            {
+                try
+                {
+                    var setTextMethod = AccessTools.Method(iconTextViewType, "SetText", new[] { typeof(string) });
+                    if (setTextMethod != null)
+                    {
+                        harmony.Patch(setTextMethod, prefix: new HarmonyMethod(typeof(TextConfigPatch), nameof(IconTextViewSetTextPrefix)));
+                        KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Dynamically patched Last.UI.IconTextView.SetText.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch IconTextView: {ex}");
+                }
+            }
+        }
+
         private static string GetCurrentLanguage()
         {
             if (_cachedLanguage != null) return _cachedLanguage;
@@ -35,7 +74,7 @@ namespace KupoUI.PR.Patches
             return "En";
         }
 
-        private static bool MatchesLanguage(string entryLanguage)
+        internal static bool MatchesLanguage(string entryLanguage)
         {
             if (string.IsNullOrEmpty(entryLanguage)) return true;
             return string.Equals(entryLanguage, GetCurrentLanguage(), StringComparison.OrdinalIgnoreCase);
@@ -131,6 +170,70 @@ namespace KupoUI.PR.Patches
             }
         }
 
+        // ── DYNAMIC ITEM OVERRIDES PREFIXES ──────────────────────────────────
+        private static void ItemListContentViewUpdateViewPrefix(object[] __args)
+        {
+            if (__args == null || __args.Length == 0) return;
+
+            try
+            {
+                var dataObj = __args[0] as Il2CppSystem.Object;
+                if (dataObj != null && dataObj.Pointer != IntPtr.Zero)
+                {
+                    ItemListContentViewHelper.ProcessUpdateView(dataObj);
+                }
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in UpdateView prefix: {ex}");
+            }
+        }
+
+        private static void IconTextViewSetTextPrefix(object[] __args)
+        {
+            if (__args == null || __args.Length == 0) return;
+
+            try
+            {
+                string value = __args[0] as string;
+                if (string.IsNullOrEmpty(value)) return;
+
+                if (KupoUIPRPlugin.DiagnosticLogAllTextsConfig.Value)
+                {
+                    string path = "IconTextView/Name";
+                    if (!TextLoggingPatch.IsLogged(path, value))
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: 'None' | Value: '{value}'");
+                    }
+                }
+
+                string newValue = value;
+                OverrideByOriginalText(ref newValue);
+                __args[0] = newValue;
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in SetText prefix: {ex}");
+            }
+        }
+
+        private static void OverrideByOriginalText(ref string value)
+        {
+            var entries = TextConfigLoader.Entries;
+            if (entries.Count == 0) return;
+
+            foreach (var entry in entries)
+            {
+                if (!MatchesLanguage(entry.Language)) continue;
+
+                if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(value, entry.OriginalText, StringComparison.Ordinal))
+                {
+                    value = entry.NewText;
+                    return;
+                }
+            }
+        }
+
         // ── HELPERS ───────────────────────────────────────────────────────────
 
         private static void ApplyToHierarchy(GameObject go, string sceneName)
@@ -207,6 +310,108 @@ namespace KupoUI.PR.Patches
                 current = current.parent;
             }
             return true;
+        }
+
+        // Nested helper class to isolate JIT references to Last.UI.ItemListContentData
+        private static class ItemListContentViewHelper
+        {
+            internal static void ProcessUpdateView(Il2CppSystem.Object dataObj)
+            {
+                var data = dataObj.TryCast<Last.UI.ItemListContentData>();
+                if (data == null) return;
+
+                int itemId = data.ItemId;
+                string name = data.Name;
+                string description = data.Description;
+
+                // Log details
+                LogItem(itemId, name, description);
+
+                // Override details
+                string overriddenName = name;
+                string overriddenDesc = description;
+                OverrideItem(itemId, ref overriddenName, ref overriddenDesc);
+
+                if (overriddenName != name)
+                {
+                    data._Name_k__BackingField = overriddenName;
+                }
+                if (overriddenDesc != description)
+                {
+                    data._Description_k__BackingField = overriddenDesc;
+                }
+            }
+
+            private static void LogItem(int itemId, string name, string description)
+            {
+                if (!KupoUIPRPlugin.DiagnosticLogAllTextsConfig.Value) return;
+
+                if (!string.IsNullOrEmpty(name))
+                {
+                    string key = $"MSG_ITEM_{itemId}";
+                    string path = $"Inventory/ItemSlot/{itemId}/Name";
+                    if (!TextLoggingPatch.IsLogged(path, name))
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{key}' | Value: '{name}'");
+                    }
+                }
+
+                if (!string.IsNullOrEmpty(description))
+                {
+                    string key = $"MSG_ITEM_DESC_{itemId}";
+                    string path = $"Inventory/ItemSlot/{itemId}/Description";
+                    if (!TextLoggingPatch.IsLogged(path, description))
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextLog] Path: '{path}' | Key: '{key}' | Value: '{description}'");
+                    }
+                }
+            }
+
+            private static void OverrideItem(int itemId, ref string name, ref string description)
+            {
+                var entries = TextConfigLoader.Entries;
+                if (entries.Count == 0) return;
+
+                string nameKey = $"MSG_ITEM_{itemId}";
+                string nameAltKey = $"ITEM_{itemId}";
+                string descKey = $"MSG_ITEM_DESC_{itemId}";
+                string descAltKey = $"ITEM_DESC_{itemId}";
+
+                foreach (var entry in entries)
+                {
+                    if (!TextConfigPatch.MatchesLanguage(entry.Language)) continue;
+
+                    // 1. Rewrite Name
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(name, entry.OriginalText, StringComparison.Ordinal))
+                        {
+                            name = entry.NewText;
+                        }
+                        else if (!string.IsNullOrEmpty(entry.Key) &&
+                                 (string.Equals(entry.Key, nameKey, StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(entry.Key, nameAltKey, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            name = entry.NewText;
+                        }
+                    }
+
+                    // 2. Rewrite Description
+                    if (!string.IsNullOrEmpty(description))
+                    {
+                        if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(description, entry.OriginalText, StringComparison.Ordinal))
+                        {
+                            description = entry.NewText;
+                        }
+                        else if (!string.IsNullOrEmpty(entry.Key) &&
+                                 (string.Equals(entry.Key, descKey, StringComparison.OrdinalIgnoreCase) ||
+                                  string.Equals(entry.Key, descAltKey, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            description = entry.NewText;
+                        }
+                    }
+                }
+            }
         }
     }
 }

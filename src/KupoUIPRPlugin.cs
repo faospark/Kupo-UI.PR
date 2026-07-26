@@ -291,6 +291,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ForceVSyncPatch.ApplyNow();
         ObjectConfigPatch.Initialize(ModulesRootPath);
         TextConfigPatch.Initialize(ModulesRootPath);
+        TextConfigPatch.PatchItemListContentData(harmony);
 
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");

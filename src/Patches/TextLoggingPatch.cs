@@ -2,27 +2,52 @@ using System;
 using System.Collections.Concurrent;
 using HarmonyLib;
 using Last.Management;
-using Last.Message;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace KupoUI.PR.Patches
 {
-    [HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
+    [HarmonyPatch]
     internal static class TextLoggingPatch
     {
         private static readonly ConcurrentDictionary<IntPtr, string> _lastLoggedValues = new();
+        private static readonly ConcurrentDictionary<string, string> _pathLoggedValues = new(StringComparer.Ordinal);
         internal static readonly ConcurrentDictionary<string, string> ValueToKeyMap = new(StringComparer.Ordinal);
 
+        internal static bool IsLogged(string path, string value)
+        {
+            if (_pathLoggedValues.TryGetValue(path, out var lastValue) && lastValue == value)
+            {
+                return true;
+            }
+            _pathLoggedValues[path] = value;
+            return false;
+        }
+
+        [HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
         [HarmonyPrefix]
         private static void TextSetterPrefix(Text __instance, ref string value)
+        {
+            if (__instance == null || string.IsNullOrEmpty(value)) return;
+            LogTextFromComponent(__instance, value);
+        }
+
+        [HarmonyPatch(typeof(Text), "OnPopulateMesh", new[] { typeof(VertexHelper) })]
+        [HarmonyPostfix]
+        private static void OnPopulateMeshPostfix(Text __instance)
+        {
+            if (__instance == null) return;
+            LogTextFromComponent(__instance, __instance.text);
+        }
+
+        private static void LogTextFromComponent(Text __instance, string value)
         {
             if (!KupoUIPRPlugin.DiagnosticLogAllTextsConfig.Value)
             {
                 return;
             }
 
-            if (__instance == null || string.IsNullOrEmpty(value))
+            if (string.IsNullOrEmpty(value))
             {
                 return;
             }
