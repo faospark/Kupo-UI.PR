@@ -357,10 +357,32 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `ResizeTextMaxSize`    | No       | Sets `Text.resizeTextMaxSize`. Provide an integer.                                                                                                                                                                                                                                                           |
 | `ResizeTextMinSize`    | No       | Sets `Text.resizeTextMinSize`. Provide an integer.                                                                                                                                                                                                                                                           |
 | `TextColorWhite`       | No       | Legacy shortcut to force `Text.color` to white. Use `Color` for custom colors.                                                                                                                                                                                                                               |
-| `Color`                | No       | Forces `Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name (`"red"`, `"white"`), or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). |
+| `Color`                | No       | Forces `Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name, or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). See [Supported Color Names](#supported-color-names) for a list of valid names. |
 | `DisableShadow`        | No       | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                      |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
+
+### Supported Color Names
+
+When using a string for the `Color` field, you can use standard color names or the game's built-in UI text color presets:
+
+#### Standard Colors
+- `white`, `black`, `red`, `green`, `blue`, `yellow`, `cyan`, `magenta`, `gray` (or `grey`), `clear`
+- `navy` (`#000080`), `crimson` (`#DC143C`), `violet` (`#EE82EE`), `orange` (`#FFA500`)
+
+#### Native Game Colors
+These map directly to the game's built-in `Last.UI.TextColors` palette:
+- `resuscitationyellow`
+- `keyhelpblack`
+- `timestampblue`
+- `lightblue`
+- `game_white` (or `gamewhite`)
+- `game_black` (or `gameblack`)
+- `game_yellow` (or `gameyellow`)
+- `game_blue` (or `gameblue`)
+- `game_gray` (or `game_grey` / `gamegray` / `gamegrey`)
+- `game_red` (or `gamered`)
+- `game_green` (or `gamegreen`)
 
 ### When Rules Are Applied
 

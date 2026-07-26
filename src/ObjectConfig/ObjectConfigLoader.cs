@@ -363,6 +363,11 @@ internal static class ObjectConfigLoader
             return true;
         }
 
+        if (TryGetGameColor(str, out color))
+        {
+            return true;
+        }
+
         if (str.StartsWith("#"))
         {
             str = str.Substring(1);
@@ -411,6 +416,64 @@ internal static class ObjectConfigLoader
             }
         }
 
+        return false;
+    }
+
+    private static bool TryGetGameColor(string name, out Color color)
+    {
+        color = default;
+        try
+        {
+            switch (name.ToLowerInvariant())
+            {
+                case "gamewhite":
+                case "game_white":
+                    color = Last.UI.TextColors.White;
+                    return true;
+                case "gameblack":
+                case "game_black":
+                    color = Last.UI.TextColors.Black;
+                    return true;
+                case "gameyellow":
+                case "game_yellow":
+                    color = Last.UI.TextColors.Yellow;
+                    return true;
+                case "gameblue":
+                case "game_blue":
+                    color = Last.UI.TextColors.Blue;
+                    return true;
+                case "gamegray":
+                case "gamegrey":
+                case "game_gray":
+                case "game_grey":
+                    color = Last.UI.TextColors.Gray;
+                    return true;
+                case "gamered":
+                case "game_red":
+                    color = Last.UI.TextColors.Red;
+                    return true;
+                case "gamegreen":
+                case "game_green":
+                    color = Last.UI.TextColors.Green;
+                    return true;
+                case "resuscitationyellow":
+                    color = Last.UI.TextColors.ResuscitationYellow;
+                    return true;
+                case "keyhelpblack":
+                    color = Last.UI.TextColors.KeyHelpBlack;
+                    return true;
+                case "timestampblue":
+                    color = Last.UI.TextColors.TimeStampBlue;
+                    return true;
+                case "lightblue":
+                    color = Last.UI.TextColors.LightBlue;
+                    return true;
+            }
+        }
+        catch (Exception ex)
+        {
+            KupoUIPRPlugin.PluginLog.LogWarning($"[ObjectConfig] Error retrieving game color '{name}': {ex.Message}");
+        }
         return false;
     }
 
