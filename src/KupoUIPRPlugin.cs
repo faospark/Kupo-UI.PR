@@ -12,6 +12,7 @@ using KupoUI.PR.Compatibility;
 using KupoUI.PR.ObjectConfig;
 using KupoUI.PR.Patches;
 using KupoUI.PR.Textures;
+using KupoUI.PR.IconsConfig;
 
 namespace KupoUI.PR;
 
@@ -291,6 +292,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ForceVSyncPatch.ApplyNow();
         ObjectConfigPatch.Initialize(ModulesRootPath);
         TextConfigPatch.Initialize(ModulesRootPath);
+        IconsConfigLoader.Initialize(ModulesRootPath);
         TextConfigPatch.PatchItemListContentData(harmony);
 
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");

@@ -25,6 +25,7 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
 - [TextConfig.json — Data-Driven Text Customization](#textconfigjson--data-driven-text-customization)
   - [File Format](#file-format-1)
   - [Language Scoping](#language-scoping)
+- [IconsConfig.json — Custom Rich Text Inline Icons](#iconsconfigjson--custom-rich-text-inline-icons)
 - [Title Screen](#title-screen)
   - [Title Screen Background Color](#title-screen-background-color)
   - [Title Screen Full Background Image](#title-screen-full-background-image)
@@ -490,6 +491,28 @@ Supported language values:
 * `Ko` (Korean)
 * `Zht` (Traditional Chinese)
 * `Zhc` (Simplified Chinese)
+
+---
+
+## IconsConfig.json — Custom Rich Text Inline Icons
+
+You can define custom icon tags (e.g. `<IC_BAG>`, `<IC_ARMOR>`, `<IC_CUSTOM>`) in your `TextConfig.json` or in dialogue strings, and map them to custom PNG files. The plugin will automatically parse these tags in standard `Text` components, replace them with spacers, and dynamically render custom sprites on-screen.
+
+### File Format
+
+Create `IconsConfig.json` inside the `Modules/Shared/` folder. The file maps the tag name to the filename of the PNG file located inside `Modules/Shared/Icons/`:
+
+```json
+{
+  "IC_BAG": "bag.png",
+  "IC_ARMOR": "armor.png",
+  "IC_CUSTOM": "my_icon.png"
+}
+```
+
+* **Sprites Location**: Save the referenced `.png` sprite files under `Modules/Shared/Icons/` (e.g., `Modules/Shared/Icons/bag.png`).
+* **Sizing**: Sprites are rendered at `12x12` pixels in size.
+* **Vertical Alignment**: Icons are automatically offset vertically relative to the text line's baseline to align beautifully with the characters.
 
 ---
 
