@@ -28,7 +28,7 @@ namespace KupoUI.PR.Patches
         {
             if (__instance == null || _isCleaningText || string.IsNullOrEmpty(value)) return;
 
-            if (value.Contains("<IC_"))
+            if (value.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 string cleaned = ProcessTextTags(__instance, value, out var tagInfos);
                 if (tagInfos.Count > 0)
@@ -40,15 +40,15 @@ namespace KupoUI.PR.Patches
         }
 
         [HarmonyPatch(typeof(Text), "OnPopulateMesh", new[] { typeof(VertexHelper) })]
-        [HarmonyPostfix]
-        private static void OnPopulateMeshPostfix(Text __instance)
+        [HarmonyPrefix]
+        private static void OnPopulateMeshPrefix(Text __instance)
         {
             if (__instance == null || _isCleaningText) return;
 
             string currentText = __instance.text;
             if (string.IsNullOrEmpty(currentText)) return;
 
-            if (currentText.Contains("<IC_"))
+            if (currentText.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
             {
                 _isCleaningText = true;
                 try
@@ -56,9 +56,9 @@ namespace KupoUI.PR.Patches
                     string cleaned = ProcessTextTags(__instance, currentText, out var tagInfos);
                     if (tagInfos.Count > 0)
                     {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[IconsEngine] OnPopulateMeshPrefix matched tags in '{__instance.gameObject.name}'. Cleaned: '{cleaned}'");
                         _activeTextIcons[__instance.Pointer] = tagInfos;
                         __instance.text = cleaned;
-                        return;
                     }
                 }
                 finally
@@ -66,7 +66,13 @@ namespace KupoUI.PR.Patches
                     _isCleaningText = false;
                 }
             }
+        }
 
+        [HarmonyPatch(typeof(Text), "OnPopulateMesh", new[] { typeof(VertexHelper) })]
+        [HarmonyPostfix]
+        private static void OnPopulateMeshPostfix(Text __instance)
+        {
+            if (__instance == null) return;
             DrawIcons(__instance);
         }
 
@@ -82,7 +88,7 @@ namespace KupoUI.PR.Patches
             tagInfos = new List<IconTagInfo>();
             if (string.IsNullOrEmpty(originalText)) return originalText;
 
-            var matches = Regex.Matches(originalText, @"<(IC_[A-Za-z0-9_]+)>");
+            var matches = Regex.Matches(originalText, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
             if (matches.Count == 0) return originalText;
 
             string cleanedText = originalText;
@@ -141,21 +147,25 @@ namespace KupoUI.PR.Patches
                     Transform child = textComp.transform.Find(childName);
                     if (child == null)
                     {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[IconsEngine] Creating child Image GameObject '{childName}' under '{textComp.gameObject.name}'");
                         GameObject go = new GameObject(childName);
-                        go.transform.SetParent(textComp.transform, false);
+                        go.AddComponent<CanvasRenderer>();
                         go.AddComponent<Image>();
+                        go.transform.SetParent(textComp.transform, false);
                         child = go.transform;
                     }
 
                     child.gameObject.SetActive(true);
                     var img = child.GetComponent<Image>();
                     img.sprite = IconsConfigLoader.GetSprite(tagInfo.TagName);
+                    img.color = Color.white;
 
                     var rect = child.GetComponent<RectTransform>();
-                    rect.anchorMin = new Vector2(0f, 0.5f);
-                    rect.anchorMax = new Vector2(0f, 0.5f);
+                    rect.anchorMin = new Vector2(0f, 1f);
+                    rect.anchorMax = new Vector2(0f, 1f);
                     rect.pivot = new Vector2(0f, 0.5f);
                     rect.sizeDelta = new Vector2(12f, 12f);
+                    rect.localScale = Vector3.one;
 
                     float verticalOffset = textComp.fontSize * 0.15f;
                     rect.anchoredPosition = new Vector2(localPos.x, localPos.y + verticalOffset);

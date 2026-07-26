@@ -102,7 +102,8 @@ namespace KupoUI.PR.IconsConfig
                     }
                 }
 
-                KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Loaded {loadedIconsCount} custom icon(s) from {filesToLoad.Count} config file(s).");
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Loaded {loadedIconsCount} custom icon(s) from {filesToLoad.Count} config file(s).");
             }
             catch (Exception ex)
             {
@@ -116,6 +117,8 @@ namespace KupoUI.PR.IconsConfig
             {
                 return sprite;
             }
+            if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] Sprite lookup failed for tag: '{tag}'. Registered keys: {string.Join(", ", _sprites.Keys)}");
             return null;
         }
 
@@ -125,13 +128,18 @@ namespace KupoUI.PR.IconsConfig
             {
                 byte[] fileData = File.ReadAllBytes(filePath);
                 Texture2D texture = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                texture.hideFlags = HideFlags.HideAndDontSave;
                 
                 if (ImageConversion.LoadImage(texture, fileData))
                 {
-                    texture.filterMode = FilterMode.Point;
+                    bool usePoint = Textures.TextureResolver.ShouldUsePointFilter(filePath) || texture.width <= 32;
+                    texture.filterMode = usePoint ? FilterMode.Point : FilterMode.Bilinear;
                     Rect rect = new Rect(0.0f, 0.0f, texture.width, texture.height);
                     Vector2 pivot = new Vector2(0.5f, 0.5f);
-                    return Sprite.Create(texture, rect, pivot, 100.0f);
+                    
+                    Sprite sprite = Sprite.Create(texture, rect, pivot, 100.0f);
+                    sprite.hideFlags = HideFlags.HideAndDontSave;
+                    return sprite;
                 }
             }
             catch (Exception ex)
