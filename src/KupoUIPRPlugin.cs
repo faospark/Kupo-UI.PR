@@ -39,6 +39,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> SpeakerNameUppercaseConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> HideSpeakerTagConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> SpeakerNameNewLineConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DialogueTextWrapConfig { get; private set; } = null!;
     internal static ConfigEntry<int> DialogueLineLengthLimitConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DialogueFontSizeConfig { get; private set; } = null!;
@@ -129,6 +130,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "HideSpeakerTag",
             true,
             "If true, hides the speaker name tag bubble by moving it off-screen. Will conflict with older mods that uses the box as portraits");
+
+        SpeakerNameNewLineConfig = Config.Bind(
+            "UI-Dialog",
+            "SpeakerNameNewLine",
+            false,
+            "If true, inserts a line break (new line) after the speaker prefix in dialogue boxes to prevent text overflow.");
 
         DialogueTextWrapConfig = Config.Bind(
             "UI-Dialog",
@@ -294,6 +301,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
         Log.LogInfo($"SpeakerNameUppercase = {SpeakerNameUppercaseConfig.Value}");
         Log.LogInfo($"HideSpeakerTag = {HideSpeakerTagConfig.Value}");
+        Log.LogInfo($"SpeakerNameNewLine = {SpeakerNameNewLineConfig.Value}");
         Log.LogInfo($"DialogueTextWrap = {DialogueTextWrapConfig.Value}");
         Log.LogInfo($"DialogueLineLengthLimit = {DialogueLineLengthLimitConfig.Value}");
         Log.LogInfo($"DialogueFontSize = {DialogueFontSizeConfig.Value}");

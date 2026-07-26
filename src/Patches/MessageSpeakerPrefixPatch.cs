@@ -218,12 +218,21 @@ internal static class MessageSpeakerPrefixPatch
                 // Fallback silently if MessageManager is not yet initialized or ready
             }
 
+            if (KupoUIPRPlugin.SpeakerNameNewLineConfig.Value)
+            {
+                separator = "";
+            }
+
             if (KupoUIPRPlugin.SpeakerNameUppercaseConfig.Value)
             {
                 speakerName = speakerName.ToUpperInvariant();
             }
 
             var prefix = speakerName + separator;
+            if (KupoUIPRPlugin.SpeakerNameNewLineConfig.Value)
+            {
+                prefix += "\n";
+            }
 
             // Guard against double-prefix if this fires twice.
             if (!value.StartsWith(prefix, StringComparison.Ordinal))
@@ -237,11 +246,23 @@ internal static class MessageSpeakerPrefixPatch
                 _isApplying = true;
                 try
                 {
-                    value = prefix + value;
                     int limit = KupoUIPRPlugin.DialogueLineLengthLimitConfig.Value;
                     if (limit > 0)
                     {
-                        value = WrapText(value, limit);
+                        if (KupoUIPRPlugin.SpeakerNameNewLineConfig.Value)
+                        {
+                            // Wrap the dialogue text alone, then prepend speaker name with newline
+                            value = prefix + WrapText(value, limit);
+                        }
+                        else
+                        {
+                            // Wrap the entire combined string together
+                            value = WrapText(prefix + value, limit);
+                        }
+                    }
+                    else
+                    {
+                        value = prefix + value;
                     }
                 }
                 finally
