@@ -4,6 +4,14 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
 
 This framework came form the development of Darker UI's New version and was orignally desinged for it to address stress points in UI Developement. It is a known fact that making a UI mod for the pixel remaster is a bit of a pain given how many redundant files you need to edit. Spending sometime with moddign another game , I applied a lot of things i leanred from that endevour to herea and at some point I've decided have the BepInEx plugin become its own thing. Hence KupoUI.PR... a reference to a UI Mod for FF9.
 
+This framework is not meant to be a replacement for Magicite or Memoria or FFPRFix .
+while there is some overlap , their functionality and features are different and should be used accordingly.
+
+Incompatabilities:
+
+- Not Reccomended to be used with Memoria's Classic Text Box Framework because they practically yeild the same result with very differnt methods.
+- Any Speaker Portrait mode that alers the message box.
+
 ---
 
 ## Table of Contents
@@ -121,10 +129,10 @@ This framework came form the development of Darker UI's New version and was orig
 3. Build with `BepInExDir` pointing to that game's BepInEx folder.
 
 ```powershell
-dotnet build .\KupoUI.PR.csproj -c Release 
+dotnet build .\KupoUI.PR.csproj -c Release
 ```
 
-| IMPORTANT ! : This is just the repo for the DLL of KupoUI.PR . if you want to Experience Darker UI . You need to download the appropriate version from Nexus mods 
+| IMPORTANT ! : This is just the repo for the DLL of KupoUI.PR . if you want to Experience Darker UI . You need to download the appropriate version from Nexus mods
 
 ---
 
@@ -151,7 +159,6 @@ The config file is generated on first run at:
 ```
 BepInEx/config/faospark.kupoui.pr.cfg
 ```
-
 
 | Section                 | Key                           | Default    | Description                                                                                                                            |
 | ----------------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -303,7 +310,6 @@ Default_00.json
 }
 ```
 
-
 | Field                       | Description                                                                                         |
 | --------------------------- | --------------------------------------------------------------------------------------------------- |
 | `width`                     | Logical source width used to calculate replacement sprite scale.                                    |
@@ -312,7 +318,7 @@ Default_00.json
 | `filterMode` / `filterType` | Filter override:`Point`, `Bilinear`, or `Trilinear`. String mode takes priority over `pointFilter`. |
 | `pointFilter`               | Legacy boolean shorthand:`true` = `Point`, `false` = `Bilinear`.                                    |
 | `wrapMode`                  | Wrap mode:`Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                              |
-| `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.           |
+| `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.            |
 | `border`                    | 9-slice border in pixels`"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.    |
 | `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).            |
 | `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                            |
@@ -399,7 +405,6 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
 The `objects` array can contain as many entries as you need, spread across one file or multiple files in different mod folders.
 
 ### Fields
-
 
 | Field                  | Required | Description                                                                                                                                                                                                                                                                                                                                                           |
 | ---------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -488,7 +493,6 @@ The path is matched by walking up the transform hierarchy, so it does not need t
 
 ### Text Alignment Values
 
-
 | Value          | Description                        |
 | -------------- | ---------------------------------- |
 | `UpperLeft`    | Top-left corner                    |
@@ -543,17 +547,17 @@ If the `"Language"` parameter is set, the text overrides will only apply when th
 
 Supported language values:
 
-* `En` (English)
-* `Ja` (Japanese)
-* `Fr` (French)
-* `De` (German)
-* `It` (Italian)
-* `Ru` (Russian)
-* `Pt` (Portuguese)
-* `Th` (Thai)
-* `Ko` (Korean)
-* `Zht` (Traditional Chinese)
-* `Zhc` (Simplified Chinese)
+- `En` (English)
+- `Ja` (Japanese)
+- `Fr` (French)
+- `De` (German)
+- `It` (Italian)
+- `Ru` (Russian)
+- `Pt` (Portuguese)
+- `Th` (Thai)
+- `Ko` (Korean)
+- `Zht` (Traditional Chinese)
+- `Zhc` (Simplified Chinese)
 
 ---
 
@@ -573,9 +577,9 @@ Create `IconsConfig.json` inside the `Modules/Shared/` folder. The file maps the
 }
 ```
 
-* **Sprites Location**: Save the referenced `.png` sprite files under `Modules/Shared/Icons/` (e.g., `Modules/Shared/Icons/bag.png`).
-* **Sizing**: Sprites are rendered at `12x12` pixels in size.
-* **Vertical Alignment**: Icons are automatically offset vertically relative to the text line's baseline to align beautifully with the characters.
+- **Sprites Location**: Save the referenced `.png` sprite files under `Modules/Shared/Icons/` (e.g., `Modules/Shared/Icons/bag.png`).
+- **Sizing**: Sprites are rendered at `12x12` pixels in size.
+- **Vertical Alignment**: Icons are automatically offset vertically relative to the text line's baseline to align beautifully with the characters.
 
 ---
 
@@ -743,7 +747,6 @@ Files are loaded in **alphabetical path order**. When multiple files define the 
 
 Maps a speaker ID to a display name. **Always applied** when that speaker is active — overrides whatever name the game provides (not just a fallback for blank names).
 
-
 | Key                                    | Value                        |
 | -------------------------------------- | ---------------------------- |
 | Internal speaker ID (e.g.`SPEAKER_77`) | Display name (e.g.`Crewman`) |
@@ -758,7 +761,6 @@ Overrides the speaker ID and/or name for a **specific dialogue message key**. Ta
 
 Each entry maps a dialogue key to an object with optional fields:
 
-
 | Field         | Description                                                                         |
 | ------------- | ----------------------------------------------------------------------------------- |
 | `speakerId`   | Force a specific speaker ID for portrait lookup. Optional.                          |
@@ -770,10 +772,9 @@ Both fields are optional. You can provide just `speakerName` to relabel a line w
 
 When a dialogue line is displayed, the effective speaker name and ID are resolved in this order:
 
-
 | Priority | Source                          | Condition                                        |
 | -------- | ------------------------------- | ------------------------------------------------ |
-| 1        | `messageOverrides[dialogueKey]` | Most specific — wins everything                 |
+| 1        | `messageOverrides[dialogueKey]` | Most specific — wins everything                  |
 | 2        | `speakers[speakerId]`           | Always applied when the speaker ID is registered |
 | 3        | Game's own speaker text         | Used as-is if nothing above matches              |
 
@@ -848,11 +849,14 @@ The mapping file supports both **simple string values** and **object-based value
     "Default": { "FontName": "Arial", "LineSpace": 1.2 }
   },
   "Ja": {
-    "Font01": { "FontName": "FOT-NewRodinPro-DB", "LineSpace": 0.73, "YOffset": 1.5 }
+    "Font01": {
+      "FontName": "FOT-NewRodinPro-DB",
+      "LineSpace": 0.73,
+      "YOffset": 1.5
+    }
   }
 }
 ```
-
 
 | Field       | Description                                                                                      |
 | ----------- | ------------------------------------------------------------------------------------------------ |
@@ -918,7 +922,7 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 
 1. Locate your game's Wine prefix (compatdata directory), e.g.:
    `.../SteamApps/compatdata/<AppID>/pfx/drive_c/windows/Fonts/`
-   *(Where `<AppID>` is the Steam Application ID of the specific Pixel Remaster game, e.g. `377840` for Final Fantasy II)*.
+   _(Where `<AppID>` is the Steam Application ID of the specific Pixel Remaster game, e.g. `377840` for Final Fantasy II)_.
 2. Copy your custom `.ttf` or `.otf` file into the `Fonts` directory inside the prefix.
 3. In `fontconfig.json`, configure `"FontName"` using the exact **Font Family Name** of the font (e.g. `"Segoe UI"`), not the file name.
 
