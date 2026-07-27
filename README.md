@@ -14,6 +14,7 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
   - [Folder Layout](#folder-layout)
   - [Lookup Priority](#lookup-priority)
   - [Path-Based Overrides](#path-based-overrides)
+  - [Prefabs & Battle Background Support](#prefabs--battle-background-support)
   - [Sidecar Metadata (.json)](#sidecar-metadata-json)
   - [Texture Formats & Filter Modes](#texture-formats--filter-modes)
   - [Hot-Reload](#hot-reload)
@@ -213,17 +214,21 @@ Many FFPR assets share the same file name across different bundles (e.g. `Defaul
 - In-game address: `Assets/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 - Replacement file: `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00.png`
 
-**Prefabs & Container Patterns (.prefab):**
+### Prefabs & Battle Background Support
+
+> [!IMPORTANT]
+> **Battle backgrounds in Final Fantasy Pixel Remaster are now fully replaceable and moddable!** 
+> Since battle background assets are stored inside Unity `.prefab` containers, the plugin tracks these nested references at runtime. You can easily override background textures/sprites without needing to modify the `.prefab` assets directly.
 
 If a texture/sprite is referenced inside a `.prefab` addressable, the mod tracks it and resolves it using three container-aware rules to keep your directories clean (note: runtime addresses omit the `.prefab` extension):
 
-1. **Folder-Matching Containers:** If the texture name matches the containing directory name (e.g. texture `BG_FF4_01` inside `BG_FF4_01/BgPrefab`), the redundant parent directory and prefab segments are simplified.
+1. **Folder-Matching Containers:** If the texture name matches the containing directory name (e.g. texture `BG_FF4_01` inside `BG_FF4_01/BgPrefab`), the redundant parent directory and prefab segments are simplified. This makes replacing standard battle backgrounds extremely straightforward:
    - In-game address: `Assets/GameAssets/Serial/Res/Battle/Background/BG_FF4_01/BgPrefab` (texture: `BG_FF4_01`)
    - Replacement file: `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/Battle/Background/BG_FF4_01.png`
-2. **Generic Prefabs:** If the prefab file is a generic wrapper named `BgPrefab`, the `BgPrefab` segment is omitted.
+2. **Generic Prefabs:** If the prefab file is a generic wrapper named `BgPrefab`, the `BgPrefab` segment is omitted:
    - In-game address: `Assets/GameAssets/Serial/Res/Battle/Background/BG_FF4_01/BgPrefab` (texture: `BG_FF4_01_diffuse`)
    - Replacement file: `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/Battle/Background/BG_FF4_01/BG_FF4_01_diffuse.png`
-3. **Standard Prefabs:** For standard nested prefabs, the prefab name is included in the subfolder namespace to prevent texture name collisions.
+3. **Standard Prefabs:** For standard nested prefabs, the prefab name is included in the subfolder namespace to prevent texture name collisions:
    - In-game address: `Assets/GameAssets/Serial/Res/UI/SomePrefab` (texture: `window_frame`)
    - Replacement file: `<GameRoot>/Modules/00-Mods/GameAssets/Serial/Res/UI/SomePrefab/window_frame.png`
 
