@@ -2,49 +2,86 @@
 
 A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provides runtime UI patches, custom texture replacement, dialogue enhancements, and data-driven GameObject tweaks.
 
+This framework came form the development of Darker UI's New version and was orignally desinged for it to address stress points in UI Developement. It is a known fact that making a UI mod for the pixel remaster is a bit of a pain given how many redundant files you need to edit. Spending sometime with moddign another game , I applied a lot of things i leanred from that endevour to herea and at some point I've decided have the BepInEx plugin become its own thing. Hence KupoUI.PR... a reference to a UI Mod for FF9.
+
 ---
 
 ## Table of Contents
 
-- [Features](#features)
-- [Build Requirements](#build-requirements)
-- [Install](#install)
-- [Configuration Reference](#configuration-reference)
-- [Custom Texture System](#custom-texture-system)
-  - [Folder Layout](#folder-layout)
-  - [Lookup Priority](#lookup-priority)
-  - [Path-Based Overrides](#path-based-overrides)
-  - [Prefabs & Battle Background Support](#prefabs--battle-background-support)
-  - [Sidecar Metadata (.json)](#sidecar-metadata-json)
-  - [Texture Formats & Filter Modes](#texture-formats--filter-modes)
-  - [Hot-Reload](#hot-reload)
-  - [Texture Logger](#texture-logger)
-- [ObjectConfig.json — Data-Driven GameObject Tweaks](#objectconfigjson--data-driven-gameobject-tweaks)
-  - [Fields](#fields)
-  - [When Rules Are Applied](#when-rules-are-applied)
-  - [Text Alignment Values](#text-alignment-values)
-- [TextConfig.json — Data-Driven Text Customization](#textconfigjson--data-driven-text-customization)
-  - [File Format](#file-format-1)
-  - [Language Scoping](#language-scoping)
-- [IconsConfig.json — Custom Rich Text Inline Icons](#iconsconfigjson--custom-rich-text-inline-icons)
-- [Title Screen](#title-screen)
-  - [Title Screen Background Color](#title-screen-background-color)
-  - [Title Screen Full Background Image](#title-screen-full-background-image)
-- [Dialogue System](#dialogue-system)
-  - [Speaker Name Prefix](#speaker-name-prefix)
-  - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
-  - [Speaker Portraits](#speaker-portraits)
-  - [Menu Portraits Override](#menu-portraits-override-ff2-ff4-ff6)
-  - [Speaker Name Overrides](#speaker-name-overrides)
-  - [Dialogue Font Size](#dialogue-font-size)
-- [Font Diagnostic & Custom Font Swap](#font-diagnostic--custom-font-swap)
-- [UI Tweaks](#ui-tweaks)
-  - [Scaled-Down Menu](#scaled-down-menu)
-  - [Save Highlight Color](#save-highlight-color)
-- [Utility](#utility)
-  - [Disable Mouse Cursor](#disable-mouse-cursor)
-  - [Force VSync](#force-vsync)
-- [Optional Dependencies](#optional-dependencies)
+- [KupoUI.PR](#kupouipr)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Build Requirements](#build-requirements)
+  - [Install](#install)
+  - [Configuration Reference](#configuration-reference)
+  - [Custom Texture System](#custom-texture-system)
+    - [Folder Layout](#folder-layout)
+    - [Lookup Priority](#lookup-priority)
+    - [Ignoring / Blocking Folders](#ignoring--blocking-folders)
+    - [Path-Based Overrides](#path-based-overrides)
+    - [Prefabs \& Battle Background Support](#prefabs--battle-background-support)
+    - [Sidecar Metadata (.json)](#sidecar-metadata-json)
+    - [Texture Formats \& Filter Modes](#texture-formats--filter-modes)
+    - [Hot-Reload](#hot-reload)
+    - [Texture Logger](#texture-logger)
+  - [ObjectConfig.json — Data-Driven GameObject Tweaks](#objectconfigjson--data-driven-gameobject-tweaks)
+    - [Folder Placement](#folder-placement)
+    - [File Format](#file-format)
+    - [Fields](#fields)
+    - [Supported Color Names](#supported-color-names)
+      - [Standard Colors](#standard-colors)
+      - [Native Game Colors](#native-game-colors)
+    - [When Rules Are Applied](#when-rules-are-applied)
+    - [Using `TargetPath` to Avoid Wrong Matches](#using-targetpath-to-avoid-wrong-matches)
+    - [Hiding an Object](#hiding-an-object)
+    - [Text Alignment Values](#text-alignment-values)
+  - [TextConfig.json — Data-Driven Text Customization](#textconfigjson--data-driven-text-customization)
+    - [File Format](#file-format-1)
+      - [Example `TextConfig.json`](#example-textconfigjson)
+    - [Language Scoping](#language-scoping)
+  - [IconsConfig.json — Custom Rich Text Inline Icons](#iconsconfigjson--custom-rich-text-inline-icons)
+    - [File Format](#file-format-2)
+  - [Title Screen](#title-screen)
+    - [Title Screen Background Color](#title-screen-background-color)
+    - [Title Screen Full Background Image](#title-screen-full-background-image)
+  - [Dialogue System](#dialogue-system)
+    - [Speaker Name Prefix](#speaker-name-prefix)
+    - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
+    - [Speaker Portraits](#speaker-portraits)
+    - [Menu Portraits Override (FF2, FF4, FF6)](#menu-portraits-override-ff2-ff4-ff6)
+      - [File Location](#file-location)
+      - [Mapping Format](#mapping-format)
+      - [Zero-Config Fallback (No JSON mapping needed)](#zero-config-fallback-no-json-mapping-needed)
+    - [Speaker Name Overrides](#speaker-name-overrides)
+      - [File Location](#file-location-1)
+      - [File Format](#file-format-3)
+      - [`speakers` — Register speaker IDs](#speakers--register-speaker-ids)
+      - [`messageOverrides` — Override by dialogue key](#messageoverrides--override-by-dialogue-key)
+      - [Priority order](#priority-order)
+      - [How to find a speaker ID or dialogue key](#how-to-find-a-speaker-id-or-dialogue-key)
+      - [Portrait images](#portrait-images)
+    - [Dialogue Font Size](#dialogue-font-size)
+  - [Font Diagnostic \& Custom Font Swap](#font-diagnostic--custom-font-swap)
+    - [Phase 1 — Diagnostic Logging](#phase-1--diagnostic-logging)
+    - [Phase 2 — Custom Font Swap](#phase-2--custom-font-swap)
+      - [File Locations](#file-locations)
+      - [Configuration File Format](#configuration-file-format)
+      - [Language-Specific Configuration Styles](#language-specific-configuration-styles)
+        - [Style A — Root-Level Language Specifier (single-language mods)](#style-a--root-level-language-specifier-single-language-mods)
+        - [Style B — Nested Language Blocks (multi-language mods)](#style-b--nested-language-blocks-multi-language-mods)
+        - [Style C — Flat Key Suffixes](#style-c--flat-key-suffixes)
+      - [Fallback Lookup Order](#fallback-lookup-order)
+      - [Supported Languages](#supported-languages)
+      - [Enabling the Swap](#enabling-the-swap)
+        - [Note for Linux \& Steam Deck Users (via Proton)](#note-for-linux--steam-deck-users-via-proton)
+  - [UI Tweaks](#ui-tweaks)
+    - [Scaled-Down Menu](#scaled-down-menu)
+    - [Save Highlight Color](#save-highlight-color)
+    - [Menu Portrait Aspect Ratio Preservation](#menu-portrait-aspect-ratio-preservation)
+  - [Utility](#utility)
+    - [Disable Mouse Cursor](#disable-mouse-cursor)
+    - [Force VSync](#force-vsync)
+  - [Optional Dependencies](#optional-dependencies)
 
 ---
 
@@ -53,21 +90,26 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
 - BepInEx IL2CPP plugin structure (`BasePlugin`) with Harmony runtime patching (`PatchAll`)
 - Layered custom texture system with pack-folder selection and hot-reload
 - Path-based (`GameAssets/…`) texture overrides to resolve same-name collisions across bundles
+- Support for nested textures inside Unity `.prefab` assets (enabling **battle background replacement/modding**)
 - Optional sidecar JSON metadata per texture (size, pivot, border, filter, flip, etc.)
 - DDS texture support (DXT1, DXT5, uncompressed RGBA32)
 - Data-driven GameObject tweaks via `ObjectConfig.json` (no C# required)
 - Data-driven menu and UI text customization/localization via `TextConfig.json` (no C# required)
+- Custom rich text inline icons via `IconsConfig.json`
 - Custom full-screen title background image injection
 - Configurable title screen background color
-- Speaker name prepended to dialogue messages
+- Speaker name prepended to dialogue messages (with configurable formatting)
+- Speaker name overrides and per-dialogue-key speaker assignments via `SpeakerNames.json` / `speaker-names.json`
 - Speaker tag bubble hider
-- Dynamic speaker portrait injection
+- Dynamic speaker portrait injection for dialogues
+- Menu portrait overrides via `MenuPortraitMap.json` (for FF2, FF4, FF6)
 - Configurable dialogue font size
 - Custom font swap via `fontconfig.json` with per-language and per-FontType granularity
 - Scaled-down in-game menu (10% shrink)
 - Save slot highlight color override
 - Mouse cursor hider
 - Force VSync
+- Comprehensive developer/modder diagnostic logging modes (for textures, fonts, dialogue text, speaker names, and inline icons)
 - Soft dependency detection for `Memoria.FFPR` and `Magicite`
 
 ---
@@ -79,8 +121,10 @@ A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provid
 3. Build with `BepInExDir` pointing to that game's BepInEx folder.
 
 ```powershell
-dotnet build .\KupoUI.PR.csproj -c Release -p:BepInExDir="D:\Games\FINAL FANTASY II PR\BepInEx"
+dotnet build .\KupoUI.PR.csproj -c Release 
 ```
+
+| IMPORTANT ! : This is just the repo for the DLL of KupoUI.PR . if you want to Experience Darker UI . You need to download the appropriate version from Nexus mods 
 
 ---
 
@@ -95,7 +139,7 @@ bin/Release/net472/KupoUI.PR.dll
 to:
 
 ```
-BepInEx/plugins/KupoUI.PR/
+BepInEx/plugins/
 ```
 
 ---
@@ -108,39 +152,40 @@ The config file is generated on first run at:
 BepInEx/config/faospark.kupoui.pr.cfg
 ```
 
-| Section                 | Key                           | Default    | Description                                                                                                                   |
-| ----------------------- | ----------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/Shared/`.                                                        |
-| `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`. |
-| `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                              |
-| `UI`                    | `TitleScreenBgColor`          | `original` | Title screen background color. Options: `original`, `white`, `black`, `navy`, `crimson`, `violet`.                            |
-| `UI-Dialog`             | `DialogueFontSize`            | `Auto`     | Font size for dialogue text. Use an integer (e.g. `36`) or `Auto` to use the font's declared size.                            |
-| `UI-Dialog`             | `MessageSpeakerPrefix`        | `true`     | Prepend speaker name to dialogue messages.                                                                                    |
-| `UI-Dialog`             | `SpeakerNameUppercase`        | `false`    | Transform speaker name to UPPERCASE before prepending.                                                                        |
-| `UI-Dialog`             | `SpeakerNameNewLine`          | `false`    | If true, inserts a line break (new line) after the speaker prefix in dialogue boxes.                                          |
-| `UI-Dialog`             | `DialogueTextWrap`            | `true`     | If true, forces built-in text wrapping on dialogue text boxes to prevent horizontal overflow.                                 |
-| `UI-Dialog`             | `DialogueLineLengthLimit`     | `0`        | If greater than 0, forces dialogue text to wrap at this maximum character count per line.                                     |
-| `UI-Dialog`             | `HideSpeakerTag`              | `true`     | Move the speaker tag bubble off-screen. May conflict with mods that use the bubble as portraits.                              |
-| `UI-Dialog`             | `EnableSpeakerPortraits`      | `true`     | Dynamically inject speaker portraits during dialogue.                                                                         |
-| `UI-Dialog`             | `FlipSpeakerPortraits`        | `true`     | Flip all injected speaker portraits horizontally.                                                                             |
-| `UI-Dialog`             | `SpeakerPortraitsPadding`     | `0,0,0,0`  | Padding for speaker portraits in `left,top,right,bottom` pixels format (e.g. `10,15,0,20`).                                  |
-| `UI-Dialog`             | `SpeakerPortraitsTextOffset`  | `0`        | Offset (in pixels) for the dialogue text box when speaker portraits are active. Supports `X` or `X,Y` format (e.g., `-75` or `-75,10`). |
-| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under `Modules/01-UI-Themes/` for UI theme overrides.                                                                  |
-| `UI and Customizations` | `UiFramesFolder`              | _(empty)_  | Folder under `Modules/02-UI-Frames/` for UI frame overrides.                                                                  |
-| `UI and Customizations` | `UIBgColorFolder`             | _(empty)_  | Folder under `Modules/03-UI-BgColor/` for UI background overrides.                                                            |
-| `UI and Customizations` | `CursorsFolder`               | _(empty)_  | Folder under `Modules/04-UI-Cursors/` for cursor overrides.                                                                   |
-| `UI and Customizations` | `ButtonPromptsFolder`         | _(empty)_  | Folder under `Modules/05-Button-Prompts/` for button prompt overrides.                                                        |
-| `Utility`               | `DisableMouseCursor`          | `false`    | Hide the OS mouse cursor inside the game window.                                                                              |
-| `Utility`               | `ForceVSync`                  | `false`    | Force VSync on and lock `targetFrameRate` to `-1`.                                                                            |
-| `Utility`               | `EnableTextureHotReload`      | `false`    | Watch texture folders and rebuild index when files change.                                                                    |
-| `Utility`               | `TextureHotReloadDebounceMs`  | `350`      | Debounce window (ms) before rebuilding index after file changes.                                                              |
-| `Utility`               | `EnableDDSTextures`           | `true`     | Enable DDS texture loading (DXT1/DXT5 and uncompressed RGBA32).                                                               |
-| `Z - Diagnostics`       | `TextureLogger`               | `Off`      | Texture logger mode: `Off`, `Discoveries`, `Resolutions`, `Misses`, `All` (or comma-separated).                               |
-| `Z - Diagnostics`       | `LogFontMapping`              | `false`    | Log `FontManager` font parameter and instance details to identify `FontType` mappings.                                        |
-| `Z - Diagnostics`       | `MessageSpeakerPrefixLogging` | `false`    | Log speaker name replacements.                                                                                                |
-| `Z - Diagnostics`       | `LogAllTexts`                 | `false`    | If true, logs all texts assigned to `UnityEngine.UI.Text` components to the console.                                          |
-| `Z - Diagnostics`       | `IconLogging`                 | `false`    | If true, logs custom icon tag matches and sprite swaps to the console.                                                        |
-| `Z - Diagnostics`       | `PortraitLogging`             | `true`     | Log portrait lifecycle and resolution details.                                                                                |
+
+| Section                 | Key                           | Default    | Description                                                                                                                            |
+| ----------------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via`fontconfig.json` under `Modules/Shared/`.                                                                  |
+| `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options:`Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.           |
+| `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                                       |
+| `UI`                    | `TitleScreenBgColor`          | `original` | Title screen background color. Options:`original`, `white`, `black`, `navy`, `crimson`, `violet`.                                      |
+| `UI-Dialog`             | `DialogueFontSize`            | `Auto`     | Font size for dialogue text. Use an integer (e.g.`36`) or `Auto` to use the font's declared size.                                      |
+| `UI-Dialog`             | `MessageSpeakerPrefix`        | `true`     | Prepend speaker name to dialogue messages.                                                                                             |
+| `UI-Dialog`             | `SpeakerNameUppercase`        | `false`    | Transform speaker name to UPPERCASE before prepending.                                                                                 |
+| `UI-Dialog`             | `SpeakerNameNewLine`          | `false`    | If true, inserts a line break (new line) after the speaker prefix in dialogue boxes.                                                   |
+| `UI-Dialog`             | `DialogueTextWrap`            | `true`     | If true, forces built-in text wrapping on dialogue text boxes to prevent horizontal overflow.                                          |
+| `UI-Dialog`             | `DialogueLineLengthLimit`     | `0`        | If greater than 0, forces dialogue text to wrap at this maximum character count per line.                                              |
+| `UI-Dialog`             | `HideSpeakerTag`              | `true`     | Move the speaker tag bubble off-screen. May conflict with mods that use the bubble as portraits.                                       |
+| `UI-Dialog`             | `EnableSpeakerPortraits`      | `true`     | Dynamically inject speaker portraits during dialogue.                                                                                  |
+| `UI-Dialog`             | `FlipSpeakerPortraits`        | `true`     | Flip all injected speaker portraits horizontally.                                                                                      |
+| `UI-Dialog`             | `SpeakerPortraitsPadding`     | `0,0,0,0`  | Padding for speaker portraits in`left,top,right,bottom` pixels format (e.g. `10,15,0,20`).                                             |
+| `UI-Dialog`             | `SpeakerPortraitsTextOffset`  | `0`        | Offset (in pixels) for the dialogue text box when speaker portraits are active. Supports`X` or `X,Y` format (e.g., `-75` or `-75,10`). |
+| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under`Modules/01-UI-Themes/` for UI theme overrides.                                                                            |
+| `UI and Customizations` | `UiFramesFolder`              | _(empty)_  | Folder under`Modules/02-UI-Frames/` for UI frame overrides.                                                                            |
+| `UI and Customizations` | `UIBgColorFolder`             | _(empty)_  | Folder under`Modules/03-UI-BgColor/` for UI background overrides.                                                                      |
+| `UI and Customizations` | `CursorsFolder`               | _(empty)_  | Folder under`Modules/04-UI-Cursors/` for cursor overrides.                                                                             |
+| `UI and Customizations` | `ButtonPromptsFolder`         | _(empty)_  | Folder under`Modules/05-Button-Prompts/` for button prompt overrides.                                                                  |
+| `Utility`               | `DisableMouseCursor`          | `false`    | Hide the OS mouse cursor inside the game window.                                                                                       |
+| `Utility`               | `ForceVSync`                  | `false`    | Force VSync on and lock`targetFrameRate` to `-1`.                                                                                      |
+| `Utility`               | `EnableTextureHotReload`      | `false`    | Watch texture folders and rebuild index when files change.                                                                             |
+| `Utility`               | `TextureHotReloadDebounceMs`  | `350`      | Debounce window (ms) before rebuilding index after file changes.                                                                       |
+| `Utility`               | `EnableDDSTextures`           | `true`     | Enable DDS texture loading (DXT1/DXT5 and uncompressed RGBA32).                                                                        |
+| `Z - Diagnostics`       | `TextureLogger`               | `Off`      | Texture logger mode:`Off`, `Discoveries`, `Resolutions`, `Misses`, `All` (or comma-separated).                                         |
+| `Z - Diagnostics`       | `LogFontMapping`              | `false`    | Log`FontManager` font parameter and instance details to identify `FontType` mappings.                                                  |
+| `Z - Diagnostics`       | `MessageSpeakerPrefixLogging` | `false`    | Log speaker name replacements.                                                                                                         |
+| `Z - Diagnostics`       | `LogAllTexts`                 | `false`    | If true, logs all texts assigned to`UnityEngine.UI.Text` components to the console.                                                    |
+| `Z - Diagnostics`       | `IconLogging`                 | `false`    | If true, logs custom icon tag matches and sprite swaps to the console.                                                                 |
+| `Z - Diagnostics`       | `PortraitLogging`             | `true`     | Log portrait lifecycle and resolution details.                                                                                         |
 
 ---
 
@@ -217,7 +262,7 @@ Many FFPR assets share the same file name across different bundles (e.g. `Defaul
 ### Prefabs & Battle Background Support
 
 > [!IMPORTANT]
-> **Battle backgrounds in Final Fantasy Pixel Remaster are now fully replaceable and moddable!** 
+> **Battle backgrounds in Final Fantasy Pixel Remaster are now fully replaceable and moddable!**
 > Since battle background assets are stored inside Unity `.prefab` containers, the plugin tracks these nested references at runtime. You can easily override background textures/sprites without needing to modify the `.prefab` assets directly.
 
 If a texture/sprite is referenced inside a `.prefab` addressable, the mod tracks it and resolves it using three container-aware rules to keep your directories clean (note: runtime addresses omit the `.prefab` extension):
@@ -258,19 +303,20 @@ Default_00.json
 }
 ```
 
-| Field                       | Description                                                                                          |
-| --------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `width`                     | Logical source width used to calculate replacement sprite scale.                                     |
-| `height`                    | Logical source height used to calculate replacement sprite scale.                                    |
-| `pixelsPerUnit`             | Direct sprite PPU override (takes priority over auto scale calculation).                             |
-| `filterMode` / `filterType` | Filter override: `Point`, `Bilinear`, or `Trilinear`. String mode takes priority over `pointFilter`. |
-| `pointFilter`               | Legacy boolean shorthand: `true` = `Point`, `false` = `Bilinear`.                                    |
-| `wrapMode`                  | Wrap mode: `Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                              |
-| `pivot`                     | Normalized sprite anchor `"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.            |
-| `border`                    | 9-slice border in pixels `"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.    |
-| `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).             |
-| `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                             |
-| `flipHorizontal` / `flipX`  | Flip the replacement texture horizontally.                                                           |
+
+| Field                       | Description                                                                                         |
+| --------------------------- | --------------------------------------------------------------------------------------------------- |
+| `width`                     | Logical source width used to calculate replacement sprite scale.                                    |
+| `height`                    | Logical source height used to calculate replacement sprite scale.                                   |
+| `pixelsPerUnit`             | Direct sprite PPU override (takes priority over auto scale calculation).                            |
+| `filterMode` / `filterType` | Filter override:`Point`, `Bilinear`, or `Trilinear`. String mode takes priority over `pointFilter`. |
+| `pointFilter`               | Legacy boolean shorthand:`true` = `Point`, `false` = `Bilinear`.                                    |
+| `wrapMode`                  | Wrap mode:`Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                              |
+| `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.           |
+| `border`                    | 9-slice border in pixels`"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.    |
+| `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).            |
+| `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                            |
+| `flipHorizontal` / `flipX`  | Flip the replacement texture horizontally.                                                          |
 
 > **Note:** When `width`/`height` are provided, sprite creation uses them to override replacement rect sizing; when values do not fit atlas coordinates, origin-clamped sizing is used as a fallback.
 
@@ -354,25 +400,26 @@ The `objects` array can contain as many entries as you need, spread across one f
 
 ### Fields
 
-| Field                  | Required | Description                                                                                                                                                                                                                                                                                                  |
-| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `TargetObjectName`     | **Yes**  | Exact `GameObject` name to match (e.g. `"menu_base(Clone)"`).                                                                                                                                                                                                                                                |
-| `TargetPath`           | No       | Hierarchy path suffix to disambiguate objects with the same name. Forward-slash notation, matched from the object upward. E.g. `"Canvas/aspect_parent/menu_base(Clone)"`.                                                                                                                                    |
-| `SceneName`            | No       | Only apply this rule while this scene is active. Omit to apply in every scene. Case-insensitive.                                                                                                                                                                                                             |
-| `Position`             | No       | Sets `transform.localPosition`. Provide `x`, `y`, `z` as floats.                                                                                                                                                                                                                                             |
-| `Rotation`             | No       | Sets `transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`.                                                                                                                                                                                                                          |
-| `Scale`                | No       | Sets `transform.localScale`. Provide `x`, `y`, `z`.                                                                                                                                                                                                                                                          |
-| `Size`                 | No       | Sets absolute width and height on `UnityEngine.RectTransform` component (if present) via `SetSizeWithCurrentAnchors`. Provide `x` (width) and `y` (height) floats.                                                                                                                                           |
-| `SetActive`            | No       | Calls `gameObject.SetActive(value)`. Use `true` or `false`.                                                                                                                                                                                                                                                  |
-| `TextAlignment`        | No       | Sets `Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [Text Alignment Values](#text-alignment-values).                                                                                                                                                                              |
-| `ChildAlignment`       | No       | Sets `LayoutGroup.childAlignment` on the `UnityEngine.UI.LayoutGroup` component (if present, e.g. horizontal/vertical/grid layouts). See [Text Alignment Values](#text-alignment-values).                                                                                                                    |
-| `FontSize`             | No       | Sets `Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer.                                                                                                                                                                                                                |
-| `ResizeTextForBestFit` | No       | Sets `Text.resizeTextForBestFit`. Use `true` or `false`.                                                                                                                                                                                                                                                     |
-| `ResizeTextMaxSize`    | No       | Sets `Text.resizeTextMaxSize`. Provide an integer.                                                                                                                                                                                                                                                           |
-| `ResizeTextMinSize`    | No       | Sets `Text.resizeTextMinSize`. Provide an integer.                                                                                                                                                                                                                                                           |
-| `TextColorWhite`       | No       | Legacy shortcut to force `Text.color` to white. Use `Color` for custom colors.                                                                                                                                                                                                                               |
-| `Color`                | No       | Forces `Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name, or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). See [Supported Color Names](#supported-color-names) for a list of valid names. |
-| `DisableShadow`        | No       | Disables all `UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                      |
+
+| Field                  | Required | Description                                                                                                                                                                                                                                                                                                                                                           |
+| ---------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TargetObjectName`     | **Yes**  | Exact`GameObject` name to match (e.g. `"menu_base(Clone)"`).                                                                                                                                                                                                                                                                                                          |
+| `TargetPath`           | No       | Hierarchy path suffix to disambiguate objects with the same name. Forward-slash notation, matched from the object upward. E.g.`"Canvas/aspect_parent/menu_base(Clone)"`.                                                                                                                                                                                              |
+| `SceneName`            | No       | Only apply this rule while this scene is active. Omit to apply in every scene. Case-insensitive.                                                                                                                                                                                                                                                                      |
+| `Position`             | No       | Sets`transform.localPosition`. Provide `x`, `y`, `z` as floats.                                                                                                                                                                                                                                                                                                       |
+| `Rotation`             | No       | Sets`transform.localEulerAngles` (Euler angles in degrees). Provide `x`, `y`, `z`.                                                                                                                                                                                                                                                                                    |
+| `Scale`                | No       | Sets`transform.localScale`. Provide `x`, `y`, `z`.                                                                                                                                                                                                                                                                                                                    |
+| `Size`                 | No       | Sets absolute width and height on`UnityEngine.RectTransform` component (if present) via `SetSizeWithCurrentAnchors`. Provide `x` (width) and `y` (height) floats.                                                                                                                                                                                                     |
+| `SetActive`            | No       | Calls`gameObject.SetActive(value)`. Use `true` or `false`.                                                                                                                                                                                                                                                                                                            |
+| `TextAlignment`        | No       | Sets`Text.alignment` on the `UnityEngine.UI.Text` component (if present). See [Text Alignment Values](#text-alignment-values).                                                                                                                                                                                                                                        |
+| `ChildAlignment`       | No       | Sets`LayoutGroup.childAlignment` on the `UnityEngine.UI.LayoutGroup` component (if present, e.g. horizontal/vertical/grid layouts). See [Text Alignment Values](#text-alignment-values).                                                                                                                                                                              |
+| `FontSize`             | No       | Sets`Text.fontSize` on the `UnityEngine.UI.Text` component (if present). Provide an integer.                                                                                                                                                                                                                                                                          |
+| `ResizeTextForBestFit` | No       | Sets`Text.resizeTextForBestFit`. Use `true` or `false`.                                                                                                                                                                                                                                                                                                               |
+| `ResizeTextMaxSize`    | No       | Sets`Text.resizeTextMaxSize`. Provide an integer.                                                                                                                                                                                                                                                                                                                     |
+| `ResizeTextMinSize`    | No       | Sets`Text.resizeTextMinSize`. Provide an integer.                                                                                                                                                                                                                                                                                                                     |
+| `TextColorWhite`       | No       | Legacy shortcut to force`Text.color` to white. Use `Color` for custom colors.                                                                                                                                                                                                                                                                                         |
+| `Color`                | No       | Forces`Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name, or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). See [Supported Color Names](#supported-color-names) for a list of valid names. |
+| `DisableShadow`        | No       | Disables all`UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                                                |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 
@@ -381,11 +428,14 @@ The `objects` array can contain as many entries as you need, spread across one f
 When using a string for the `Color` field, you can use standard color names or the game's built-in UI text color presets:
 
 #### Standard Colors
+
 - `white`, `black`, `red`, `green`, `blue`, `yellow`, `cyan`, `magenta`, `gray` (or `grey`), `clear`
 - `navy` (`#000080`), `crimson` (`#DC143C`), `violet` (`#EE82EE`), `orange` (`#FFA500`)
 
 #### Native Game Colors
+
 These map directly to the game's built-in `Last.UI.TextColors` palette:
+
 - `resuscitationyellow`
 - `keyhelpblack`
 - `timestampblue`
@@ -438,6 +488,7 @@ The path is matched by walking up the transform hierarchy, so it does not need t
 
 ### Text Alignment Values
 
+
 | Value          | Description                        |
 | -------------- | ---------------------------------- |
 | `UpperLeft`    | Top-left corner                    |
@@ -461,6 +512,7 @@ Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere r
 ### File Format
 
 `TextConfig.json` files support:
+
 1. **`Language`**: (Optional) Declared at the file root level to scope all rules inside this file to a specific game language.
 2. **`texts`**: A simple key-value dictionary (`"Key": "ReplacementText"`) to quickly replace localization strings by their database ID (e.g. `MSG_SYSTEM_002`) or original string.
 3. **`objects`**: An array of GameObject override rules (similar to `ObjectConfig.json` targets) to replace the text of specific UI elements by their path/name hierarchy.
@@ -487,9 +539,10 @@ Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere r
 
 ### Language Scoping
 
-If the `"Language"` parameter is set, the text overrides will only apply when that language is active in the game's settings. 
+If the `"Language"` parameter is set, the text overrides will only apply when that language is active in the game's settings.
 
 Supported language values:
+
 * `En` (English)
 * `Ja` (Japanese)
 * `Fr` (French)
@@ -690,9 +743,10 @@ Files are loaded in **alphabetical path order**. When multiple files define the 
 
 Maps a speaker ID to a display name. **Always applied** when that speaker is active — overrides whatever name the game provides (not just a fallback for blank names).
 
-| Key                                     | Value                         |
-| --------------------------------------- | ----------------------------- |
-| Internal speaker ID (e.g. `SPEAKER_77`) | Display name (e.g. `Crewman`) |
+
+| Key                                    | Value                        |
+| -------------------------------------- | ---------------------------- |
+| Internal speaker ID (e.g.`SPEAKER_77`) | Display name (e.g.`Crewman`) |
 
 - Case-insensitive keys.
 - Keys beginning with `_` are treated as comments and skipped.
@@ -703,6 +757,7 @@ Maps a speaker ID to a display name. **Always applied** when that speaker is act
 Overrides the speaker ID and/or name for a **specific dialogue message key**. Takes the highest priority — beats both the game's data and the `speakers` block.
 
 Each entry maps a dialogue key to an object with optional fields:
+
 
 | Field         | Description                                                                         |
 | ------------- | ----------------------------------------------------------------------------------- |
@@ -715,9 +770,10 @@ Both fields are optional. You can provide just `speakerName` to relabel a line w
 
 When a dialogue line is displayed, the effective speaker name and ID are resolved in this order:
 
+
 | Priority | Source                          | Condition                                        |
 | -------- | ------------------------------- | ------------------------------------------------ |
-| 1        | `messageOverrides[dialogueKey]` | Most specific — wins everything                  |
+| 1        | `messageOverrides[dialogueKey]` | Most specific — wins everything                 |
 | 2        | `speakers[speakerId]`           | Always applied when the speaker ID is registered |
 | 3        | Game's own speaker text         | Used as-is if nothing above matches              |
 
@@ -797,11 +853,12 @@ The mapping file supports both **simple string values** and **object-based value
 }
 ```
 
-| Field       | Description                                                                                       |
-| ----------- | ------------------------------------------------------------------------------------------------- |
-| `FontName`  | Font family name (e.g. `"Segoe UI"`, `"Consolas"`). Required.                                     |
-| `LineSpace` | Line height factor (e.g. `1.2`). Adjust if your font appears cramped or overflows dialogue boxes. |
-| `YOffset`   | Vertical offset in pixels (e.g. `2.0` to adjust upward, `-1.5` to adjust downward). Optional.     |
+
+| Field       | Description                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------ |
+| `FontName`  | Font family name (e.g.`"Segoe UI"`, `"Consolas"`). Required.                                     |
+| `LineSpace` | Line height factor (e.g.`1.2`). Adjust if your font appears cramped or overflows dialogue boxes. |
+| `YOffset`   | Vertical offset in pixels (e.g.`2.0` to adjust upward, `-1.5` to adjust downward). Optional.     |
 
 #### Language-Specific Configuration Styles
 
@@ -858,6 +915,7 @@ When looking up a font for a specific `FontType` and language:
 ##### Note for Linux & Steam Deck Users (via Proton)
 
 To use custom system fonts when running the game on Linux or Steam Deck via Proton:
+
 1. Locate your game's Wine prefix (compatdata directory), e.g.:
    `.../SteamApps/compatdata/<AppID>/pfx/drive_c/windows/Fonts/`
    *(Where `<AppID>` is the Steam Application ID of the specific Pixel Remaster game, e.g. `377840` for Final Fantasy II)*.
