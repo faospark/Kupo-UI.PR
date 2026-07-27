@@ -249,9 +249,10 @@ Priority is highest to lowest:
 
 Use the file name **without extension** to match the in-game texture/sprite name (e.g. `window_frame.png` replaces the asset named `window_frame`).
 
-### Ignoring / Blocking Folders
+### Ignoring / Game-Tag / Blocking Folders
 
-If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, `ObjectConfig.json`, `SpeakerNames.json` / `speaker-names.json`, `MenuPortraitMap.json`, or portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
+- **Blocked Folders**: If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, configs, portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
+- **Game-Tag Folders**: If a configuration file (`SpeakerNames.json` / `speaker-names.json`, `MenuPortraitMap.json`, `ObjectConfig.json`, `TextConfig.json`, `IconsConfig.json`) or portrait image is located under a game-tag sub-folder (e.g., `FF1`, `FF2`, `FF3`, `FF4`, `FF5`, `FF6`) that does not match the game currently running, it will be skipped entirely.
 
 ### Path-Based Overrides
 
@@ -690,6 +691,18 @@ Inside `MenuPortraitMap.json`, define key-value pairs where the key is the menu 
 }
 ```
 
+#### Language Scoping
+
+You can limit portrait overrides to a specific language by adding a `"Language"` property at the root of `MenuPortraitMap.json`:
+
+```json
+{
+  "Language": "Ja",
+  "P003": "Rydia"
+}
+```
+If `"Language"` is specified, the mappings in this file will only apply when playing the game in that language. Otherwise, mappings are global.
+
 If mapped to a dialogue Speaker ID (like `SPEAKER_05`), the plugin will automatically resolve its display name from `speaker-names.json` (e.g., `"SPEAKER_05": "Kain"`) and search the BepInEx `SpeakerPortraits/` folders for either `SPEAKER_05.png` or `Kain.png`.
 
 #### Zero-Config Fallback (No JSON mapping needed)
@@ -742,6 +755,20 @@ Files are loaded in **alphabetical path order**. When multiple files define the 
   }
 }
 ```
+
+#### Language Scoping
+
+You can limit speaker and message overrides to a specific language by adding a `"Language"` property at the root of `SpeakerNames.json`:
+
+```json
+{
+  "Language": "Ja",
+  "speakers": {
+    "SPEAKER_81": "Dark Knight"
+  }
+}
+```
+If `"Language"` is specified, the overrides in this file will only apply when playing the game in that language. Otherwise, overrides are global.
 
 #### `speakers` — Register speaker IDs
 

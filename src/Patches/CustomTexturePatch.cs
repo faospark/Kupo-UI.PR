@@ -236,7 +236,7 @@ internal static class CustomTexturePatch
 
         var path = assetAddress.Replace('\\', '/');
 
-        if (KupoUIPRPlugin.MenuPortraitMap.TryGetValue(path, out mappedValue))
+        if (KupoUIPRPlugin.TryGetMenuPortraitMap(path, out mappedValue))
         {
             return true;
         }
@@ -245,7 +245,7 @@ internal static class CustomTexturePatch
         if (path.StartsWith(assetsPrefix, StringComparison.OrdinalIgnoreCase))
         {
             var noAssets = path.Substring(assetsPrefix.Length);
-            if (KupoUIPRPlugin.MenuPortraitMap.TryGetValue(noAssets, out mappedValue))
+            if (KupoUIPRPlugin.TryGetMenuPortraitMap(noAssets, out mappedValue))
             {
                 return true;
             }
@@ -253,13 +253,13 @@ internal static class CustomTexturePatch
 
         if (TryExtractSpeakerIdFromMenuPortraitAddress(path, out var speakerId))
         {
-            if (KupoUIPRPlugin.MenuPortraitMap.TryGetValue(speakerId, out mappedValue))
+            if (KupoUIPRPlugin.TryGetMenuPortraitMap(speakerId, out mappedValue))
             {
                 return true;
             }
 
             var shortId = SpeakerPortraitsPatch.GetShortSpeakerId(speakerId);
-            if (shortId != speakerId && KupoUIPRPlugin.MenuPortraitMap.TryGetValue(shortId, out mappedValue))
+            if (shortId != speakerId && KupoUIPRPlugin.TryGetMenuPortraitMap(shortId, out mappedValue))
             {
                 return true;
             }

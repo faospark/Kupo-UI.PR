@@ -384,6 +384,15 @@ public sealed class KupoUIPRPlugin : BasePlugin
         return ExtractBalancedBraces(json, match.Index + match.Length - 1);
     }
 
+    private static string ReadString(string json, string key)
+    {
+        var match = Regex.Match(
+            json,
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*\"([^\"]*)\"",
+            RegexOptions.IgnoreCase);
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
 
 
     /// <summary>
@@ -397,6 +406,27 @@ public sealed class KupoUIPRPlugin : BasePlugin
         {
             return false;
         }
+
+        string currentLang = null;
+        try
+        {
+            var msgMgr = UnityEngine.Object.FindObjectOfType<Last.Management.MessageManager>();
+            if (msgMgr != null)
+            {
+                currentLang = msgMgr.currentLanguage.ToString();
+            }
+        }
+        catch { }
+
+        if (!string.IsNullOrEmpty(currentLang))
+        {
+            var langKey = $"{currentLang}:{speakerId}";
+            if (SpeakerNamesOverride.TryGetValue(langKey, out displayName))
+            {
+                return true;
+            }
+        }
+
         return SpeakerNamesOverride.TryGetValue(speakerId, out displayName);
     }
 
@@ -412,13 +442,67 @@ public sealed class KupoUIPRPlugin : BasePlugin
         {
             return false;
         }
-        if (MessageSpeakerOverrides.TryGetValue(messageId, out var entry))
+
+        string currentLang = null;
+        try
         {
-            speakerId = entry.SpeakerId;
-            speakerName = entry.SpeakerName;
+            var msgMgr = UnityEngine.Object.FindObjectOfType<Last.Management.MessageManager>();
+            if (msgMgr != null)
+            {
+                currentLang = msgMgr.currentLanguage.ToString();
+            }
+        }
+        catch { }
+
+        if (!string.IsNullOrEmpty(currentLang))
+        {
+            var langKey = $"{currentLang}:{messageId}";
+            if (MessageSpeakerOverrides.TryGetValue(langKey, out var entry))
+            {
+                speakerId = entry.SpeakerId;
+                speakerName = entry.SpeakerName;
+                return true;
+            }
+        }
+
+        if (MessageSpeakerOverrides.TryGetValue(messageId, out var defaultEntry))
+        {
+            speakerId = defaultEntry.SpeakerId;
+            speakerName = defaultEntry.SpeakerName;
             return true;
         }
         return false;
+    }
+
+    internal static bool TryGetMenuPortraitMap(string key, out string mappedValue)
+    {
+        mappedValue = null;
+        if (string.IsNullOrEmpty(key))
+        {
+            return false;
+        }
+
+        string currentLang = null;
+        try
+        {
+            var msgMgr = UnityEngine.Object.FindObjectOfType<Last.Management.MessageManager>();
+            if (msgMgr != null)
+            {
+                currentLang = msgMgr.currentLanguage.ToString();
+            }
+        }
+        catch { }
+
+        if (!string.IsNullOrEmpty(currentLang))
+        {
+            var langKey = $"{currentLang}:{key}";
+            if (MenuPortraitMap.TryGetValue(langKey, out mappedValue))
+            {
+                return true;
+            }
+        }
+
+        return MenuPortraitMap.TryGetValue(key, out mappedValue);
     }
 
     /// <summary>
@@ -522,25 +606,26 @@ public sealed class KupoUIPRPlugin : BasePlugin
             try
             {
                 var json = File.ReadAllText(configPath);
+                var fileLanguage = ReadString(json, "Language")?.Trim();
 
                 // ── SPEAKERS BLOCK ──────────────────────────────────────────────
                 var speakersBlock = ReadSubObject(json, "speakers");
                 if (speakersBlock != null)
                 {
                     // New structured format — parse the "speakers": { ... } block
-                    LoadFlatSpeakerPairs(speakersBlock);
+                    LoadFlatSpeakerPairs(speakersBlock, fileLanguage);
                 }
                 else
                 {
                     // Backward-compat: flat format { "SPEAKER_77": "Crewman" }
-                    LoadFlatSpeakerPairs(json);
+                    LoadFlatSpeakerPairs(json, fileLanguage);
                 }
 
                 // ── MESSAGE OVERRIDES BLOCK ─────────────────────────────────────
                 var msgBlock = ReadSubObject(json, "messageOverrides");
                 if (msgBlock != null)
                 {
-                    LoadMessageOverrides(msgBlock);
+                    LoadMessageOverrides(msgBlock, fileLanguage);
                 }
 
                 PluginLog.LogInfo($"[SpeakerNames] Loaded from '{configPath}'.");
@@ -615,7 +700,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
             try
             {
                 var json = File.ReadAllText(configPath);
-                LoadFlatMenuPortraitPairs(json);
+                var fileLanguage = ReadString(json, "Language")?.Trim();
+                LoadFlatMenuPortraitPairs(json, fileLanguage);
                 PluginLog.LogInfo($"[MenuPortraitMap] Loaded from '{configPath}'.");
             }
             catch (Exception ex)
@@ -627,17 +713,18 @@ public sealed class KupoUIPRPlugin : BasePlugin
         PluginLog.LogInfo($"[MenuPortraitMap] Merged {files.Length} file(s): {MenuPortraitMap.Count} mapping(s) total.");
     }
 
-    private static void LoadFlatMenuPortraitPairs(string json)
+    private static void LoadFlatMenuPortraitPairs(string json, string language)
     {
         var matches = Regex.Matches(json, "\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
         foreach (System.Text.RegularExpressions.Match m in matches)
         {
             var key = m.Groups[1].Value;
-            if (key.StartsWith("_", StringComparison.Ordinal))
+            if (key.StartsWith("_", StringComparison.Ordinal) || key.Equals("Language", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
-            MenuPortraitMap[key] = m.Groups[2].Value;
+            var dictKey = string.IsNullOrEmpty(language) ? key : $"{language}:{key}";
+            MenuPortraitMap[dictKey] = m.Groups[2].Value;
         }
     }
 
@@ -682,17 +769,18 @@ public sealed class KupoUIPRPlugin : BasePlugin
     /// Parses flat "KEY": "Value" string pairs from <paramref name="json"/> into <see cref="SpeakerNamesOverride"/>.
     /// Keys beginning with '_' are treated as comments and skipped.
     /// </summary>
-    private static void LoadFlatSpeakerPairs(string json)
+    private static void LoadFlatSpeakerPairs(string json, string language)
     {
         var matches = Regex.Matches(json, "\"([^\"]+)\"\\s*:\\s*\"([^\"]*)\"");
         foreach (System.Text.RegularExpressions.Match m in matches)
         {
             var key = m.Groups[1].Value;
-            if (key.StartsWith("_", StringComparison.Ordinal))
+            if (key.StartsWith("_", StringComparison.Ordinal) || key.Equals("Language", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
-            SpeakerNamesOverride[key] = m.Groups[2].Value;
+            var dictKey = string.IsNullOrEmpty(language) ? key : $"{language}:{key}";
+            SpeakerNamesOverride[dictKey] = m.Groups[2].Value;
         }
     }
 
@@ -700,7 +788,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     /// Parses the "messageOverrides": { "msgKey": { "speakerId": "...", "speakerName": "..." } } block
     /// into <see cref="MessageSpeakerOverrides"/>.
     /// </summary>
-    private static void LoadMessageOverrides(string block)
+    private static void LoadMessageOverrides(string block, string language)
     {
         // Match every "KEY": { entry (non-_-prefixed) and extract its balanced object
         var entryPattern = new Regex("\"([^\"]+)\"\\s*:\\s*\\{");
@@ -731,7 +819,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
             if (speakerId != null || speakerName != null)
             {
-                MessageSpeakerOverrides[msgKey] = (speakerId, speakerName);
+                var dictKey = string.IsNullOrEmpty(language) ? msgKey : $"{language}:{msgKey}";
+                MessageSpeakerOverrides[dictKey] = (speakerId, speakerName);
             }
         }
     }
