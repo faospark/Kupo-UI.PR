@@ -315,18 +315,44 @@ internal static class MessageSpeakerPrefixPatch
         if (string.IsNullOrEmpty(text) || maxCharsPerLine <= 0)
             return text;
 
+        bool honorNewlines = false;
+        try
+        {
+            var msgMgr = UnityEngine.Object.FindObjectOfType<MessageManager>();
+            if (msgMgr != null)
+            {
+                var lang = msgMgr.currentLanguage.ToString();
+                if (!lang.Equals("En", StringComparison.OrdinalIgnoreCase))
+                {
+                    honorNewlines = true;
+                }
+            }
+        }
+        catch
+        {
+            // Fallback silently
+        }
+
         // Normalize newlines to spaces, avoiding double spaces if adjacent spaces already exist
+        // EXCEPT if honorNewlines is true, in which case we preserve \n
         string tempText = text.Replace("\r\n", "\n");
         StringBuilder sb = new StringBuilder();
         for (int j = 0; j < tempText.Length; j++)
         {
             if (tempText[j] == '\n')
             {
-                bool hasAdjacentSpace = (j > 0 && tempText[j - 1] == ' ') || 
-                                       (j < tempText.Length - 1 && tempText[j + 1] == ' ');
-                if (!hasAdjacentSpace)
+                if (honorNewlines)
                 {
-                    sb.Append(' ');
+                    sb.Append('\n');
+                }
+                else
+                {
+                    bool hasAdjacentSpace = (j > 0 && tempText[j - 1] == ' ') || 
+                                           (j < tempText.Length - 1 && tempText[j + 1] == ' ');
+                    if (!hasAdjacentSpace)
+                    {
+                        sb.Append(' ');
+                    }
                 }
             }
             else
@@ -337,7 +363,9 @@ internal static class MessageSpeakerPrefixPatch
         string normalized = sb.ToString();
 
         // Check if there are spaces. If not (e.g. Japanese), wrap by character.
-        bool useCharWrap = !normalized.Contains(" ");
+        // If honorNewlines is true, we should ignore '\n' when checking if there are spaces,
+        // because newlines shouldn't count as spaces for char-wrapping detection.
+        bool useCharWrap = !normalized.Replace("\n", "").Contains(" ");
 
         StringBuilder result = new StringBuilder();
         int currentLineLength = 0;
@@ -358,6 +386,14 @@ internal static class MessageSpeakerPrefixPatch
                 }
             }
 
+            if (normalized[i] == '\n')
+            {
+                result.Append('\n');
+                currentLineLength = 0;
+                i++;
+                continue;
+            }
+
             if (useCharWrap)
             {
                 // Character wrap: append character by character
@@ -373,13 +409,15 @@ internal static class MessageSpeakerPrefixPatch
             }
             else
             {
-                // Word wrap: find next space or tag
+                // Word wrap: find next space or tag or newline
                 int nextSpace = normalized.IndexOf(' ', i);
                 int nextTag = normalized.IndexOf('<', i);
+                int nextNewline = normalized.IndexOf('\n', i);
                 int endOfToken = normalized.Length;
 
                 if (nextSpace != -1 && nextSpace < endOfToken) endOfToken = nextSpace;
                 if (nextTag != -1 && nextTag < endOfToken) endOfToken = nextTag;
+                if (nextNewline != -1 && nextNewline < endOfToken) endOfToken = nextNewline;
 
                 string token = normalized.Substring(i, endOfToken - i);
                 int tokenLength = token.Length;
@@ -408,7 +446,7 @@ internal static class MessageSpeakerPrefixPatch
                     }
 
                     int nextWordEnd = lookAhead;
-                    while (nextWordEnd < normalized.Length && normalized[nextWordEnd] != ' ' && normalized[nextWordEnd] != '<')
+                    while (nextWordEnd < normalized.Length && normalized[nextWordEnd] != ' ' && normalized[nextWordEnd] != '<' && normalized[nextWordEnd] != '\n')
                     {
                         nextWordEnd++;
                     }

@@ -103,6 +103,7 @@ namespace KupoUI.PR.TextConfig
                     {
                         var key = match.Groups[1].Value.Trim();
                         var val = match.Groups[2].Value; // Keep formatting/spaces as-is in value
+                        val = UnescapeJsonString(val);
 
                         result.Add(new TextConfigEntry
                         {
@@ -160,13 +161,23 @@ namespace KupoUI.PR.TextConfig
 
         // ---- Primitive readers ----
 
+        private static string UnescapeJsonString(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return s;
+            return s.Replace("\\n", "\n")
+                    .Replace("\\r", "\r")
+                    .Replace("\\t", "\t")
+                    .Replace("\\\"", "\"")
+                    .Replace("\\\\", "\\");
+        }
+
         private static string ReadString(string json, string key)
         {
             var match = Regex.Match(
                 json,
                 $"\"{Regex.Escape(key)}\"\\s*:\\s*\"([^\"]*)\"",
                 RegexOptions.IgnoreCase);
-            return match.Success ? match.Groups[1].Value : null;
+            return match.Success ? UnescapeJsonString(match.Groups[1].Value) : null;
         }
 
         private static string ReadSubObject(string json, string key)
