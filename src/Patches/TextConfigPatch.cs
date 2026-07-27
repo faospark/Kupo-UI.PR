@@ -65,6 +65,35 @@ namespace KupoUI.PR.Patches
             }
         }
 
+        internal static void PatchShopListContentData(Harmony harmony)
+        {
+            var touchControllerType = AccessTools.TypeByName("Last.UI.Touch.ShopListItemContentController");
+            var keyInputControllerType = AccessTools.TypeByName("Last.UI.KeyInput.ShopListItemContentController");
+            
+            var controllerTypes = new[] { touchControllerType, keyInputControllerType };
+            foreach (var type in controllerTypes)
+            {
+                if (type == null) continue;
+                try
+                {
+                    var methods = type.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                    foreach (var method in methods)
+                    {
+                        if (method.Name == "UpdateView")
+                        {
+                            harmony.Patch(method, postfix: new HarmonyMethod(typeof(TextConfigPatch), nameof(ShopListItemUpdateViewPostfix)));
+                            if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                                KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig] Dynamically patched {type.FullName}.UpdateView Postfix.");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to patch shop list controller {type.FullName}: {ex}");
+                }
+            }
+        }
+
         private static string GetCurrentLanguage()
         {
             if (_cachedLanguage != null) return _cachedLanguage;
@@ -581,6 +610,100 @@ namespace KupoUI.PR.Patches
                             KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] ProcessSetText: sprite for tag '{tagName}' is not loaded.");
                     }
                 }
+            }
+        }
+
+        private static string GetCustomIconTagForText(string cleanText)
+        {
+            if (string.IsNullOrEmpty(cleanText)) return null;
+
+            // 1. Resolve key from ReverseMessageMap
+            if (ReverseMessageMap.TryGetValue(cleanText, out var key))
+            {
+                foreach (var entry in TextConfigLoader.Entries)
+                {
+                    if (!MatchesLanguage(entry.Language)) continue;
+
+                    if (!string.IsNullOrEmpty(entry.Key) && string.Equals(entry.Key, key, StringComparison.OrdinalIgnoreCase))
+                    {
+                        var match = Regex.Match(entry.NewText, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                        if (match.Success)
+                        {
+                            return match.Groups[1].Value;
+                        }
+                    }
+                }
+            }
+
+            // 2. Resolve by matching OriginalText rules
+            foreach (var entry in TextConfigLoader.Entries)
+            {
+                if (!MatchesLanguage(entry.Language)) continue;
+
+                if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(cleanText, entry.OriginalText, StringComparison.Ordinal))
+                {
+                    var match = Regex.Match(entry.NewText, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                    if (match.Success)
+                    {
+                        return match.Groups[1].Value;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        private static void ShopListItemUpdateViewPostfix(Il2CppSystem.Object __instance)
+        {
+            try
+            {
+                if (__instance == null) return;
+
+                var prop = AccessTools.Property(__instance.GetType(), "iconTextView");
+                if (prop == null) return;
+                
+                var iconTextVal = prop.GetValue(__instance);
+                if (iconTextVal == null) return;
+                
+                var iconTextComp = iconTextVal as Last.UI.IconTextView;
+                if (iconTextComp == null) return;
+
+                var nameText = iconTextComp.nameText;
+                if (nameText == null || string.IsNullOrEmpty(nameText.text)) return;
+
+                string text = nameText.text;
+                string tagName = null;
+
+                // 1. Try to extract tag directly from the text component if present
+                var match = Regex.Match(text, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    tagName = match.Groups[1].Value;
+                    // Clean the tag out of the text
+                    nameText.text = text.Replace(match.Value, "").TrimStart();
+                }
+                else
+                {
+                    // 2. Otherwise, look up via custom config entries using the clean text
+                    tagName = GetCustomIconTagForText(text);
+                }
+
+                if (!string.IsNullOrEmpty(tagName))
+                {
+                    var sprite = KupoUI.PR.IconsConfig.IconsConfigLoader.GetSprite(tagName);
+                    if (sprite != null)
+                    {
+                        if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Shop UpdateView Postfix: matched tag '{tagName}', applying custom sprite.");
+                        
+                        iconTextComp.SetIconImage(sprite);
+                        iconTextComp.UseIconImage();
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[IconsConfig] Error in ShopListItemUpdateViewPostfix: {ex}");
             }
         }
     }
