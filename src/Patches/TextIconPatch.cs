@@ -105,7 +105,7 @@ namespace KupoUI.PR.Patches
                 int originalIndex = match.Index;
                 int cleanedIndex = originalIndex - offset;
 
-                string spacer = "   "; // 3 spaces is a great default spacer
+                string spacer = "    "; // 4 spaces is a great default spacer
                 cleanedText = cleanedText.Remove(cleanedIndex, fullTag.Length).Insert(cleanedIndex, spacer);
 
                 tagInfos.Add(new IconTagInfo
@@ -161,13 +161,16 @@ namespace KupoUI.PR.Patches
                     img.color = Color.white;
 
                     var rect = child.GetComponent<RectTransform>();
-                    rect.anchorMin = new Vector2(0f, 1f);
-                    rect.anchorMax = new Vector2(0f, 1f);
+                    var parentPivot = textComp.rectTransform.pivot;
+                    rect.anchorMin = parentPivot;
+                    rect.anchorMax = parentPivot;
                     rect.pivot = new Vector2(0f, 0.5f);
-                    rect.sizeDelta = new Vector2(12f, 12f);
+                    float referenceFontSize = textComp.fontSize > 0 ? textComp.fontSize : 12f;
+                    float iconSize = referenceFontSize;
+                    rect.sizeDelta = new Vector2(iconSize, iconSize);
                     rect.localScale = Vector3.one;
 
-                    float verticalOffset = textComp.fontSize * 0.15f;
+                    float verticalOffset = -referenceFontSize * 0.5f;
                     rect.anchoredPosition = new Vector2(localPos.x, localPos.y + verticalOffset);
                 }
             }
