@@ -198,7 +198,7 @@ Use the file name **without extension** to match the in-game texture/sprite name
 
 ### Ignoring / Blocking Folders
 
-If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, `ObjectConfig.json`, `speaker-names.json`, `MenuPortraitMap.json`, or portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
+If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, `ObjectConfig.json`, `SpeakerNames.json` / `speaker-names.json`, `MenuPortraitMap.json`, or portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
 
 ### Path-Based Overrides
 
@@ -614,7 +614,6 @@ In Final Fantasy 2, 4, and 6, character portraits are displayed in the main game
   Shared/
     SpeakerPortraits/
       MenuPortraitMap.json         ← recommended location
-      MenuPortraitMap-sample.json  ← auto-generated reference (overwritten each launch)
 ```
 
 #### Mapping Format
@@ -637,30 +636,29 @@ If no mapping is defined in `MenuPortraitMap.json`, the plugin automatically fal
 
 1. The full speaker ID (e.g. `FA_FF4_P001.png`)
 2. The shorthand ID (e.g. `P001.png`)
-3. The display name override in `speaker-names.json` (if any exists for that ID)
+3. The display name override in `SpeakerNames.json` / `speaker-names.json` (if any exists for that ID)
 
 ### Speaker Name Overrides
 
-`speaker-names.json` lets you register speaker IDs with display names and override speaker identity on a per-dialogue-key basis — all without touching game files.
+`SpeakerNames.json` (or `speaker-names.json` for compatibility) lets you register speaker IDs with display names and override speaker identity on a per-dialogue-key basis — all without touching game files.
 
 #### File Location
 
-`speaker-names.json` can be placed in **any sub-folder under `Modules/`** — the plugin scans all of them recursively and merges every file it finds.
+`SpeakerNames.json` or `speaker-names.json` can be placed in **any sub-folder under `Modules/`** — the plugin scans all of them recursively and merges every file it finds.
 
 ```
 <GameRoot>/Modules/
   Shared/
     SpeakerPortraits/
-      speaker-names.json         ← recommended location
-      speaker-names-sample.json  ← auto-generated reference (overwritten each launch)
+      SpeakerNames.json         ← recommended filename and location
     FF2/
-      speaker-names.json         ← game-specific (only used when running FF2)
+      SpeakerNames.json         ← game-specific (only used when running FF2)
   00-Mods/
     MyMod/
-      speaker-names.json         ← mod-specific
+      SpeakerNames.json         ← mod-specific
   01-UI-Themes/
     MyTheme/
-      speaker-names.json         ← inside a theme pack
+      SpeakerNames.json         ← inside a theme pack
 ```
 
 Files are loaded in **alphabetical path order**. When multiple files define the same key, the **last file wins** — so a file deeper in the folder hierarchy or later alphabetically takes priority.

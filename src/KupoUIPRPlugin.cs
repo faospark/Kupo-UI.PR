@@ -56,7 +56,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
 
     /// <summary>
-    /// Speaker ID → display name registrations loaded from the "speakers" block of speaker-names.json.
+    /// Speaker ID → display name registrations loaded from the "speakers" block of SpeakerNames.json / speaker-names.json.
     /// Always applied when the speaker ID matches — not limited to blank-name fallback.
     /// </summary>
     internal static Dictionary<string, string> SpeakerNamesOverride { get; } = new(StringComparer.OrdinalIgnoreCase);
@@ -423,7 +423,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
     /// <summary>
     /// Scans all sub-folders under {GameRoot}/Modules/ recursively for files named
-    /// "speaker-names.json" and merges them all into <see cref="SpeakerNamesOverride"/>
+    /// "SpeakerNames.json" or "speaker-names.json" and merges them all into <see cref="SpeakerNamesOverride"/>
     /// and <see cref="MessageSpeakerOverrides"/>.
     ///
     /// Files are processed in alphabetical path order. Later files override earlier ones
@@ -441,39 +441,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         SpeakerNamesOverride.Clear();
         MessageSpeakerOverrides.Clear();
 
-        // ── WRITE SAMPLE FILE ───────────────────────────────────────────────────
-        var defaultDir = Path.Combine(ModulesRootPath, "Shared", "SpeakerPortraits");
-        var samplePath = Path.Combine(defaultDir, "speaker-names-sample.json");
-        try
-        {
-            if (!Directory.Exists(defaultDir))
-            {
-                Directory.CreateDirectory(defaultDir);
-            }
 
-            var sampleJson =
-@"{
-  ""_comment"": ""speaker-names.json — place this file in any Modules/ sub-folder to activate it."",
-
-  ""speakers"": {
-    ""_comment"": ""Register speaker IDs here. The name is always used when that speaker is active."",
-    ""SPEAKER_1"":  ""Warrior of Light"",
-    ""SPEAKER_77"": ""Crewman"",
-    ""SPEAKER_80"": ""Old Man""
-  },
-
-  ""messageOverrides"": {
-    ""_comment"": ""Per-dialogue-key overrides. speakerId and speakerName are both optional."",
-    ""E0001_00_001_a_01"": { ""speakerId"": ""SPEAKER_77"", ""speakerName"": ""Crewman"" },
-    ""E0001_00_002_a_01"": { ""speakerName"": ""Old Man"" }
-  }
-}";
-            File.WriteAllText(samplePath, sampleJson);
-        }
-        catch (Exception ex)
-        {
-            PluginLog.LogWarning($"[SpeakerNames] Could not write sample file: {ex.Message}");
-        }
 
         // ── SCAN ALL Modules/ SUB-FOLDERS ──────────────────────────────────────
         if (!Directory.Exists(ModulesRootPath))
@@ -485,7 +453,27 @@ public sealed class KupoUIPRPlugin : BasePlugin
         string[] files;
         try
         {
-            files = Directory.GetFiles(ModulesRootPath, "speaker-names.json", SearchOption.AllDirectories);
+            var oldFiles = Directory.GetFiles(ModulesRootPath, "speaker-names.json", SearchOption.AllDirectories);
+            var newFiles = Directory.GetFiles(ModulesRootPath, "SpeakerNames.json", SearchOption.AllDirectories);
+
+            var fileList = new System.Collections.Generic.List<string>(oldFiles);
+            foreach (var f in newFiles)
+            {
+                bool exists = false;
+                foreach (var existing in fileList)
+                {
+                    if (string.Equals(existing, f, StringComparison.OrdinalIgnoreCase))
+                    {
+                        exists = true;
+                        break;
+                    }
+                }
+                if (!exists)
+                {
+                    fileList.Add(f);
+                }
+            }
+            files = fileList.ToArray();
             Array.Sort(files, StringComparer.OrdinalIgnoreCase);
         }
         catch (Exception ex)
@@ -496,7 +484,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
         if (files.Length == 0)
         {
-            PluginLog.LogInfo($"[SpeakerNames] No speaker-names.json found under '{ModulesRootPath}'. Speaker name overrides disabled.");
+            PluginLog.LogInfo($"[SpeakerNames] No speaker-names.json or SpeakerNames.json found under '{ModulesRootPath}'. Speaker name overrides disabled.");
             return;
         }
 
@@ -558,29 +546,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     {
         MenuPortraitMap.Clear();
 
-        // ── WRITE SAMPLE FILE ───────────────────────────────────────────────────
-        var defaultDir = Path.Combine(ModulesRootPath, "Shared", "SpeakerPortraits");
-        var samplePath = Path.Combine(defaultDir, "MenuPortraitMap-sample.json");
-        try
-        {
-            if (!Directory.Exists(defaultDir))
-            {
-                Directory.CreateDirectory(defaultDir);
-            }
 
-            var sampleJson =
-@"{
-  ""_comment"": ""MenuPortraitMap.json — Maps menu portrait asset addresses to speaker IDs, speaker names, or PNG filenames."",
-  ""Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_P001/Default_00"": ""Cecil"",
-  ""Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_P002/Default_00"": ""Kain"",
-  ""Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_N001/Default_00"": ""N001""
-}";
-            File.WriteAllText(samplePath, sampleJson);
-        }
-        catch (Exception ex)
-        {
-            PluginLog.LogWarning($"[MenuPortraitMap] Could not write sample file: {ex.Message}");
-        }
 
         // ── SCAN ALL Modules/ SUB-FOLDERS ──────────────────────────────────────
         if (!Directory.Exists(ModulesRootPath))
