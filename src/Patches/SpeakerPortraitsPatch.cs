@@ -467,6 +467,27 @@ internal static class SpeakerPortraitsPatch
         }
     }
 
+    private static void ParseTextOffset(out float x, out float y)
+    {
+        x = 0f;
+        y = 0f;
+
+        var val = KupoUIPRPlugin.SpeakerPortraitsTextOffsetConfig.Value;
+        if (string.IsNullOrEmpty(val)) return;
+
+        var parts = val.Split(',');
+        if (parts.Length >= 2)
+        {
+            float.TryParse(parts[0], out x);
+            float.TryParse(parts[1], out y);
+        }
+        else if (parts.Length == 1)
+        {
+            float.TryParse(parts[0], out x);
+        }
+    }
+
+
     private static void ApplyPaddingAndSizing(RectTransform rectTransform, bool shouldFlip)
     {
         if (rectTransform == null) return;
@@ -547,6 +568,8 @@ internal static class SpeakerPortraitsPatch
             KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits] InjectPortrait: speakerId='{speakerId}', speakerName='{speakerName ?? "null"}', imagePath='{imagePath ?? "null"}'");
         }
 
+        ParseTextOffset(out var offsetX, out var offsetY);
+
         string targetName = "Portrait_" + speakerId;
 
         if (string.IsNullOrEmpty(imagePath))
@@ -600,7 +623,7 @@ internal static class SpeakerPortraitsPatch
             }
             if (lastText != null)
             {
-                lastText.localPosition = new Vector3(130f + KupoUIPRPlugin.SpeakerPortraitsTextOffsetConfig.Value, 0f, 0f);
+                lastText.localPosition = new Vector3(130f + offsetX, offsetY, 0f);
             }
 
             SetNewPageImagePosition(view, true);
@@ -639,8 +662,8 @@ internal static class SpeakerPortraitsPatch
         }
         if (lastText != null)
         {
-            lastText.localPosition = new Vector3(130f + KupoUIPRPlugin.SpeakerPortraitsTextOffsetConfig.Value, 0f, 0f);
-            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Set lastText position to {lastText.localPosition.x}");
+            lastText.localPosition = new Vector3(130f + offsetX, offsetY, 0f);
+            if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value) KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Set lastText position to {lastText.localPosition.x}, {lastText.localPosition.y}");
         }
 
         SetNewPageImagePosition(view, true);

@@ -53,7 +53,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> DiagnosticPortraitLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SpeakerPortraitsPaddingConfig { get; private set; } = null!;
-    internal static ConfigEntry<float> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
+    internal static ConfigEntry<string> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
 
     /// <summary>
     /// Speaker ID → display name registrations loaded from the "speakers" block of speaker-names.json.
@@ -172,8 +172,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
         SpeakerPortraitsTextOffsetConfig = Config.Bind(
             "UI-Dialog",
             "SpeakerPortraitsTextOffset",
-            0f,
-            "X-axis offset (in pixels) for the dialogue text box (lastText) when speaker portraits are active. Positive values move it to the right, negative values to the left. -75 is recommended for FF2 ");
+            "0",
+            "Offset (in pixels) for the dialogue text box (lastText) when speaker portraits are active. Supports 'X' or 'X,Y' format (e.g. '-75' or '-75,10'). Positive X moves right, positive Y moves up.");
 
         UIThemesFolderConfig = Config.Bind(
             "UI and Customizations",

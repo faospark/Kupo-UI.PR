@@ -113,14 +113,17 @@ BepInEx/config/faospark.kupoui.pr.cfg
 | `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options: `Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`. |
 | `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                              |
 | `UI`                    | `TitleScreenBgColor`          | `original` | Title screen background color. Options: `original`, `white`, `black`, `navy`, `crimson`, `violet`.                            |
-| `UI-Dialog`             | `DialogueFontSize`            | `36`       | Font size for dialogue text. Use an integer (e.g. `36`) or `Auto` to use the font's declared size.                            |
+| `UI-Dialog`             | `DialogueFontSize`            | `Auto`     | Font size for dialogue text. Use an integer (e.g. `36`) or `Auto` to use the font's declared size.                            |
 | `UI-Dialog`             | `MessageSpeakerPrefix`        | `true`     | Prepend speaker name to dialogue messages.                                                                                    |
 | `UI-Dialog`             | `SpeakerNameUppercase`        | `false`    | Transform speaker name to UPPERCASE before prepending.                                                                        |
+| `UI-Dialog`             | `SpeakerNameNewLine`          | `false`    | If true, inserts a line break (new line) after the speaker prefix in dialogue boxes.                                          |
+| `UI-Dialog`             | `DialogueTextWrap`            | `true`     | If true, forces built-in text wrapping on dialogue text boxes to prevent horizontal overflow.                                 |
+| `UI-Dialog`             | `DialogueLineLengthLimit`     | `0`        | If greater than 0, forces dialogue text to wrap at this maximum character count per line.                                     |
 | `UI-Dialog`             | `HideSpeakerTag`              | `true`     | Move the speaker tag bubble off-screen. May conflict with mods that use the bubble as portraits.                              |
 | `UI-Dialog`             | `EnableSpeakerPortraits`      | `true`     | Dynamically inject speaker portraits during dialogue.                                                                         |
 | `UI-Dialog`             | `FlipSpeakerPortraits`        | `true`     | Flip all injected speaker portraits horizontally.                                                                             |
 | `UI-Dialog`             | `SpeakerPortraitsPadding`     | `0,0,0,0`  | Padding for speaker portraits in `left,top,right,bottom` pixels format (e.g. `10,15,0,20`).                                  |
-| `UI-Dialog`             | `SpeakerPortraitsTextOffset`  | `0`        | X-axis offset (in pixels) for the dialogue text box when speaker portraits are active. Positive moves right, negative left. Recommended: `-75` for FF2. |
+| `UI-Dialog`             | `SpeakerPortraitsTextOffset`  | `0`        | Offset (in pixels) for the dialogue text box when speaker portraits are active. Supports `X` or `X,Y` format (e.g., `-75` or `-75,10`). |
 | `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under `Modules/01-UI-Themes/` for UI theme overrides.                                                                  |
 | `UI and Customizations` | `UiFramesFolder`              | _(empty)_  | Folder under `Modules/02-UI-Frames/` for UI frame overrides.                                                                  |
 | `UI and Customizations` | `UIBgColorFolder`             | _(empty)_  | Folder under `Modules/03-UI-BgColor/` for UI background overrides.                                                            |
@@ -134,6 +137,8 @@ BepInEx/config/faospark.kupoui.pr.cfg
 | `Z - Diagnostics`       | `TextureLogger`               | `Off`      | Texture logger mode: `Off`, `Discoveries`, `Resolutions`, `Misses`, `All` (or comma-separated).                               |
 | `Z - Diagnostics`       | `LogFontMapping`              | `false`    | Log `FontManager` font parameter and instance details to identify `FontType` mappings.                                        |
 | `Z - Diagnostics`       | `MessageSpeakerPrefixLogging` | `false`    | Log speaker name replacements.                                                                                                |
+| `Z - Diagnostics`       | `LogAllTexts`                 | `false`    | If true, logs all texts assigned to `UnityEngine.UI.Text` components to the console.                                          |
+| `Z - Diagnostics`       | `IconLogging`                 | `false`    | If true, logs custom icon tag matches and sprite swaps to the console.                                                        |
 | `Z - Diagnostics`       | `PortraitLogging`             | `true`     | Log portrait lifecycle and resolution details.                                                                                |
 
 ---
@@ -567,6 +572,9 @@ background_canvas/ui_root/backgrou_root/
 `UI-Dialog.MessageSpeakerPrefix` (default `true`) — Prepends the speaker's name to the dialogue message text inside the message window, without modifying any game files.
 
 - `UI-Dialog.SpeakerNameUppercase` (default `false`) — Transform the speaker name to UPPERCASE before prepending.
+- `UI-Dialog.SpeakerNameNewLine` (default `false`) — Inserts a line break (new line) after the speaker prefix in dialogue boxes to prevent text overflow.
+- `UI-Dialog.DialogueTextWrap` (default `true`) — Forces built-in text wrapping on dialogue text boxes to prevent horizontal overflow.
+- `UI-Dialog.DialogueLineLengthLimit` (default `0`) — If greater than 0, forces dialogue text to wrap at this maximum character count per line. Useful when prepending speaker names to prevent text overflow.
 - When the active language is Japanese, the separator changes from `": "` to `「` automatically.
 - Guards against double-prefix if the setter fires twice on the same text.
 - Works as an alternative to Classic Text Box Framework for displaying speaker names.
@@ -587,7 +595,7 @@ background_canvas/ui_root/backgrou_root/
 - Portraits are resolved from the texture index using the speaker ID. Place portrait images in any mod folder matching the speaker asset name.
 - `UI-Dialog.FlipSpeakerPortraits` (default `true`) — Flip all injected portraits horizontally.
 - `UI-Dialog.SpeakerPortraitsPadding` (default `0,0,0,0`) — Offset padding `left,top,right,bottom` in pixels to shrink and shift the injected portrait container.
-- `UI-Dialog.SpeakerPortraitsTextOffset` (default `0`) — X-axis offset (in pixels) for the dialogue text box (`lastText`) when speaker portraits are active. Positive values move it to the right, negative values to the left. `-75` is recommended for FF2.
+- `UI-Dialog.SpeakerPortraitsTextOffset` (default `0`) — Offset (in pixels) for the dialogue text box (`lastText`) when speaker portraits are active. Supports `X` or `X,Y` format (e.g., `-75` or `-75,10`). Positive X moves right, positive Y moves up.
 - Portrait images are cached in memory after first load.
 - Uses the same folder priority as the main texture system.
 - `Z - Diagnostics.PortraitLogging` (default `true`) — Logs portrait lifecycle and resolution details.
