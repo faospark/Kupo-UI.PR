@@ -183,6 +183,7 @@ internal static class SpeakerPortraitsPatch
             }
 
             var matches = Directory.GetDirectories(root, "SpeakerPortraits", SearchOption.AllDirectories);
+            var gameTag = Textures.TextureResolver.CurrentGameTag;
             foreach (var match in matches)
             {
                 var normalizedMatch = match.Replace('\\', '/');
@@ -191,6 +192,20 @@ internal static class SpeakerPortraitsPatch
                 foreach (var segment in pathSegments)
                 {
                     if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                    {
+                        skipFolder = true;
+                        break;
+                    }
+
+                    var isGameTagFolder =
+                        segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
+
+                    if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
                     {
                         skipFolder = true;
                         break;
@@ -327,6 +342,7 @@ internal static class SpeakerPortraitsPatch
         try
         {
             var files = Directory.GetFiles(dir, fileName, SearchOption.AllDirectories);
+            var gameTag = Textures.TextureResolver.CurrentGameTag;
             foreach (var file in files)
             {
                 var normalizedFile = file.Replace('\\', '/');
@@ -335,6 +351,20 @@ internal static class SpeakerPortraitsPatch
                 foreach (var segment in pathSegments)
                 {
                     if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
+                    {
+                        skipFile = true;
+                        break;
+                    }
+
+                    var isGameTagFolder =
+                        segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
+                        segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
+
+                    if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
                     {
                         skipFile = true;
                         break;
