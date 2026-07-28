@@ -91,6 +91,13 @@ namespace KupoUI.PR.TextConfig
             {
                 var json = File.ReadAllText(filePath);
 
+                var gameTag = Textures.TextureResolver.CurrentGameTag;
+                var fileGameTag = ReadString(json, "GameTag")?.Trim();
+                if (!string.IsNullOrEmpty(fileGameTag) && !fileGameTag.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    return result;
+                }
+
                 // 1. Parse file-level Language scoping if specified
                 var fileLanguage = ReadString(json, "Language")?.Trim();
 

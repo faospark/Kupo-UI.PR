@@ -73,6 +73,19 @@ namespace KupoUI.PR.IconsConfig
                 foreach (var file in filesToLoad)
                 {
                     string json = File.ReadAllText(file);
+
+                    var fileGameTag = ReadString(json, "GameTag")?.Trim();
+                    if (!string.IsNullOrEmpty(fileGameTag) && !fileGameTag.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                    {
+                        continue;
+                    }
+
+                    var fileLanguage = ReadString(json, "Language")?.Trim();
+                    if (!string.IsNullOrEmpty(fileLanguage) && !Patches.TextConfigPatch.MatchesLanguage(fileLanguage))
+                    {
+                        continue;
+                    }
+
                     // Strip single-line comments
                     json = Regex.Replace(json, @"//.*", "");
 
@@ -83,6 +96,12 @@ namespace KupoUI.PR.IconsConfig
                     foreach (Match match in matches)
                     {
                         string tag = match.Groups[1].Value;
+                        if (tag.StartsWith("_", StringComparison.Ordinal) || 
+                            tag.Equals("Language", StringComparison.OrdinalIgnoreCase) || 
+                            tag.Equals("GameTag", StringComparison.OrdinalIgnoreCase))
+                        {
+                            continue;
+                        }
                         string relativePath = match.Groups[2].Value;
 
                         string spritePath = Path.Combine(dir, relativePath);
@@ -152,6 +171,15 @@ namespace KupoUI.PR.IconsConfig
                 KupoUIPRPlugin.PluginLog.LogError($"[IconsConfig] Failed to load texture from '{filePath}': {ex}");
             }
             return null;
+        }
+
+        private static string ReadString(string json, string key)
+        {
+            var match = Regex.Match(
+                json,
+                $"\"{Regex.Escape(key)}\"\\s*:\\s*\"([^\"]*)\"",
+                RegexOptions.IgnoreCase);
+            return match.Success ? match.Groups[1].Value : null;
         }
     }
 }

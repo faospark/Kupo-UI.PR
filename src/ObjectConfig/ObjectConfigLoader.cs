@@ -131,6 +131,13 @@ internal static class ObjectConfigLoader
         {
             var json = File.ReadAllText(filePath);
 
+            var gameTag = Textures.TextureResolver.CurrentGameTag;
+            var fileGameTag = ReadString(json, "GameTag")?.Trim();
+            if (!string.IsNullOrEmpty(fileGameTag) && !fileGameTag.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+            {
+                return result;
+            }
+
             // Extract the "objects" array content.
             var arrayContent = ExtractArrayContent(json, "objects");
             if (arrayContent == null)

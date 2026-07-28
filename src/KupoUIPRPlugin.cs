@@ -407,16 +407,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             return false;
         }
 
-        string currentLang = null;
-        try
-        {
-            var msgMgr = UnityEngine.Object.FindObjectOfType<Last.Management.MessageManager>();
-            if (msgMgr != null)
-            {
-                currentLang = msgMgr.currentLanguage.ToString();
-            }
-        }
-        catch { }
+        string currentLang = Patches.TextConfigPatch.GetCurrentLanguage();
 
         if (!string.IsNullOrEmpty(currentLang))
         {
@@ -443,16 +434,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             return false;
         }
 
-        string currentLang = null;
-        try
-        {
-            var msgMgr = UnityEngine.Object.FindObjectOfType<Last.Management.MessageManager>();
-            if (msgMgr != null)
-            {
-                currentLang = msgMgr.currentLanguage.ToString();
-            }
-        }
-        catch { }
+        string currentLang = Patches.TextConfigPatch.GetCurrentLanguage();
 
         if (!string.IsNullOrEmpty(currentLang))
         {
@@ -482,16 +464,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             return false;
         }
 
-        string currentLang = null;
-        try
-        {
-            var msgMgr = UnityEngine.Object.FindObjectOfType<Last.Management.MessageManager>();
-            if (msgMgr != null)
-            {
-                currentLang = msgMgr.currentLanguage.ToString();
-            }
-        }
-        catch { }
+        string currentLang = Patches.TextConfigPatch.GetCurrentLanguage();
 
         if (!string.IsNullOrEmpty(currentLang))
         {
@@ -606,6 +579,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             try
             {
                 var json = File.ReadAllText(configPath);
+                var fileGameTag = ReadString(json, "GameTag")?.Trim();
+                if (!string.IsNullOrEmpty(fileGameTag) && !fileGameTag.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var fileLanguage = ReadString(json, "Language")?.Trim();
 
                 // ── SPEAKERS BLOCK ──────────────────────────────────────────────
@@ -700,6 +679,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             try
             {
                 var json = File.ReadAllText(configPath);
+                var fileGameTag = ReadString(json, "GameTag")?.Trim();
+                if (!string.IsNullOrEmpty(fileGameTag) && !fileGameTag.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
                 var fileLanguage = ReadString(json, "Language")?.Trim();
                 LoadFlatMenuPortraitPairs(json, fileLanguage);
                 PluginLog.LogInfo($"[MenuPortraitMap] Loaded from '{configPath}'.");
@@ -719,7 +704,9 @@ public sealed class KupoUIPRPlugin : BasePlugin
         foreach (System.Text.RegularExpressions.Match m in matches)
         {
             var key = m.Groups[1].Value;
-            if (key.StartsWith("_", StringComparison.Ordinal) || key.Equals("Language", StringComparison.OrdinalIgnoreCase))
+            if (key.StartsWith("_", StringComparison.Ordinal) || 
+                key.Equals("Language", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("GameTag", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -775,7 +762,9 @@ public sealed class KupoUIPRPlugin : BasePlugin
         foreach (System.Text.RegularExpressions.Match m in matches)
         {
             var key = m.Groups[1].Value;
-            if (key.StartsWith("_", StringComparison.Ordinal) || key.Equals("Language", StringComparison.OrdinalIgnoreCase))
+            if (key.StartsWith("_", StringComparison.Ordinal) || 
+                key.Equals("Language", StringComparison.OrdinalIgnoreCase) ||
+                key.Equals("GameTag", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }

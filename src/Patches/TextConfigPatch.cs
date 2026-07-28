@@ -94,7 +94,7 @@ namespace KupoUI.PR.Patches
             }
         }
 
-        private static string GetCurrentLanguage()
+        internal static string GetCurrentLanguage()
         {
             if (_cachedLanguage != null) return _cachedLanguage;
             try
@@ -116,6 +116,21 @@ namespace KupoUI.PR.Patches
             return string.Equals(entryLanguage, GetCurrentLanguage(), StringComparison.OrdinalIgnoreCase);
         }
 
+        private static string GetMergedText(string originalText, string newText)
+        {
+            if (string.IsNullOrEmpty(newText)) return newText;
+            var trimmedNew = newText.Trim();
+            var onlyTagMatch = Regex.Match(trimmedNew, @"^<(IC_[A-Za-z0-9_]+)>$", RegexOptions.IgnoreCase);
+            if (onlyTagMatch.Success)
+            {
+                string cleanRaw = string.IsNullOrEmpty(originalText) 
+                    ? "" 
+                    : Regex.Replace(originalText, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+                return trimmedNew + cleanRaw;
+            }
+            return newText;
+        }
+
         // ── HOOK 1: INTERCEPT TEXT.TEXT SETTER ──────────────────────────────────
         [HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
         [HarmonyPrefix]
@@ -135,7 +150,7 @@ namespace KupoUI.PR.Patches
                 // 1. Match by original value
                 if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(value, entry.OriginalText, StringComparison.Ordinal))
                 {
-                    value = entry.NewText;
+                    value = GetMergedText(value, entry.NewText);
                     continue;
                 }
 
@@ -148,7 +163,7 @@ namespace KupoUI.PR.Patches
 
                 if (!string.IsNullOrEmpty(entry.TargetPath) && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
 
-                value = entry.NewText;
+                value = GetMergedText(value, entry.NewText);
             }
         }
 
@@ -174,14 +189,14 @@ namespace KupoUI.PR.Patches
                 // 1. Match by Key
                 if (!string.IsNullOrEmpty(entry.Key) && string.Equals(key, entry.Key, StringComparison.OrdinalIgnoreCase))
                 {
-                    __result = entry.NewText;
+                    __result = GetMergedText(__result, entry.NewText);
                     continue;
                 }
 
                 // 2. Match by original value
                 if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(__result, entry.OriginalText, StringComparison.Ordinal))
                 {
-                    __result = entry.NewText;
+                    __result = GetMergedText(__result, entry.NewText);
                 }
             }
         }
@@ -287,7 +302,7 @@ namespace KupoUI.PR.Patches
 
                 if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(value, entry.OriginalText, StringComparison.Ordinal))
                 {
-                    value = entry.NewText;
+                    value = GetMergedText(value, entry.NewText);
                     return;
                 }
             }
@@ -331,7 +346,7 @@ namespace KupoUI.PR.Patches
 
                 if (!string.IsNullOrEmpty(entry.TargetPath) && !MatchesHierarchyPath(go, entry.TargetPath)) continue;
 
-                EnforceText(textComp, entry.NewText);
+                EnforceText(textComp, GetMergedText(textComp.text, entry.NewText));
             }
         }
 
@@ -546,7 +561,7 @@ namespace KupoUI.PR.Patches
                         if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(name, entry.OriginalText, StringComparison.Ordinal))
                         {
                             matchedNameKey = $"(OriginalText) {entry.OriginalText}";
-                            name = entry.NewText;
+                            name = GetMergedText(name, entry.NewText);
                         }
                         else if (!string.IsNullOrEmpty(entry.Key) &&
                                  (// Real system key (e.g. MSG_ITEM_NAME_38)
@@ -556,7 +571,7 @@ namespace KupoUI.PR.Patches
                                   string.Equals(entry.Key, nameAltKey, StringComparison.OrdinalIgnoreCase)))
                         {
                             matchedNameKey = entry.Key;
-                            name = entry.NewText;
+                            name = GetMergedText(name, entry.NewText);
                         }
                     }
 
@@ -565,14 +580,14 @@ namespace KupoUI.PR.Patches
                     {
                         if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(description, entry.OriginalText, StringComparison.Ordinal))
                         {
-                            description = entry.NewText;
+                            description = GetMergedText(description, entry.NewText);
                         }
                         else if (!string.IsNullOrEmpty(entry.Key) &&
                                  ((!string.IsNullOrEmpty(realDescKey) && string.Equals(entry.Key, realDescKey, StringComparison.OrdinalIgnoreCase)) ||
                                   string.Equals(entry.Key, descKey, StringComparison.OrdinalIgnoreCase) ||
                                   string.Equals(entry.Key, descAltKey, StringComparison.OrdinalIgnoreCase)))
                         {
-                            description = entry.NewText;
+                            description = GetMergedText(description, entry.NewText);
                         }
                     }
                 }

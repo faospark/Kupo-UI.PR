@@ -315,23 +315,8 @@ internal static class MessageSpeakerPrefixPatch
         if (string.IsNullOrEmpty(text) || maxCharsPerLine <= 0)
             return text;
 
-        bool honorNewlines = false;
-        try
-        {
-            var msgMgr = UnityEngine.Object.FindObjectOfType<MessageManager>();
-            if (msgMgr != null)
-            {
-                var lang = msgMgr.currentLanguage.ToString();
-                if (!lang.Equals("En", StringComparison.OrdinalIgnoreCase))
-                {
-                    honorNewlines = true;
-                }
-            }
-        }
-        catch
-        {
-            // Fallback silently
-        }
+        string currentLang = TextConfigPatch.GetCurrentLanguage();
+        bool honorNewlines = !currentLang.Equals("En", StringComparison.OrdinalIgnoreCase);
 
         // Normalize newlines to spaces, avoiding double spaces if adjacent spaces already exist
         // EXCEPT if honorNewlines is true, in which case we preserve \n

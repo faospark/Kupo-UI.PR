@@ -542,9 +542,23 @@ Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere r
 }
 ```
 
-### Language Scoping
+### Language & Game Scoping
 
-If the `"Language"` parameter is set, the text overrides will only apply when that language is active in the game's settings.
+You can limit configuration files (`TextConfig.json`, `ObjectConfig.json`, and `IconsConfig.json`) to a specific language and/or game by adding `"Language"` and/or `"GameTag"` parameters at the root level:
+
+```json
+{
+  "GameTag": "FF1",
+  "Language": "Ja",
+  "texts": {
+    "Confirm": "はい"
+  }
+}
+```
+
+- If `"GameTag"` (e.g. `"FF1"`, `"FF2"`, `"FF3"`, `"FF4"`, `"FF5"`, `"FF6"`) is specified, the file will only be loaded when running that specific game.
+- If the `"Language"` parameter is set, the overrides will only apply when that language is active in the game's settings.
+- Both scopes are optional and can be combined.
 
 Supported language values:
 
@@ -581,6 +595,26 @@ Create `IconsConfig.json` inside the `Modules/Shared/` folder. The file maps the
 - **Sprites Location**: Save the referenced `.png` sprite files under `Modules/Shared/Icons/` (e.g., `Modules/Shared/Icons/bag.png`).
 - **Sizing**: Sprites are rendered at `12x12` pixels in size.
 - **Vertical Alignment**: Icons are automatically offset vertically relative to the text line's baseline to align beautifully with the characters.
+
+### Language-Agnostic Icon Injection (e.g. for Inventory Items)
+
+Normally, overriding an item name to add a custom icon requires specifying the full name in your config (which is language-bound):
+
+```json
+  "texts": {
+    "MSG_ITEM_NAME_34": "<IC_ETHER>Ether"
+  }
+```
+
+To make icon injection language-agnostic, you can configure the value to consist **solely of the icon tag**:
+
+```json
+  "texts": {
+    "MSG_ITEM_NAME_34": "<IC_ETHER>"
+  }
+```
+
+When an override consists of only a tag (e.g., `<IC_ETHER>`), the plugin will automatically strip any existing native icon tag from the in-game text and prepend your custom icon tag while **preserving the original translated item name**. This allows you to apply custom icons globally without redefining item names for every language.
 
 ---
 
@@ -691,17 +725,20 @@ Inside `MenuPortraitMap.json`, define key-value pairs where the key is the menu 
 }
 ```
 
-#### Language Scoping
+#### Language & Game Scoping
 
-You can limit portrait overrides to a specific language by adding a `"Language"` property at the root of `MenuPortraitMap.json`:
+You can limit portrait overrides to a specific language and/or game by adding `"Language"` and/or `"GameTag"` properties at the root of `MenuPortraitMap.json`:
 
 ```json
 {
+  "GameTag": "FF4",
   "Language": "Ja",
   "P003": "Rydia"
 }
 ```
-If `"Language"` is specified, the mappings in this file will only apply when playing the game in that language. Otherwise, mappings are global.
+- If `"GameTag"` (e.g. `"FF1"`, `"FF2"`, `"FF3"`, `"FF4"`, `"FF5"`, `"FF6"`) is specified, the file will only be loaded when running that specific game.
+- If `"Language"` is specified, the mappings in this file will only apply when playing the game in that language.
+- Both scopes are optional and can be combined.
 
 If mapped to a dialogue Speaker ID (like `SPEAKER_05`), the plugin will automatically resolve its display name from `speaker-names.json` (e.g., `"SPEAKER_05": "Kain"`) and search the BepInEx `SpeakerPortraits/` folders for either `SPEAKER_05.png` or `Kain.png`.
 
@@ -756,19 +793,22 @@ Files are loaded in **alphabetical path order**. When multiple files define the 
 }
 ```
 
-#### Language Scoping
+#### Language & Game Scoping
 
-You can limit speaker and message overrides to a specific language by adding a `"Language"` property at the root of `SpeakerNames.json`:
+You can limit speaker and message overrides to a specific language and/or game by adding `"Language"` and/or `"GameTag"` properties at the root of `SpeakerNames.json`:
 
 ```json
 {
+  "GameTag": "FF2",
   "Language": "Ja",
   "speakers": {
     "SPEAKER_81": "Dark Knight"
   }
 }
 ```
-If `"Language"` is specified, the overrides in this file will only apply when playing the game in that language. Otherwise, overrides are global.
+- If `"GameTag"` (e.g. `"FF1"`, `"FF2"`, `"FF3"`, `"FF4"`, `"FF5"`, `"FF6"`) is specified, the file will only be loaded when running that specific game.
+- If `"Language"` is specified, the overrides in this file will only apply when playing the game in that language.
+- Both scopes are optional and can be combined.
 
 #### `speakers` — Register speaker IDs
 
