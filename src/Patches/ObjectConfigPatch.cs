@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using HarmonyLib;
 using KupoUI.PR.Compatibility;
 using KupoUI.PR.ObjectConfig;
@@ -11,17 +13,6 @@ namespace KupoUI.PR.Patches;
 /// <summary>
 /// Applies data-driven GameObject transform overrides defined in <c>ObjectConfig.json</c>
 /// files found recursively under <c>Modules/00-Mods/</c>.
-/// <para>
-/// <c>SetActive: false</c> rules are enforced at three levels:
-/// <list type="bullet">
-///   <item><description>Prefix on <see cref="GameObject.SetActive"/> — flips any direct
-///   <c>SetActive(true)</c> call on the target to <c>false</c> before Unity processes it.</description></item>
-///   <item><description>Postfix on <see cref="GameObject.SetActive"/> — when a <em>parent</em> is
-///   activated Unity propagates active-state to children without calling SetActive on them;
-///   the postfix scans the hierarchy and explicitly disables matching children.</description></item>
-///   <item><description>Postfix on <c>Internal_SceneLoaded</c> — initial sweep when a scene loads.</description></item>
-/// </list>
-/// </para>
 /// </summary>
 [HarmonyPatch]
 internal static class ObjectConfigPatch
@@ -32,6 +23,11 @@ internal static class ObjectConfigPatch
     private static bool _hasDisableShadowRules;
     private static bool _isApplyingColor;
     private static bool _isProcessingSetActive;
+
+    private static readonly ConditionalWeakTable<GameObject, object> _processedObjects = new();
+    private static readonly ConditionalWeakTable<GameObject, object> _hierarchyProcessedObjects = new();
+    private static readonly Dictionary<string, List<ObjectConfigEntry>> _entriesByName = new(StringComparer.Ordinal);
+    private static readonly object _dummyValue = new();
 
     /// <summary>
     /// Called once from <see cref="KupoUIPRPlugin.Load"/> to bootstrap the system.
@@ -44,9 +40,20 @@ internal static class ObjectConfigPatch
         _hasTextColorWhiteRules = false;
         _hasColorRules = false;
         _hasDisableShadowRules = false;
+
+        _entriesByName.Clear();
         var entries = ObjectConfigLoader.Entries;
         foreach (var e in entries)
         {
+            if (string.IsNullOrWhiteSpace(e.TargetObjectName)) continue;
+            var key = e.TargetObjectName.Trim();
+            if (!_entriesByName.TryGetValue(key, out var list))
+            {
+                list = new List<ObjectConfigEntry>();
+                _entriesByName[key] = list;
+            }
+            list.Add(e);
+
             if (e.TextColorWhite == true)
             {
                 _hasTextColorWhiteRules = true;
@@ -113,36 +120,59 @@ internal static class ObjectConfigPatch
         // Only intercept activation attempts.
         if (!value || __instance == null) return;
 
-        var entries = ObjectConfigLoader.Entries;
-        if (entries.Count == 0) return;
+        if (_entriesByName.Count == 0) return;
+
+        var name = __instance.name;
+        if (name == null) return;
 
         var sceneName = SceneManager.GetActiveScene().name;
 
-        foreach (var entry in entries)
+        if (_entriesByName.TryGetValue(name, out var list))
         {
-            // Only care about rules that want the object kept inactive.
-            if (!entry.SetActive.HasValue || entry.SetActive.Value) continue;
-
-            if (!IsNameMatch(__instance.name, entry.TargetObjectName)) continue;
-
-            if (!string.IsNullOrEmpty(entry.SceneName)
-                && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase))
+            foreach (var entry in list)
             {
-                continue;
+                if (CheckAndApplyActiveRule(__instance, entry, sceneName, ref value))
+                {
+                    return;
+                }
             }
-
-            if (!string.IsNullOrEmpty(entry.TargetPath)
-                && !MatchesHierarchyPath(__instance, entry.TargetPath))
-            {
-                continue;
-            }
-
-            // Redirect: the original SetActive will receive false instead of true.
-            value = false;
-            KupoUIPRPlugin.PluginLog.LogInfo(
-                $"[ObjectConfig] Blocked SetActive(true) on '{__instance.name}' — rule keeps it inactive.");
-            return;
         }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (CheckAndApplyActiveRule(__instance, entry, sceneName, ref value))
+                {
+                    return;
+                }
+            }
+        }
+    }
+
+    private static bool CheckAndApplyActiveRule(GameObject go, ObjectConfigEntry entry, string sceneName, ref bool value)
+    {
+        // Only care about rules that want the object kept inactive.
+        if (!entry.SetActive.HasValue || entry.SetActive.Value) return false;
+
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(go, entry.TargetPath))
+        {
+            return false;
+        }
+
+        // Redirect: the original SetActive will receive false instead of true.
+        value = false;
+        KupoUIPRPlugin.PluginLog.LogInfo(
+            $"[ObjectConfig] Blocked SetActive(true) on '{go.name}' — rule keeps it inactive.");
+        return true;
     }
 
     // -------------------------------------------------------------------------
@@ -164,6 +194,12 @@ internal static class ObjectConfigPatch
             return;
         }
 
+        // If the hierarchy has already been fully processed, skip it completely.
+        if (_hierarchyProcessedObjects.TryGetValue(__instance, out _))
+        {
+            return;
+        }
+
         _isProcessingSetActive = true;
         try
         {
@@ -175,7 +211,6 @@ internal static class ObjectConfigPatch
             _isProcessingSetActive = false;
         }
     }
-
 
     // -------------------------------------------------------------------------
     // Harmony hook 2 — fires when Unity finishes loading a scene.
@@ -206,13 +241,6 @@ internal static class ObjectConfigPatch
     /// <summary>
     /// Walks the entire transform hierarchy (including inactive objects) and
     /// applies all matching rules.
-    /// <para>
-    /// <see cref="Transform.GetChild"/> only iterates <em>direct</em> children
-    /// and does not surface inactive objects in all Unity/IL2CPP builds.
-    /// Using <c>GetComponentsInChildren&lt;Transform&gt;(true)</c> guarantees that
-    /// objects with <c>SetActive: false</c> — which may already be inactive at
-    /// scene-load time — are still reached.
-    /// </para>
     /// </summary>
     private static void ApplyToHierarchy(GameObject go, string sceneName)
     {
@@ -221,17 +249,27 @@ internal static class ObjectConfigPatch
             return;
         }
 
-        // includeInactive: true is critical — without it, GameObjects that are
-        // already inactive are skipped entirely, so "SetActive": false rules
-        // would never fire on objects that start inactive.
+        // Check if hierarchy processing was already done for this root object.
+        if (_hierarchyProcessedObjects.TryGetValue(go, out _))
+        {
+            return;
+        }
+
         var allTransforms = go.GetComponentsInChildren<Transform>(includeInactive: true);
         foreach (var t in allTransforms)
         {
             if (t != null && t.gameObject != null)
             {
-                ApplyMatchingRules(t.gameObject, sceneName);
+                var targetGo = t.gameObject;
+                if (!_processedObjects.TryGetValue(targetGo, out _))
+                {
+                    ApplyMatchingRules(targetGo, sceneName);
+                    _processedObjects.Add(targetGo, _dummyValue);
+                }
             }
         }
+
+        _hierarchyProcessedObjects.Add(go, _dummyValue);
     }
 
     // -------------------------------------------------------------------------
@@ -245,37 +283,52 @@ internal static class ObjectConfigPatch
             return;
         }
 
-        var entries = ObjectConfigLoader.Entries;
-        if (entries.Count == 0)
+        if (_entriesByName.Count == 0)
         {
             return;
         }
 
-        foreach (var entry in entries)
+        var name = go.name;
+        if (name == null) return;
+
+        if (_entriesByName.TryGetValue(name, out var list))
         {
-            // Log near-misses: name matched but scene or path did not, so the user
-            // can see what the game actually reports vs. what the config expects.
-            if (IsNameMatch(go.name, entry.TargetObjectName))
+            foreach (var entry in list)
             {
-                if (!string.IsNullOrEmpty(entry.SceneName)
-                    && !entry.SceneName.Equals(currentScene, StringComparison.OrdinalIgnoreCase))
-                {
-                    KupoUIPRPlugin.PluginLog.LogDebug(
-                        $"[ObjectConfig] Name match '{go.name}' — scene MISMATCH: config='{entry.SceneName}' actual='{currentScene}'");
-                    continue;
-                }
-
-                if (!string.IsNullOrEmpty(entry.TargetPath)
-                    && !MatchesHierarchyPath(go, entry.TargetPath))
-                {
-                    KupoUIPRPlugin.PluginLog.LogDebug(
-                        $"[ObjectConfig] Name match '{go.name}' — path MISMATCH: expected='{entry.TargetPath}' actual='{BuildTransformPath(go)}'");
-                    continue;
-                }
-
-                ApplyEntry(go, entry);
+                CheckAndApplyRule(go, entry, currentScene);
             }
         }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                CheckAndApplyRule(go, entry, currentScene);
+            }
+        }
+    }
+
+    private static bool CheckAndApplyRule(GameObject go, ObjectConfigEntry entry, string currentScene)
+    {
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(currentScene, StringComparison.OrdinalIgnoreCase))
+        {
+            KupoUIPRPlugin.PluginLog.LogDebug(
+                $"[ObjectConfig] Name match '{go.name}' — scene MISMATCH: config='{entry.SceneName}' actual='{currentScene}'");
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(go, entry.TargetPath))
+        {
+            KupoUIPRPlugin.PluginLog.LogDebug(
+                $"[ObjectConfig] Name match '{go.name}' — path MISMATCH: expected='{entry.TargetPath}' actual='{BuildTransformPath(go)}'");
+            return false;
+        }
+
+        ApplyEntry(go, entry);
+        return true;
     }
 
     private static void ApplyEntry(GameObject go, ObjectConfigEntry entry)
@@ -542,26 +595,46 @@ internal static class ObjectConfigPatch
         if ((!_hasTextColorWhiteRules && !_hasColorRules) || _isApplyingColor) return;
         if (__instance == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
-        foreach (var entry in ObjectConfigLoader.Entries)
-        {
-            if (entry.TextColorWhite != true && !entry.Color.HasValue) continue;
-            if (!IsNameMatch(__instance.name, entry.TargetObjectName)) continue;
-            if (!string.IsNullOrEmpty(entry.SceneName)
-                && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) continue;
-            if (!string.IsNullOrEmpty(entry.TargetPath)
-                && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
+        var name = __instance.name;
+        if (name == null) return;
 
-            if (entry.Color.HasValue)
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
             {
-                value = entry.Color.Value;
+                if (ApplyColorRule(__instance, entry, sceneName, ref value)) return;
             }
-            else if (entry.TextColorWhite == true)
-            {
-                value = Color.white;
-            }
-            return;
         }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyColorRule(__instance, entry, sceneName, ref value)) return;
+            }
+        }
+    }
+
+    private static bool ApplyColorRule(Graphic graphic, ObjectConfigEntry entry, string sceneName, ref Color value)
+    {
+        if (entry.TextColorWhite != true && !entry.Color.HasValue) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(graphic.gameObject, entry.TargetPath)) return false;
+
+        if (entry.Color.HasValue)
+        {
+            value = entry.Color.Value;
+        }
+        else if (entry.TextColorWhite == true)
+        {
+            value = Color.white;
+        }
+        return true;
     }
 
     /// <summary>
@@ -576,19 +649,39 @@ internal static class ObjectConfigPatch
         if (__instance == null || __instance.gameObject == null) return;
         if (!(__instance is Shadow)) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
-        foreach (var entry in ObjectConfigLoader.Entries)
-        {
-            if (entry.DisableShadow != true) continue;
-            if (!IsNameMatch(__instance.name, entry.TargetObjectName)) continue;
-            if (!string.IsNullOrEmpty(entry.SceneName)
-                && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) continue;
-            if (!string.IsNullOrEmpty(entry.TargetPath)
-                && !MatchesHierarchyPath(__instance.gameObject, entry.TargetPath)) continue;
+        var name = __instance.name;
+        if (name == null) return;
 
-            __instance.enabled = false;
-            return;
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableShadowRule(__instance, entry, sceneName)) return;
+            }
         }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableShadowRule(__instance, entry, sceneName)) return;
+            }
+        }
+    }
+
+    private static bool ApplyDisableShadowRule(BaseMeshEffect instance, ObjectConfigEntry entry, string sceneName)
+    {
+        if (entry.DisableShadow != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(instance.gameObject, entry.TargetPath)) return false;
+
+        instance.enabled = false;
+        return true;
     }
 
     /// <summary>
