@@ -23,6 +23,13 @@ internal static class TextureResolver
     private static readonly HashSet<string> NonReadableTextureWarnings = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object ReloadLock = new();
 
+    // [OPT-PERF] Miss-caches: Unity instance IDs of objects that have no custom override.
+    // Populated when a lookup fails. Checked first in the hot paths so that repeated no-op
+    // lookups during scrolling cost a single HashSet<int>.Contains instead of multiple string
+    // allocations, NormalizeName calls and dictionary probes.
+    private static readonly HashSet<int> SkippedTextureIds = new();
+    private static readonly HashSet<int> SkippedSpriteIds = new();
+
     // [OPT-7] O(1) extension lookup — replaces five sequential string.Equals calls.
     private static readonly HashSet<string> SupportedExtensions = new(StringComparer.OrdinalIgnoreCase)
         { ".png", ".jpg", ".jpeg", ".tga", ".dds" };
@@ -158,6 +165,12 @@ internal static class TextureResolver
             return false;
         }
 
+        // [OPT-PERF] Short-circuit if we already know this texture has no custom override.
+        if (SkippedTextureIds.Contains(textureId))
+        {
+            return false;
+        }
+
         var key = NormalizeName(textureName);
         TextureLogger.LogObservedTextureName(key, "TryReplaceTextureInPlace");
 
@@ -170,6 +183,7 @@ internal static class TextureResolver
         else if (!TryGetFilePathByNormalizedName(key, out path))
         {
             TextureLogger.LogMissingTexture(key, "TryReplaceTextureInPlace");
+            SkippedTextureIds.Add(textureId);
             return false;
         }
 
@@ -234,6 +248,8 @@ internal static class TextureResolver
                     }
                 }
 
+                // Non-readable textures will always fail — skip them on future calls too.
+                SkippedTextureIds.Add(textureId);
                 return false;
             }
 
@@ -259,6 +275,12 @@ internal static class TextureResolver
             return true;
         }
 
+        // [OPT-PERF] Short-circuit if we already know this sprite has no custom override.
+        if (SkippedSpriteIds.Contains(originalId))
+        {
+            return false;
+        }
+
         var spriteName = NormalizeName(original.name);
         var textureName = NormalizeName(original.texture.name);
 
@@ -278,6 +300,7 @@ internal static class TextureResolver
 
         if (customTexture == null)
         {
+            SkippedSpriteIds.Add(originalId);
             return false;
         }
 
@@ -533,6 +556,8 @@ internal static class TextureResolver
         MetadataCache.Clear();
         SpriteCache.Clear();
         InPlaceProcessedTextureIds.Clear();
+        SkippedTextureIds.Clear();
+        SkippedSpriteIds.Clear();
 
         var watch = Stopwatch.StartNew();
 
@@ -562,6 +587,7 @@ internal static class TextureResolver
         }
 
         KupoUI.PR.Patches.SpeakerPortraitsPatch.ClearCache();
+        KupoUI.PR.Patches.CustomTexturePatch.ClearCache();
     }
 
     private static void SetupHotReloadWatcher()
@@ -1111,6 +1137,26 @@ internal static class TextureResolver
         }
 
         return pathKey;
+    }
+
+    /// <summary>
+    /// Removes a sprite's instance ID from the skipped miss-cache so that the next
+    /// override attempt will re-run the lookup (used when a new address is registered).
+    /// </summary>
+    internal static void RemoveSpriteFromSkippedCache(int spriteInstanceId)
+    {
+        SkippedSpriteIds.Remove(spriteInstanceId);
+        SpriteCache.Remove(spriteInstanceId);
+    }
+
+    /// <summary>
+    /// Removes a texture's instance ID from the skipped miss-cache so that the next
+    /// override attempt will re-run the lookup (used when a new address is registered).
+    /// </summary>
+    internal static void RemoveTextureFromSkippedCache(int textureInstanceId)
+    {
+        SkippedTextureIds.Remove(textureInstanceId);
+        InPlaceProcessedTextureIds.Remove(textureInstanceId);
     }
 
     private static bool IsSupportedExtension(string extension) =>

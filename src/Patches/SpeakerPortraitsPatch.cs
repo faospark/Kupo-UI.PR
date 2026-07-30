@@ -23,6 +23,11 @@ internal static class SpeakerPortraitsPatch
     private static readonly Dictionary<string, Sprite> _portraitCache = new(StringComparer.OrdinalIgnoreCase);
     private static List<string> _cachedFolders;
 
+    // [OPT-PERF] Caches resolved portrait file paths (or null) keyed by "speakerId|speakerName".
+    // Prevents repeated recursive Directory.GetFiles calls on the main thread during scrolling.
+    private static readonly Dictionary<string, string> _portraitPathCache = new(StringComparer.OrdinalIgnoreCase);
+    private const string NoPortraitSentinel = "";
+
     static SpeakerPortraitsPatch()
     {
         GetOrCreateDefaultFolder();
@@ -32,6 +37,7 @@ internal static class SpeakerPortraitsPatch
     {
         _portraitCache.Clear();
         _cachedFolders = null;
+        _portraitPathCache.Clear();
     }
 
     private static int GetFolderPriority(string path, string root)
@@ -280,6 +286,13 @@ internal static class SpeakerPortraitsPatch
 
     internal static string FindPortraitFile(string speakerId, string speakerName)
     {
+        // [OPT-PERF] Cache path lookups to avoid recursive disk scans on every scroll event.
+        var cacheKey = (speakerId ?? string.Empty) + "|" + (speakerName ?? string.Empty);
+        if (_portraitPathCache.TryGetValue(cacheKey, out var cachedPath))
+        {
+            return cachedPath == NoPortraitSentinel ? null : cachedPath;
+        }
+
         // Ensure the default directory exists so players know where to drop images
         GetOrCreateDefaultFolder();
 
@@ -293,6 +306,7 @@ internal static class SpeakerPortraitsPatch
                 string match = FindFileRecursive(folder, speakerId + ".png");
                 if (match != null)
                 {
+                    _portraitPathCache[cacheKey] = match;
                     return match;
                 }
             }
@@ -306,6 +320,7 @@ internal static class SpeakerPortraitsPatch
                     string match = FindFileRecursive(folder, shortId + ".png");
                     if (match != null)
                     {
+                        _portraitPathCache[cacheKey] = match;
                         return match;
                     }
                 }
@@ -323,12 +338,15 @@ internal static class SpeakerPortraitsPatch
                     string match = FindFileRecursive(folder, sanitizedName + ".png");
                     if (match != null)
                     {
+                        _portraitPathCache[cacheKey] = match;
                         return match;
                     }
                 }
             }
         }
 
+        // No portrait found — record the miss so future calls are instant.
+        _portraitPathCache[cacheKey] = NoPortraitSentinel;
         return null;
     }
 

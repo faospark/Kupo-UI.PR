@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using HarmonyLib;
 using KupoUI.PR.Textures;
 using UnityEngine;
@@ -10,6 +11,21 @@ namespace KupoUI.PR.Patches;
 internal static class CustomTexturePatch
 {
     private const string MenuPortraitPathFragment = "/chara_rect/front/front_parent/charac_parent/chara_image";
+
+    // [OPT-PERF] Tracks instance IDs of sprites whose Sprite.texture getter has already been
+    // handled. The getter fires on every frame for every visible UI element during scrolling.
+    // This set prevents repeated string allocations and dictionary probes for already-processed sprites.
+    private static readonly HashSet<int> SpriteTextureProcessedIds = new();
+
+    internal static void ClearCache()
+    {
+        SpriteTextureProcessedIds.Clear();
+    }
+
+    internal static void RemoveFromCaches(int spriteInstanceId)
+    {
+        SpriteTextureProcessedIds.Remove(spriteInstanceId);
+    }
 
     [HarmonyPatch(typeof(Sprite), nameof(Sprite.texture), MethodType.Getter)]
     [HarmonyPostfix]
@@ -30,6 +46,13 @@ internal static class CustomTexturePatch
             return;
         }
 
+        // [OPT-PERF] Skip sprites we have already handled — avoids per-frame work during scrolling.
+        var spriteId = __instance.GetInstanceID();
+        if (SpriteTextureProcessedIds.Contains(spriteId))
+        {
+            return;
+        }
+
         // Resolve the addressable asset address for the sprite so that the
         // path-based index can be used when the same filename appears in multiple bundles.
         AssetAddressTracker.TryGetAddress(__instance, __result, out var assetAddress);
@@ -39,12 +62,16 @@ internal static class CustomTexturePatch
             && !TextureResolver.HasPathOverride(assetAddress))
         {
             // Atlas textures are only replaced when an explicit atlas override file exists.
+            SpriteTextureProcessedIds.Add(spriteId);
             return;
         }
 
         TextureLogger.LogObservedTextureName(__result.name, "Sprite.texture.get");
 
         TextureResolver.TryReplaceTextureInPlace(__result, __result.name, assetAddress);
+
+        // Mark as processed regardless of success so we don't retry on every frame.
+        SpriteTextureProcessedIds.Add(spriteId);
     }
 
     [HarmonyPatch(typeof(SpriteRenderer), nameof(SpriteRenderer.sprite), MethodType.Setter)]

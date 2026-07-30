@@ -616,6 +616,21 @@ To make icon injection language-agnostic, you can configure the value to consist
 
 When an override consists of only a tag (e.g., `<IC_ETHER>`), the plugin will automatically strip any existing native icon tag from the in-game text and prepend your custom icon tag while **preserving the original translated item name**. This allows you to apply custom icons globally without redefining item names for every language.
 
+### Performance & Texture Atlases
+
+Because inline text icons are rendered frequently (especially when scrolling lists like the inventory or magic menus), loading and drawing them as individual textures can cause severe performance lag and high draw call overhead.
+
+To solve this, **KupoUI.PR automatically packs all registered custom icons into unified texture atlases at startup**:
+- **Automatic Grouping**: Icons are split into a **point-filter** atlas (for pixel art / textures ≤ 32px) and a **bilinear-filter** atlas (for high-resolution icons) to ensure optimal filtering.
+- **Batch Rendering**: Draw calls are merged by Unity since all sprites share the same underlying atlas textures, enabling smooth 60+ FPS scrolling.
+- **Startup Caching**: The generated atlases and a layout index are written to a `.cache/` folder under your active `Modules/` directory:
+  - `Modules/.cache/icons_atlas_<GameTag>_point.png`
+  - `Modules/.cache/icons_atlas_<GameTag>_linear.png`
+  - `Modules/.cache/icons_atlas_<GameTag>.json`
+- **Instant Loading**: Subsequent game launches load the pre-packed atlas PNGs and layout metadata directly (taking only a few milliseconds) and bypass reading individual icon PNGs.
+- **Smart Invalidation**: The index saves the exact file modification timestamps of all source icons. If you edit, add, or remove any icon or config file, the cache is automatically invalidated and rebuilt on the next startup. You can also delete the `.cache/` folder to force a clean rebuild.
+- **Seamless Fallback**: If atlas creation fails for any reason (e.g., Unity engine or platform constraint), the plugin gracefully falls back to using individual sprites.
+
 ---
 
 ## Title Screen

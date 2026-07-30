@@ -213,6 +213,12 @@ internal static class AssetAddressTracker
         var subAddress = GetSubAddress(addressName, name);
         AddressByPointer[sprite.Pointer] = subAddress;
 
+        // [OPT-PERF] Invalidate miss-caches: the sprite now has a known address so a
+        // subsequent override attempt should re-run the full lookup rather than short-circuit.
+        var spriteId = sprite.GetInstanceID();
+        TextureResolver.RemoveSpriteFromSkippedCache(spriteId);
+        KupoUI.PR.Patches.CustomTexturePatch.RemoveFromCaches(spriteId);
+
         if (sprite.texture != null)
         {
             RegisterTexture(sprite.texture, addressName);
@@ -234,6 +240,9 @@ internal static class AssetAddressTracker
 
         var subAddress = GetSubAddress(addressName, name);
         AddressByPointer[texture.Pointer] = subAddress;
+
+        // [OPT-PERF] Invalidate texture miss-cache so the new address is used on next lookup.
+        TextureResolver.RemoveTextureFromSkippedCache(texture.GetInstanceID());
     }
 
     private static string GetSubAddress(string addressName, string name)
