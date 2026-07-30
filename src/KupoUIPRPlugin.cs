@@ -332,6 +332,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
         LoadMenuPortraitMaps();
         WriteTextConfigSample();
 
+        // Commented out to clean up startup logs. This scan was used to find Keyboard/Controller UI method signatures during development.
+        /*
         try
         {
             var asm = System.Reflection.Assembly.Load("Assembly-CSharp");
@@ -353,6 +355,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             }
         }
         catch (Exception ex) { PluginLog.LogError("Scan failed: " + ex); }
+        */
     }
 
 

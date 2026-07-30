@@ -64,9 +64,23 @@ namespace KupoUI.PR.Patches
             string path = GetGameObjectPath(__instance.gameObject);
 
             // Skip logging dialogue text components here since they are logged by MessageSpeakerPrefixPatch
-            if (path.Contains("message_window(Clone)/root/message_parent") || path.Contains("spekerText"))
+            // Also skip UniverseLib/UnityExplorer components to prevent verbose console spam
+            if (path.Contains("message_window(Clone)/root/message_parent") || 
+                path.Contains("spekerText") ||
+                path.Contains("UniverseLib"))
             {
                 return;
+            }
+
+            // Shorten path by replacing top-level Canvas root (e.g. "RootObject/Canvas/" or "TitleRoot/Canvas/") with "../"
+            int canvasIdx = path.IndexOf("/Canvas/");
+            if (canvasIdx > 0 && path.IndexOf('/') == canvasIdx)
+            {
+                path = "../" + path.Substring(canvasIdx + 8);
+            }
+            else if (path.EndsWith("/Canvas") && path.IndexOf('/') == path.Length - 7)
+            {
+                path = "..";
             }
 
             // Find matching localization key if available

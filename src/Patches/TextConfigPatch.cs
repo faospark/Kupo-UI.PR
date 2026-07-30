@@ -338,7 +338,7 @@ namespace KupoUI.PR.Patches
         }
 
         // ── BATTLE ITEM VIEW UpdateView HOOKS ────────────────────────────────────────
-        private static void BattleItemContentUpdateViewPrefix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data, bool isActive)
+        private static void BattleItemContentUpdateViewPrefix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data)
         {
             if (__instance == null || data == null) return;
             try
@@ -351,7 +351,7 @@ namespace KupoUI.PR.Patches
             }
         }
 
-        private static void BattleItemContentUpdateViewPostfix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data, bool isActive)
+        private static void BattleItemContentUpdateViewPostfix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data)
         {
             if (__instance == null || data == null) return;
             try
