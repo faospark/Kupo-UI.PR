@@ -64,7 +64,7 @@ namespace KupoUI.PR.Patches
             string path = GetGameObjectPath(__instance.gameObject);
 
             // Skip logging dialogue text components here since they are logged by MessageSpeakerPrefixPatch
-            if (path.Contains("message_window") || path.Contains("last_text") || path.Contains("spekerText"))
+            if (path.Contains("message_window(Clone)/root/message_parent") || path.Contains("spekerText"))
             {
                 return;
             }
@@ -107,6 +107,13 @@ namespace KupoUI.PR.Patches
 
             // Keep track of resolved values to map them back to their keys
             TextLoggingPatch.ValueToKeyMap[__result] = key;
+
+            // Also map the clean text value (without any <IC_*> tags) so name fields with stripped tags can still resolve their key!
+            string cleanVal = System.Text.RegularExpressions.Regex.Replace(__result, @"<IC_[A-Za-z0-9_]+>", "", System.Text.RegularExpressions.RegexOptions.IgnoreCase).Trim();
+            if (!string.IsNullOrEmpty(cleanVal))
+            {
+                TextLoggingPatch.ValueToKeyMap[cleanVal] = key;
+            }
         }
     }
 }

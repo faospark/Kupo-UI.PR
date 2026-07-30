@@ -331,6 +331,28 @@ public sealed class KupoUIPRPlugin : BasePlugin
         LoadSpeakerNames();
         LoadMenuPortraitMaps();
         WriteTextConfigSample();
+
+        try
+        {
+            var asm = System.Reflection.Assembly.Load("Assembly-CSharp");
+            foreach (var t in asm.GetTypes())
+            {
+                if (t.Namespace != null && t.Namespace.StartsWith("Last.UI.KeyInput") && (t.Name.Contains("Select") || t.Name.Contains("Item") || t.Name.Contains("Battle")))
+                {
+                    PluginLog.LogInfo("Diag-KeyInputClass: " + t.FullName);
+                    foreach (var m in t.GetMethods(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Static))
+                    {
+                        if (m.Name == "UpdateView" || m.Name.Contains("SetText") || m.Name == "Initalize")
+                        {
+                            var pstr = "";
+                            foreach (var p in m.GetParameters()) pstr += p.ParameterType.Name + " " + p.Name + ", ";
+                            PluginLog.LogInfo("  Method: " + m.Name + "(" + pstr + ")");
+                        }
+                    }
+                }
+            }
+        }
+        catch (Exception ex) { PluginLog.LogError("Scan failed: " + ex); }
     }
 
 

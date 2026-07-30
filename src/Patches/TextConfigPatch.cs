@@ -17,6 +17,7 @@ namespace KupoUI.PR.Patches
         // Populated by GetMessagePostfix: maps resolved text value → its message key.
         // Used to reverse-look up the real system ID (e.g. MSG_ITEM_NAME_38) from item name strings.
         internal static readonly Dictionary<string, string> ReverseMessageMap = new(StringComparer.Ordinal);
+        internal static readonly Dictionary<string, string> _pendingMessageIconSwaps = new(StringComparer.OrdinalIgnoreCase);
 
         internal static void Initialize(string modulesRootPath)
         {
@@ -43,6 +44,57 @@ namespace KupoUI.PR.Patches
                 catch (Exception ex)
                 {
                     KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch ItemListContentView: {ex}");
+                }
+            }
+
+            // Patch Touch/KeyInput item content controllers in battle and main menu
+            var cellTypes = new[]
+            {
+                "Last.UI.Touch.BattleItemContent",
+                "Last.UI.KeyInput.BattleItemInfomationContentController",
+                "Last.UI.KeyInput.ItemListContentController"
+            };
+
+            foreach (var typeName in cellTypes)
+            {
+                var t = AccessTools.TypeByName(typeName);
+                if (t != null)
+                {
+                    try
+                    {
+                        var updateViewMethod = AccessTools.Method(t, "UpdateView");
+                        if (updateViewMethod != null)
+                        {
+                            harmony.Patch(updateViewMethod,
+                                prefix: new HarmonyMethod(typeof(TextConfigPatch), nameof(BattleItemContentUpdateViewPrefix)),
+                                postfix: new HarmonyMethod(typeof(TextConfigPatch), nameof(BattleItemContentUpdateViewPostfix)));
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig] Dynamically patched {typeName}.UpdateView (Prefix & Postfix).");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch {typeName}: {ex}");
+                    }
+                }
+            }
+
+            // Patch Last.UI.KeyInput.SelectContentController — drives keyboard/controller battle item list cells on PC!
+            var selectCtrlType = AccessTools.TypeByName("Last.UI.KeyInput.SelectContentController");
+            if (selectCtrlType != null)
+            {
+                try
+                {
+                    var updateViewMethod = AccessTools.Method(selectCtrlType, "UpdateView");
+                    if (updateViewMethod != null)
+                    {
+                        harmony.Patch(updateViewMethod,
+                            postfix: new HarmonyMethod(typeof(TextConfigPatch), nameof(KeyInputSelectContentControllerUpdateViewPostfix)));
+                        KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Dynamically patched Last.UI.KeyInput.SelectContentController.UpdateView (Postfix only).");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch SelectContentController: {ex}");
                 }
             }
 
@@ -167,7 +219,6 @@ namespace KupoUI.PR.Patches
             }
         }
 
-        // ── HOOK 2: INTERCEPT MESSAGEMANAGER.GETMESSAGE ──────────────────────────
         [HarmonyPatch(typeof(Last.Management.MessageManager), nameof(Last.Management.MessageManager.GetMessage), new[] { typeof(string), typeof(bool) })]
         [HarmonyPostfix]
         private static void GetMessagePostfix(string key, bool isReplace, ref string __result)
@@ -197,6 +248,24 @@ namespace KupoUI.PR.Patches
                 if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(__result, entry.OriginalText, StringComparison.Ordinal))
                 {
                     __result = GetMergedText(__result, entry.NewText);
+                }
+            }
+
+            // Stash any custom tag from the final result and rewrite it to <IC_BAG>
+            if (!string.IsNullOrEmpty(__result))
+            {
+                var match = Regex.Match(__result, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                if (match.Success)
+                {
+                    string tag = match.Groups[1].Value;
+                    // ONLY rewrite if we actually have a custom icon sprite registered for this tag!
+                    if (KupoUI.PR.IconsConfig.IconsConfigLoader.HasSprite(tag))
+                    {
+                        string cleanVal = Regex.Replace(__result, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).Trim();
+                        _pendingMessageIconSwaps[key] = tag;
+                        _pendingMessageIconSwaps[cleanVal] = tag;
+                        __result = "<IC_BAG>" + cleanVal;
+                    }
                 }
             }
         }
@@ -229,39 +298,69 @@ namespace KupoUI.PR.Patches
         }
 
         // ── DYNAMIC ITEM OVERRIDES PREFIXES ──────────────────────────────────
-        private static void ItemListContentViewUpdateViewPrefix(Il2CppSystem.Object __instance, object[] __args)
+        private static void ItemListContentViewUpdateViewPrefix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data)
         {
-            if (__args == null || __args.Length == 0 || __instance == null) return;
-
+            if (__instance == null || data == null) return;
             try
             {
-                var dataObj = __args[0] as Il2CppSystem.Object;
-                if (dataObj != null && dataObj.Pointer != IntPtr.Zero)
-                {
-                    ItemListContentViewHelper.ProcessUpdateView(__instance, dataObj);
-                }
+                ItemListContentViewHelper.ProcessUpdateView(__instance, data);
             }
             catch (Exception ex)
             {
-                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in UpdateView prefix: {ex}");
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in ItemListContentViewUpdateViewPrefix: {ex}");
             }
         }
 
-        private static void ItemListContentViewUpdateViewPostfix(Il2CppSystem.Object __instance, object[] __args)
+        private static void ItemListContentViewUpdateViewPostfix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data)
         {
-            if (__args == null || __args.Length == 0 || __instance == null) return;
-
+            if (__instance == null || data == null) return;
             try
             {
-                var dataObj = __args[0] as Il2CppSystem.Object;
-                if (dataObj != null && dataObj.Pointer != IntPtr.Zero)
-                {
-                    ItemListContentViewHelper.ProcessUpdateViewPostfix(__instance, dataObj);
-                }
+                ItemListContentViewHelper.ProcessUpdateViewPostfix(__instance, data);
             }
             catch (Exception ex)
             {
-                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in UpdateView postfix: {ex}");
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in ItemListContentViewUpdateViewPostfix: {ex}");
+            }
+        }
+
+        private static void KeyInputSelectContentControllerUpdateViewPostfix(Il2CppSystem.Object __instance, Last.UI.SelectFieldContentManager.SelectFieldContentData data)
+        {
+            if (__instance == null || data == null) return;
+            try
+            {
+                ItemListContentViewHelper.ProcessSelectFieldContentUpdateViewPostfix(__instance, data);
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[KeyInputSelectContent] Error in KeyInputSelectContentControllerUpdateViewPostfix: {ex}");
+            }
+        }
+
+        // ── BATTLE ITEM VIEW UpdateView HOOKS ────────────────────────────────────────
+        private static void BattleItemContentUpdateViewPrefix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data, bool isActive)
+        {
+            if (__instance == null || data == null) return;
+            try
+            {
+                ItemListContentViewHelper.ProcessUpdateView(__instance, data);
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[IconsConfig] Error in BattleItemContentUpdateViewPrefix: {ex}");
+            }
+        }
+
+        private static void BattleItemContentUpdateViewPostfix(Il2CppSystem.Object __instance, Last.UI.ItemListContentData data, bool isActive)
+        {
+            if (__instance == null || data == null) return;
+            try
+            {
+                ItemListContentViewHelper.ProcessUpdateViewPostfix(__instance, data);
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[IconsConfig] Error in BattleItemContentUpdateViewPostfix: {ex}");
             }
         }
 
@@ -389,8 +488,9 @@ namespace KupoUI.PR.Patches
         // Nested helper class to isolate JIT references to Last.UI.ItemListContentData
         private static class ItemListContentViewHelper
         {
-            // Prefix populates this; Postfix reads it — avoids re-scanning entries with hard-coded key formats.
-            private static readonly Dictionary<int, string> _pendingIconSwaps = new();
+            // Prefix populates this; menu Postfix reads it — avoids re-scanning entries with hard-coded key formats.
+            internal static readonly Dictionary<int, string> _pendingIconSwaps = new();
+
 
             internal static void ProcessUpdateView(Il2CppSystem.Object cellObj, Il2CppSystem.Object dataObj)
             {
@@ -442,58 +542,177 @@ namespace KupoUI.PR.Patches
 
                 int itemId = data.ItemId;
 
-                // The Prefix already resolved the correct tag via OverrideItem (which handles all key formats).
-                // Simply consume what it stashed — no re-scanning needed, no key-format collisions possible.
-                if (!_pendingIconSwaps.TryGetValue(itemId, out string tagName))
-                    return;
+                // Resolve the cell transform — works for both ItemListContentView (menu) and
+                // BattleItemContent (battle), since we just need a MonoBehaviour to get the transform.
+                var mono = cellObj.TryCast<MonoBehaviour>();
+                if (mono == null) return;
 
-                var cell = cellObj.TryCast<Last.UI.ItemListContentView>();
-                if (cell != null)
+                // Try menu path first ("icon_text" direct child), then battle path ("root/icon_text").
+                Last.UI.IconTextView iconTextComp = null;
+                var directSearch = mono.transform.Find("icon_text");
+                if (directSearch != null)
+                    iconTextComp = directSearch.GetComponent<Last.UI.IconTextView>();
+
+                if (iconTextComp == null)
+                {
+                    var rootSearch = mono.transform.Find("root/icon_text");
+                    if (rootSearch != null)
+                        iconTextComp = rootSearch.GetComponent<Last.UI.IconTextView>();
+                }
+
+                // Last resort: scan all children for any IconTextView
+                if (iconTextComp == null)
+                {
+                    var all = mono.GetComponentsInChildren<Last.UI.IconTextView>(true);
+                    if (all != null && all.Length > 0)
+                        iconTextComp = all[0];
+                }
+
+                if (iconTextComp == null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] Postfix: no IconTextView found on cell type '{mono.GetType().Name}' for item ID {itemId}.");
+                    return;
+                }
+
+                // Try the stashed tag first. If not found, fall back to resolving dynamically by clean name text.
+                if (!_pendingIconSwaps.TryGetValue(itemId, out string tagName))
+                {
+                    if (iconTextComp.nameText != null)
+                    {
+                        string cleanText = GetCleanText(iconTextComp.nameText.text);
+                        tagName = GetCustomIconTagForText(cleanText);
+                    }
+                }
+
+                if (string.IsNullOrEmpty(tagName)) return;
+
+                var sprite = KupoUI.PR.IconsConfig.IconsConfigLoader.GetSprite(tagName);
+                if (sprite == null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] Custom icon sprite '{tagName}' on item ID {itemId} is NULL or not loaded.");
+                    return;
+                }
+
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Postfix: swapped sprite for tag '{tagName}' on item ID {itemId}.");
+
+                // 1. Activate the icon container (iconBase field) that UseIconImage enables
+                var iconBase = iconTextComp.iconBase;
+                if (iconBase != null)
+                    iconBase.SetActive(true);
+
+                // 2. Assign the custom sprite directly to the iconImage field and enable it
+                var img = iconTextComp.iconImage;
+                if (img != null)
+                {
+                    img.sprite = sprite;
+                    img.enabled = true;
+                    img.gameObject.SetActive(true);
+                }
+
+                // 3. Also write directly to icon_root/icon in case iconImage doesn't persist
+                var iconRootTr = iconTextComp.transform.Find("icon_root");
+                if (iconRootTr != null)
+                {
+                    var iconTr = iconRootTr.Find("icon");
+                    if (iconTr != null)
+                    {
+                        var iconImg = iconTr.GetComponent<UnityEngine.UI.Image>();
+                        if (iconImg != null)
+                        {
+                            iconImg.sprite = sprite;
+                            iconImg.enabled = true;
+                            iconImg.gameObject.SetActive(true);
+                        }
+                    }
+                    iconRootTr.gameObject.SetActive(true);
+                }
+
+                // 4. Clean the tag out of the nameText field directly
+                var nameText = iconTextComp.nameText;
+                if (nameText != null)
+                {
+                    string currentTxt = nameText.text;
+                    if (!string.IsNullOrEmpty(currentTxt))
+                    {
+                        currentTxt = Regex.Replace(currentTxt, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+                        nameText.text = currentTxt;
+                    }
+                }
+            }
+
+            internal static void ProcessSelectFieldContentUpdateViewPostfix(Il2CppSystem.Object cellObj, Il2CppSystem.Object dataObj)
+            {
+                var data = dataObj.TryCast<Last.UI.SelectFieldContentManager.SelectFieldContentData>();
+                if (data == null) return;
+
+                var controller = cellObj.TryCast<Last.UI.KeyInput.SelectContentController>();
+                if (controller == null) return;
+
+                var view = controller.view;
+                if (view == null) return;
+
+                var iconTextComp = view.IconTextView;
+                if (iconTextComp == null) return;
+
+                string currentText = null;
+                if (iconTextComp.nameText != null)
+                {
+                    currentText = iconTextComp.nameText.text;
+                }
+
+                if (string.IsNullOrEmpty(currentText)) return;
+
+                string cleanText = GetCleanText(currentText);
+                string tagName = GetCustomIconTagForText(cleanText);
+
+                if (!string.IsNullOrEmpty(tagName))
                 {
                     var sprite = KupoUI.PR.IconsConfig.IconsConfigLoader.GetSprite(tagName);
                     if (sprite != null)
                     {
-                        var iconTextTransform = cell.transform.Find("icon_text");
-                        if (iconTextTransform != null)
+                        if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] KeyInput SelectField Postfix: matched tag '{tagName}' for text '{cleanText}', sprite found!");
+
+                        var iconBase = iconTextComp.iconBase;
+                        if (iconBase != null) iconBase.SetActive(true);
+
+                        var img = iconTextComp.iconImage;
+                        if (img != null)
                         {
-                            var iconTextComp = iconTextTransform.GetComponent<Last.UI.IconTextView>();
-                            if (iconTextComp != null)
+                            img.sprite = sprite;
+                            img.enabled = true;
+                            img.gameObject.SetActive(true);
+                        }
+
+                        var iconRootTr = iconTextComp.transform.Find("icon_root");
+                        if (iconRootTr != null)
+                        {
+                            var iconTr = iconRootTr.Find("icon");
+                            if (iconTr != null)
                             {
-                                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
-                                    KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Postfix: swapped sprite for tag '{tagName}' on item ID {itemId}.");
-
-                                // 1. Activate the icon container (iconBase field) that UseIconImage enables
-                                var iconBase = iconTextComp.iconBase;
-                                if (iconBase != null)
-                                    iconBase.SetActive(true);
-
-                                // 2. Assign the custom sprite directly to the iconImage field and enable it
-                                var img = iconTextComp.iconImage;
-                                if (img != null)
+                                var iconImg = iconTr.GetComponent<UnityEngine.UI.Image>();
+                                if (iconImg != null)
                                 {
-                                    img.sprite = sprite;
-                                    img.enabled = true;
-                                    img.gameObject.SetActive(true);
-                                }
-
-                                // 3. Clean the tag out of the nameText field directly
-                                var nameText = iconTextComp.nameText;
-                                if (nameText != null)
-                                {
-                                    string currentTxt = nameText.text;
-                                    if (!string.IsNullOrEmpty(currentTxt))
-                                    {
-                                        currentTxt = Regex.Replace(currentTxt, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
-                                        nameText.text = currentTxt;
-                                    }
+                                    iconImg.sprite = sprite;
+                                    iconImg.enabled = true;
+                                    iconImg.gameObject.SetActive(true);
                                 }
                             }
+                            iconRootTr.gameObject.SetActive(true);
                         }
-                    }
-                    else
-                    {
-                        if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
-                            KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] Custom icon sprite '{tagName}' on item ID {itemId} is NULL or not loaded.");
+
+                        var nameText = iconTextComp.nameText;
+                        if (nameText != null)
+                        {
+                            string raw = nameText.text;
+                            if (!string.IsNullOrEmpty(raw))
+                            {
+                                nameText.text = Regex.Replace(raw, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+                            }
+                        }
                     }
                 }
             }
@@ -532,7 +751,7 @@ namespace KupoUI.PR.Patches
                 }
             }
 
-            private static void OverrideItem(int itemId, ref string name, ref string description, out string matchedNameKey)
+            internal static void OverrideItem(int itemId, ref string name, ref string description, out string matchedNameKey)
             {
                 matchedNameKey = null;
                 var entries = TextConfigLoader.Entries;
@@ -607,11 +826,25 @@ namespace KupoUI.PR.Patches
                 if (match.Success)
                 {
                     string tagName = match.Groups[1].Value;
+                    string cleanText = text.Replace(match.Value, "").Trim();
+                    string customTag = GetCustomIconTagForText(cleanText);
+
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] ProcessSetText info: text='{text}', cleanText='{cleanText}', tagName='{tagName}', customTag='{customTag}'");
+
+                    // If it is the native placeholder tag <IC_BAG>, try to resolve to the custom stashed tag
+                    if (string.Equals(tagName, "IC_BAG", StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (!string.IsNullOrEmpty(customTag))
+                        {
+                            tagName = customTag;
+                        }
+                    }
+
                     var sprite = KupoUI.PR.IconsConfig.IconsConfigLoader.GetSprite(tagName);
                     if (sprite != null)
                     {
-                        if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
-                            KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] ProcessSetText: matched tag '{tagName}', sprite found.");
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] ProcessSetText: matched tag '{tagName}', sprite found!");
+                        
                         // Clean the tag out of the text (so the text does not contain it)
                         text = text.Replace(match.Value, "").TrimStart();
 
@@ -621,8 +854,7 @@ namespace KupoUI.PR.Patches
                     }
                     else
                     {
-                        if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
-                            KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] ProcessSetText: sprite for tag '{tagName}' is not loaded.");
+                        KupoUIPRPlugin.PluginLog.LogWarning($"[IconsConfig] ProcessSetText: sprite for tag '{tagName}' is not loaded.");
                     }
                 }
             }
