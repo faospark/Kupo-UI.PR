@@ -1,16 +1,19 @@
 # KupoUI.PR
 
-A BepInEx IL2CPP plugin for Final Fantasy Pixel Remaster (FF1–FF6) that provides runtime UI patches, custom texture replacement, dialogue enhancements, and data-driven GameObject tweaks.
+A BepInEx IL2CPP plugin for the Final Fantasy Pixel Remaster series (FF1–FF6) that provides runtime UI patches, custom texture replacement, dialogue enhancements, and data-driven GameObject tweaks.
 
-This framework came form the development of Darker UI's New version and was orignally desinged for it to address stress points in UI Developement. It is a known fact that making a UI mod for the pixel remaster is a bit of a pain given how many redundant files you need to edit. Spending sometime with moddign another game , I applied a lot of things i leanred from that endevour to herea and at some point I've decided have the BepInEx plugin become its own thing. Hence KupoUI.PR... a reference to a UI Mod for FF9.
+### Background & Origins
 
-This framework is not meant to be a replacement for Magicite or Memoria or FFPRFix .
-while there is some overlap , their functionality and features are different and should be used accordingly.
+KupoUI.PR grew out of the development of the new version of _Darker UI_. It was originally designed to resolve major stress points in FFPR UI development. Because of the way the game handles assets, making UI mods for the Pixel Remasters has historically been tedious and required editing dozens of redundant files.
 
-Incompatabilities:
+After spending time modding another game and learning new approaches, I applied those lessons here. What began as a simple tool to address specific UI pain points quickly expanded into a much larger framework. Eventually, I decided to separate it into a standalone BepInEx plugin. Its name, KupoUI.PR, is a nod to the classic Kupo UI mod for Final Fantasy IX.
 
-- Not Reccomended to be used with Memoria's Classic Text Box Framework because they practically yeild the same result with very differnt methods.
-- Any Speaker Portrait mode that alers the message box.
+This framework is not intended to replace Magicite, Memoria, or FFPRFix. While there is some functional overlap, each tool serves a different purpose and should be used in tandem.
+
+### Incompatibilities
+
+- **Memoria's Classic Text Box Framework**: Not recommended. Both frameworks modify the text box UI, but they use fundamentally different methods that will conflict.
+- **Speaker Portrait Mods**: Any mod that alters the structure of the dialogue message box to insert portraits may conflict with the built-in speaker portrait injector.
 
 ---
 
@@ -198,6 +201,15 @@ BepInEx/config/faospark.kupoui.pr.cfg
 
 ## Custom Texture System
 
+The custom texture system makes installing and developing UI and button prompt mods incredibly straightforward.
+
+### Key Benefits
+
+- **Zero Bundle Editing**: You no longer need to unpack, edit, and repack the game's Unity `.bundle` files.
+- **Drop-in Folders**: UI themes, custom frames, backgrounds, cursors, and button prompts can simply be placed inside a named folder under their respective category (e.g., `01-UI-Themes/MyDarkUI/` or `05-Button-Prompts/PlayStation/`).
+- **Asset Name Matching**: Simply name your custom asset files (`.png`, `.dds`, etc.) to match the internal name of the in-game texture or sprite you want to replace (e.g., naming your file `window_frame.png` will override the game's `window_frame` asset).
+- **Collision Prevention**: To resolve conflicts where different game assets share identical filenames (e.g., multiple `Default_00.png` portrait files across different character directories), KupoUI.PR supports **path-based overrides** using relative `GameAssets/` paths to target specific assets precisely.
+
 ### Folder Layout
 
 The texture root is fixed to:
@@ -270,7 +282,7 @@ Many FFPR assets share the same file name across different bundles (e.g. `Defaul
 ### Prefabs & Battle Background Support
 
 > [!IMPORTANT]
-> **Battle backgrounds in Final Fantasy Pixel Remaster are now fully replaceable and moddable!**
+> **Battle backgrounds in Final Fantasy Pixel Remaster are now fully replaceable and moddable without Bundle editing!**
 > Since battle background assets are stored inside Unity `.prefab` containers, the plugin tracks these nested references at runtime. You can easily override background textures/sprites without needing to modify the `.prefab` assets directly.
 
 If a texture/sprite is referenced inside a `.prefab` addressable, the mod tracks it and resolves it using three container-aware rules to keep your directories clean (note: runtime addresses omit the `.prefab` extension):
@@ -621,6 +633,7 @@ When an override consists of only a tag (e.g., `<IC_ETHER>`), the plugin will au
 Because inline text icons are rendered frequently (especially when scrolling lists like the inventory or magic menus), loading and drawing them as individual textures can cause severe performance lag and high draw call overhead.
 
 To solve this, **KupoUI.PR automatically packs all registered custom icons into unified texture atlases at startup**:
+
 - **Automatic Grouping**: Icons are split into a **point-filter** atlas (for pixel art / textures ≤ 32px) and a **bilinear-filter** atlas (for high-resolution icons) to ensure optimal filtering.
 - **Batch Rendering**: Draw calls are merged by Unity since all sprites share the same underlying atlas textures, enabling smooth 60+ FPS scrolling.
 - **Startup Caching**: The generated atlases and a layout index are written to a `.cache/` folder under your active `Modules/` directory:
@@ -751,6 +764,7 @@ You can limit portrait overrides to a specific language and/or game by adding `"
   "P003": "Rydia"
 }
 ```
+
 - If `"GameTag"` (e.g. `"FF1"`, `"FF2"`, `"FF3"`, `"FF4"`, `"FF5"`, `"FF6"`) is specified, the file will only be loaded when running that specific game.
 - If `"Language"` is specified, the mappings in this file will only apply when playing the game in that language.
 - Both scopes are optional and can be combined.
@@ -821,6 +835,7 @@ You can limit speaker and message overrides to a specific language and/or game b
   }
 }
 ```
+
 - If `"GameTag"` (e.g. `"FF1"`, `"FF2"`, `"FF3"`, `"FF4"`, `"FF5"`, `"FF6"`) is specified, the file will only be loaded when running that specific game.
 - If `"Language"` is specified, the overrides in this file will only apply when playing the game in that language.
 - Both scopes are optional and can be combined.
