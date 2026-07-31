@@ -121,7 +121,7 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
 - Mouse cursor hider
 - Force VSync
 - Comprehensive developer/modder diagnostic logging modes (for textures, fonts, dialogue text, speaker names, and inline icons)
-- Soft dependency detection for `Memoria.FFPR` and `Magicite`
+- Soft dependency detection for `Memoria.FFPR`, `Magicite`, and `FFPR_Fix`
 
 ---
 
@@ -328,7 +328,7 @@ Default_00.json
 | `width`                     | Logical source width used to calculate replacement sprite scale.                                    |
 | `height`                    | Logical source height used to calculate replacement sprite scale.                                   |
 | `pixelsPerUnit`             | Direct sprite PPU override (takes priority over auto scale calculation).                            |
-| `filterMode` / `filterType` | Filter override:`Point`, `Bilinear`, or `Trilinear`. String mode takes priority over `pointFilter`. |
+| `filterMode` / `filterType` | Filter override: `Point`, `Bilinear` (or `Linear` alias), or `Trilinear`. String mode takes priority over `pointFilter`. |
 | `pointFilter`               | Legacy boolean shorthand:`true` = `Point`, `false` = `Bilinear`.                                    |
 | `wrapMode`                  | Wrap mode:`Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                              |
 | `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.            |
@@ -341,7 +341,7 @@ Default_00.json
 
 ### Texture Formats & Filter Modes
 
-**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds` (DXT1, DXT5, uncompressed RGBA32)
+**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds` (DXT1, DXT5, uncompressed RGBA32. Note: DDS textures require `Utility.EnableDDSTextures = true` in your BepInEx config).
 
 **Filter mode behavior:**
 
@@ -532,7 +532,19 @@ Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere r
 
 1. **`Language`**: (Optional) Declared at the file root level to scope all rules inside this file to a specific game language.
 2. **`texts`**: A simple key-value dictionary (`"Key": "ReplacementText"`) to quickly replace localization strings by their database ID (e.g. `MSG_SYSTEM_002`) or original string.
-3. **`objects`**: An array of GameObject override rules (similar to `ObjectConfig.json` targets) to replace the text of specific UI elements by their path/name hierarchy.
+3. **`objects`**: An array of GameObject override rules to replace the text of specific UI elements by their path/name hierarchy.
+
+#### Object Fields
+
+Each entry inside the `"objects"` array supports:
+
+| Field | Required | Description |
+|---|---|---|
+| `"TargetObjectName"` | No* | Exact name of the target `GameObject` to match (e.g., `"value_text"`). *Either `TargetObjectName` or a key mapping is required to identify the target.* |
+| `"TargetPath"` | No | Transform hierarchy path suffix to uniquely identify the GameObject (e.g., `"LocationParent/location/value_text"`). |
+| `"SceneName"` | No | Restricts this rule to a specific active scene (case-insensitive). |
+| `"OriginalText"` | No | If set, the rule is only applied if the target's current text matches this string. |
+| `"NewText"` | **Yes** | The replacement text string to write. |
 
 #### Example `TextConfig.json`
 
@@ -548,11 +560,31 @@ Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere r
     {
       "TargetObjectName": "value_text",
       "TargetPath": "LocationParent/location/value_text",
+      "SceneName": "Title",
+      "OriginalText": "Tower of Worship",
       "NewText": "別のテキスト"
     }
   ]
 }
 ```
+
+#### How to Find Text Paths and Keys (Diagnostics)
+
+To easily identify the correct paths and localization keys for your `TextConfig.json` modifications:
+
+1. Open `BepInEx/config/faospark.kupoui.pr.cfg`.
+2. Enable `Z - Diagnostics` -> `LogAllTexts`:
+   ```ini
+   LogAllTexts = true
+   ```
+3. Boot the game and navigate to the screens you wish to mod.
+4. Check BepInEx console output or `BepInEx/LogOutput.log` for logs prefixed with `[TextLog]`:
+   ```
+   [Info   :KupoUI.PR] [TextLog] Path: '../ui_root/location_text' | Key: 'MSG_SYSTEM_002' | Value: 'Go Back!'
+   ```
+   - Use the **Path** value for `TargetPath` (strip the leading `../` segment).
+   - Use the **Key** value for the `"texts"` key-value dictionary.
+   - Use the **Value** for `"OriginalText"` filtering.
 
 ### Language & Game Scoping
 
@@ -1038,7 +1070,9 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 
 `UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
 
-Options: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable` (removes the highlight entirely).
+*   **Options**: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.
+*   **Disable Aliases**: You can also use `Disabled`, `Off`, or `None` to disable the highlight slot entirely.
+*   **Fallback Behavior**: If an unrecognized value is set, the color defaults to `DarkNavy` to ensure deterministic rendering.
 
 ### Menu Portrait Aspect Ratio Preservation
 
@@ -1060,4 +1094,4 @@ Automatically preserves the aspect ratio of custom character portraits displayed
 
 ## Optional Dependencies
 
-KupoUI.PR does not hard-reference `Memoria.FFPR` or `Magicite`. At runtime it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.
+KupoUI.PR does not hard-reference `Memoria.FFPR`, `Magicite`, or `FFPR_Fix`. At runtime, it checks loaded assemblies and logs whether those mods are present, enabling future integration paths without breaking standalone execution.
