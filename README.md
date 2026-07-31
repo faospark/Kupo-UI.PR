@@ -24,6 +24,7 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
   - [Features](#features)
   - [Build Requirements](#build-requirements)
   - [Install](#install)
+    - [Linux & Steam Deck Compatibility](#linux--steam-deck-compatibility)
   - [Configuration Reference](#configuration-reference)
   - [Custom Texture System](#custom-texture-system)
     - [Folder Layout](#folder-layout)
@@ -153,6 +154,17 @@ to:
 BepInEx/plugins/
 ```
 
+### Linux & Steam Deck Compatibility
+
+Since BepInEx uses a custom `winhttp.dll` to inject itself into the game, Proton will ignore it by default on Linux and Steam Deck. You must force Proton to load the local version:
+
+1. Right-click the game in your Steam Library and select **Properties...**.
+2. In the **General** tab, scroll down to the **Launch Options** section.
+3. Paste the following line:
+   ```bash
+   export WINEDLLOVERRIDES="winhttp=n,b"; %command%
+   ```
+
 ---
 
 ## Configuration Reference
@@ -205,7 +217,7 @@ The custom texture system makes installing and developing UI and button prompt m
 
 ### Key Benefits
 
-- **Zero Bundle Editing**: You no longer need to unpack, edit, and repack the game's Unity `.bundle` files.
+- **Zero Bundle Editing**: You no longer need to unpack, edit, and repack the game's Unity `.bundle` files for UI elements.
 - **Drop-in Folders**: UI themes, custom frames, backgrounds, cursors, and button prompts can simply be placed inside a named folder under their respective category (e.g., `01-UI-Themes/MyDarkUI/` or `05-Button-Prompts/PlayStation/`).
 - **Asset Name Matching**: Simply name your custom asset files (`.png`, `.dds`, etc.) to match the internal name of the in-game texture or sprite you want to replace (e.g., naming your file `window_frame.png` will override the game's `window_frame` asset).
 - **Collision Prevention**: To resolve conflicts where different game assets share identical filenames (e.g., multiple `Default_00.png` portrait files across different character directories), KupoUI.PR supports **path-based overrides** using relative `GameAssets/` paths to target specific assets precisely.
@@ -323,19 +335,19 @@ Default_00.json
 }
 ```
 
-| Field                       | Description                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------- |
-| `width`                     | Logical source width used to calculate replacement sprite scale.                                    |
-| `height`                    | Logical source height used to calculate replacement sprite scale.                                   |
-| `pixelsPerUnit`             | Direct sprite PPU override (takes priority over auto scale calculation).                            |
+| Field                       | Description                                                                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `width`                     | Logical source width used to calculate replacement sprite scale.                                                         |
+| `height`                    | Logical source height used to calculate replacement sprite scale.                                                        |
+| `pixelsPerUnit`             | Direct sprite PPU override (takes priority over auto scale calculation).                                                 |
 | `filterMode` / `filterType` | Filter override: `Point`, `Bilinear` (or `Linear` alias), or `Trilinear`. String mode takes priority over `pointFilter`. |
-| `pointFilter`               | Legacy boolean shorthand:`true` = `Point`, `false` = `Bilinear`.                                    |
-| `wrapMode`                  | Wrap mode:`Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                              |
-| `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.            |
-| `border`                    | 9-slice border in pixels`"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.    |
-| `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).            |
-| `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                            |
-| `flipHorizontal` / `flipX`  | Flip the replacement texture horizontally.                                                          |
+| `pointFilter`               | Legacy boolean shorthand:`true` = `Point`, `false` = `Bilinear`.                                                         |
+| `wrapMode`                  | Wrap mode:`Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                                                   |
+| `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.                                 |
+| `border`                    | 9-slice border in pixels`"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.                         |
+| `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).                                 |
+| `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                                                 |
+| `flipHorizontal` / `flipX`  | Flip the replacement texture horizontally.                                                                               |
 
 > **Note:** When `width`/`height` are provided, sprite creation uses them to override replacement rect sizing; when values do not fit atlas coordinates, origin-clamped sizing is used as a fallback.
 
@@ -526,6 +538,10 @@ Values are case-insensitive. If the object has no corresponding component (`Text
 
 Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere recursively under the `Modules/` directory. They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
 
+This is highly useful for:
+- **Partial Re-translations**: Safely swap specific dialogue lines or interface text database-wide without needing full language localization files or bundle-packing.
+- **Menu Option Renames**: Modify or customize specific menu options, labels, or screen headers (e.g. renaming "Item" to "Bag" or "Status" to "Stats") by targeting their database keys or active UI GameObject hierarchies.
+
 ### File Format
 
 `TextConfig.json` files support:
@@ -538,13 +554,13 @@ Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere r
 
 Each entry inside the `"objects"` array supports:
 
-| Field | Required | Description |
-|---|---|---|
-| `"TargetObjectName"` | No* | Exact name of the target `GameObject` to match (e.g., `"value_text"`). *Either `TargetObjectName` or a key mapping is required to identify the target.* |
-| `"TargetPath"` | No | Transform hierarchy path suffix to uniquely identify the GameObject (e.g., `"LocationParent/location/value_text"`). |
-| `"SceneName"` | No | Restricts this rule to a specific active scene (case-insensitive). |
-| `"OriginalText"` | No | If set, the rule is only applied if the target's current text matches this string. |
-| `"NewText"` | **Yes** | The replacement text string to write. |
+| Field                | Required | Description                                                                                                                                             |
+| -------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `"TargetObjectName"` | No\*     | Exact name of the target `GameObject` to match (e.g., `"value_text"`). _Either `TargetObjectName` or a key mapping is required to identify the target._ |
+| `"TargetPath"`       | No       | Transform hierarchy path suffix to uniquely identify the GameObject (e.g., `"LocationParent/location/value_text"`).                                     |
+| `"SceneName"`        | No       | Restricts this rule to a specific active scene (case-insensitive).                                                                                      |
+| `"OriginalText"`     | No       | If set, the rule is only applied if the target's current text matches this string.                                                                      |
+| `"NewText"`          | **Yes**  | The replacement text string to write.                                                                                                                   |
 
 #### Example `TextConfig.json`
 
@@ -579,9 +595,11 @@ To easily identify the correct paths and localization keys for your `TextConfig.
    ```
 3. Boot the game and navigate to the screens you wish to mod.
 4. Check BepInEx console output or `BepInEx/LogOutput.log` for logs prefixed with `[TextLog]`:
+
    ```
    [Info   :KupoUI.PR] [TextLog] Path: '../ui_root/location_text' | Key: 'MSG_SYSTEM_002' | Value: 'Go Back!'
    ```
+
    - Use the **Path** value for `TargetPath` (strip the leading `../` segment).
    - Use the **Key** value for the `"texts"` key-value dictionary.
    - Use the **Value** for `"OriginalText"` filtering.
@@ -1070,9 +1088,9 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 
 `UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
 
-*   **Options**: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.
-*   **Disable Aliases**: You can also use `Disabled`, `Off`, or `None` to disable the highlight slot entirely.
-*   **Fallback Behavior**: If an unrecognized value is set, the color defaults to `DarkNavy` to ensure deterministic rendering.
+- **Options**: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.
+- **Disable Aliases**: You can also use `Disabled`, `Off`, or `None` to disable the highlight slot entirely.
+- **Fallback Behavior**: If an unrecognized value is set, the color defaults to `DarkNavy` to ensure deterministic rendering.
 
 ### Menu Portrait Aspect Ratio Preservation
 
