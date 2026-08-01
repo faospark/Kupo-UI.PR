@@ -12,6 +12,9 @@ namespace KupoUI.PR.Patches
     [HarmonyPatch]
     internal static class TextConfigPatch
     {
+        private static readonly Regex CustomTagRegex = new(@"<(IC_[A-Za-z0-9_]+)>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+        private static readonly Regex CustomTagStripRegex = new(@"<IC_[A-Za-z0-9_]+>", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+
         private static bool _isApplyingText;
         private static string _cachedLanguage;
         // Populated by GetMessagePostfix: maps resolved text value → its message key.
@@ -165,7 +168,8 @@ namespace KupoUI.PR.Patches
         internal static string GetCleanText(string text)
         {
             if (string.IsNullOrEmpty(text)) return text;
-            return Regex.Replace(text, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+            if (text.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) < 0) return text;
+            return CustomTagStripRegex.Replace(text, "").TrimStart();
         }
 
         internal static bool MatchesLanguage(string entryLanguage)
@@ -178,13 +182,14 @@ namespace KupoUI.PR.Patches
         {
             if (string.IsNullOrEmpty(newText)) return newText;
             var trimmedNew = newText.Trim();
-            var onlyTagMatch = Regex.Match(trimmedNew, @"^<(IC_[A-Za-z0-9_]+)>$", RegexOptions.IgnoreCase);
-            if (onlyTagMatch.Success)
+            if (trimmedNew.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                string cleanRaw = string.IsNullOrEmpty(originalText) 
-                    ? "" 
-                    : Regex.Replace(originalText, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
-                return trimmedNew + cleanRaw;
+                var onlyTagMatch = Regex.Match(trimmedNew, @"^<(IC_[A-Za-z0-9_]+)>$", RegexOptions.IgnoreCase);
+                if (onlyTagMatch.Success)
+                {
+                    string cleanRaw = GetCleanText(originalText);
+                    return trimmedNew + cleanRaw;
+                }
             }
             return newText;
         }
@@ -232,7 +237,7 @@ namespace KupoUI.PR.Patches
             // Cache the raw game value before any overrides so we can reverse-look up the real key from a name string.
             if (!string.IsNullOrEmpty(key) && !string.IsNullOrEmpty(__result))
             {
-                string cleanRaw = Regex.Replace(__result, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+                string cleanRaw = GetCleanText(__result);
                 ReverseMessageMap[cleanRaw] = key;
             }
 
@@ -258,16 +263,16 @@ namespace KupoUI.PR.Patches
             }
 
             // Stash any custom tag from the final result and rewrite it to <IC_BAG>
-            if (!string.IsNullOrEmpty(__result))
+            if (!string.IsNullOrEmpty(__result) && __result.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
             {
-                var match = Regex.Match(__result, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                var match = CustomTagRegex.Match(__result);
                 if (match.Success)
                 {
                     string tag = match.Groups[1].Value;
                     // ONLY rewrite if we actually have a custom icon sprite registered for this tag!
                     if (KupoUI.PR.IconsConfig.IconsConfigLoader.HasSprite(tag))
                     {
-                        string cleanVal = Regex.Replace(__result, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).Trim();
+                        string cleanVal = CustomTagStripRegex.Replace(__result, "").Trim();
                         _pendingMessageIconSwaps[key] = tag;
                         _pendingMessageIconSwaps[cleanVal] = tag;
                         __result = "<IC_BAG>" + cleanVal;
@@ -515,16 +520,27 @@ namespace KupoUI.PR.Patches
                 string overriddenDesc = description;
                 OverrideItem(itemId, ref overriddenName, ref overriddenDesc, out string matchedNameKey);
 
-                var icMatch = Regex.Match(overriddenName, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
-                if (icMatch.Success && KupoUI.PR.IconsConfig.IconsConfigLoader.HasSprite(icMatch.Groups[1].Value))
+                if (overriddenName != null && overriddenName.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    string tag = icMatch.Groups[1].Value;
-                    _pendingIconSwaps[itemId] = tag;
-                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
-                        KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Prefix: item ID {itemId} | tag '{tag}' stashed (key: '{matchedNameKey}')");
-                    
-                    string nativeName = Regex.Replace(overriddenName, @"<IC_[A-Za-z0-9_]+>", "<IC_BAG>", RegexOptions.IgnoreCase);
-                    data._Name_k__BackingField = nativeName;
+                    var icMatch = CustomTagRegex.Match(overriddenName);
+                    if (icMatch.Success && KupoUI.PR.IconsConfig.IconsConfigLoader.HasSprite(icMatch.Groups[1].Value))
+                    {
+                        string tag = icMatch.Groups[1].Value;
+                        _pendingIconSwaps[itemId] = tag;
+                        if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[IconsConfig] Prefix: item ID {itemId} | tag '{tag}' stashed (key: '{matchedNameKey}')");
+                        
+                        string nativeName = CustomTagStripRegex.Replace(overriddenName, "<IC_BAG>");
+                        data._Name_k__BackingField = nativeName;
+                    }
+                    else
+                    {
+                        _pendingIconSwaps.Remove(itemId);
+                        if (overriddenName != name)
+                        {
+                            data._Name_k__BackingField = overriddenName;
+                        }
+                    }
                 }
                 else
                 {
@@ -643,8 +659,7 @@ namespace KupoUI.PR.Patches
                     string currentTxt = nameText.text;
                     if (!string.IsNullOrEmpty(currentTxt))
                     {
-                        currentTxt = Regex.Replace(currentTxt, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
-                        nameText.text = currentTxt;
+                        nameText.text = GetCleanText(currentTxt);
                     }
                 }
             }
@@ -716,7 +731,7 @@ namespace KupoUI.PR.Patches
                             string raw = nameText.text;
                             if (!string.IsNullOrEmpty(raw))
                             {
-                                nameText.text = Regex.Replace(raw, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+                                nameText.text = GetCleanText(raw);
                             }
                         }
                     }
@@ -822,8 +837,10 @@ namespace KupoUI.PR.Patches
                 var iconText = instance.TryCast<Last.UI.IconTextView>();
                 if (iconText == null || string.IsNullOrEmpty(text)) return;
 
+                if (text.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) < 0) return;
+
                 // Match tag pattern <(IC_[A-Za-z0-9_]+)> case-insensitively
-                var match = Regex.Match(text, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+                var match = CustomTagRegex.Match(text);
                 if (match.Success)
                 {
                     string tagName = match.Groups[1].Value;
@@ -874,10 +891,13 @@ namespace KupoUI.PR.Patches
 
                     if (!string.IsNullOrEmpty(entry.Key) && string.Equals(entry.Key, key, StringComparison.OrdinalIgnoreCase))
                     {
-                        var match = Regex.Match(entry.NewText, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
-                        if (match.Success)
+                        if (entry.NewText != null && entry.NewText.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
                         {
-                            return match.Groups[1].Value;
+                            var match = CustomTagRegex.Match(entry.NewText);
+                            if (match.Success)
+                            {
+                                return match.Groups[1].Value;
+                            }
                         }
                     }
                 }
@@ -890,10 +910,13 @@ namespace KupoUI.PR.Patches
 
                 if (!string.IsNullOrEmpty(entry.OriginalText) && string.Equals(cleanText, entry.OriginalText, StringComparison.Ordinal))
                 {
-                    var match = Regex.Match(entry.NewText, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
-                    if (match.Success)
+                    if (entry.NewText != null && entry.NewText.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        return match.Groups[1].Value;
+                        var match = CustomTagRegex.Match(entry.NewText);
+                        if (match.Success)
+                        {
+                            return match.Groups[1].Value;
+                        }
                     }
                 }
             }
@@ -923,14 +946,18 @@ namespace KupoUI.PR.Patches
                 string tagName = null;
 
                 // 1. Try to extract tag directly from the text component if present
-                var match = Regex.Match(text, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
-                if (match.Success)
+                if (text != null && text.IndexOf("<IC_", StringComparison.OrdinalIgnoreCase) >= 0)
                 {
-                    tagName = match.Groups[1].Value;
-                    // Clean the tag out of the text
-                    nameText.text = text.Replace(match.Value, "").TrimStart();
+                    var match = CustomTagRegex.Match(text);
+                    if (match.Success)
+                    {
+                        tagName = match.Groups[1].Value;
+                        // Clean the tag out of the text
+                        nameText.text = text.Replace(match.Value, "").TrimStart();
+                    }
                 }
-                else
+                
+                if (tagName == null)
                 {
                     // 2. Otherwise, look up via custom config entries using the clean text
                     tagName = GetCustomIconTagForText(text);
