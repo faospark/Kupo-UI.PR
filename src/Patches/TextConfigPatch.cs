@@ -162,6 +162,12 @@ namespace KupoUI.PR.Patches
             return "En";
         }
 
+        internal static string GetCleanText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return text;
+            return Regex.Replace(text, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
+        }
+
         internal static bool MatchesLanguage(string entryLanguage)
         {
             if (string.IsNullOrEmpty(entryLanguage)) return true;
@@ -717,11 +723,6 @@ namespace KupoUI.PR.Patches
                 }
             }
 
-            private static string GetCleanText(string text)
-            {
-                if (string.IsNullOrEmpty(text)) return text;
-                return Regex.Replace(text, @"<IC_[A-Za-z0-9_]+>", "", RegexOptions.IgnoreCase).TrimStart();
-            }
 
             private static void LogItem(int itemId, string name, string description)
             {
@@ -951,6 +952,174 @@ namespace KupoUI.PR.Patches
             catch (Exception ex)
             {
                 KupoUIPRPlugin.PluginLog.LogError($"[IconsConfig] Error in ShopListItemUpdateViewPostfix: {ex}");
+            }
+        }
+
+        private static string ResolveTagNameForText(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return null;
+
+            // 1. If text contains <IC_...>, extract it directly
+            var match = Regex.Match(text, @"<(IC_[A-Za-z0-9_]+)>", RegexOptions.IgnoreCase);
+            if (match.Success)
+            {
+                return match.Groups[1].Value;
+            }
+
+            // 2. Check pending message swaps
+            string cleanText = GetCleanText(text);
+            if (_pendingMessageIconSwaps.TryGetValue(cleanText, out var tag))
+            {
+                return tag;
+            }
+
+            // 3. Fall back to config lookups
+            return GetCustomIconTagForText(cleanText);
+        }
+
+        private static void ProcessParamListView(Last.UI.Common.Library.LibraryInfoContentParamListView view)
+        {
+            if (view == null) return;
+            var textTable = view.TextTable;
+            if (textTable == null)
+            {
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]   textTable is NULL");
+                return;
+            }
+
+            if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]   textTable has {textTable.Count} item(s)");
+
+            for (int i = 0; i < textTable.Count; i++)
+            {
+                var item = textTable[i];
+                if (item == null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]     item [{i}] is NULL");
+                    continue;
+                }
+                var iconText = item.Icon;
+                if (iconText == null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]     item [{i}] Icon is NULL");
+                    continue;
+                }
+
+                // Retrieve the item name
+                string text = null;
+                if (iconText.nameText != null)
+                {
+                    text = iconText.nameText.text;
+                }
+                string detailTxt = item.DetailText != null ? item.DetailText.text : null;
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]     item [{i}] - nameText: '{text}', detailText: '{detailTxt}'");
+
+                if (string.IsNullOrEmpty(text) && item.DetailText != null)
+                {
+                    text = item.DetailText.text;
+                }
+
+                if (string.IsNullOrEmpty(text)) continue;
+
+                string tag = ResolveTagNameForText(text);
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]     item [{i}] - resolved tag: '{tag}'");
+                if (string.IsNullOrEmpty(tag)) continue;
+
+                var sprite = KupoUI.PR.IconsConfig.IconsConfigLoader.GetSprite(tag);
+                if (sprite == null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogWarning($"[TextConfig]     item [{i}] - sprite not found for tag '{tag}'");
+                    continue;
+                }
+
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]     item [{i}] - applying custom sprite for '{tag}'");
+                // Assign the custom sprite directly
+                iconText.SetIconImage(sprite);
+                iconText.UseIconImage();
+
+                // Clean the tag out of both texts
+                if (iconText.nameText != null && !string.IsNullOrEmpty(iconText.nameText.text))
+                {
+                    iconText.nameText.text = GetCleanText(iconText.nameText.text);
+                }
+                if (item.DetailText != null && !string.IsNullOrEmpty(item.DetailText.text))
+                {
+                    item.DetailText.text = GetCleanText(item.DetailText.text);
+                }
+            }
+        }
+
+        private static void LibraryInfoContentUpdateViewPostfix(Last.UI.Common.Library.LibraryInfoContent __instance)
+        {
+            if (__instance == null) return;
+            try
+            {
+                if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                    KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] LibraryInfoContent.UpdateView Postfix entered.");
+
+                // 1. Process drops and steals
+                var dropTable = __instance.dropTable;
+                if (dropTable != null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]   Processing dropTable: {dropTable.Count} lists.");
+                    foreach (var view in dropTable)
+                    {
+                        ProcessParamListView(view);
+                    }
+                }
+
+                // 2. Process race, weaknesses, resistances, habitat, etc.
+                var hierarchyTable = __instance.hierarchyTable;
+                if (hierarchyTable != null)
+                {
+                    if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[TextConfig]   Processing hierarchyTable: {hierarchyTable.Count} lists.");
+                    foreach (var view in hierarchyTable)
+                    {
+                        ProcessParamListView(view);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in LibraryInfoContent.UpdateView Postfix: {ex}");
+            }
+        }
+
+        internal static void PatchLibraryInfoContent(Harmony harmony)
+        {
+            var libraryInfoContentType = AccessTools.TypeByName("Last.UI.Common.Library.LibraryInfoContent");
+            if (libraryInfoContentType == null)
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning("[TextConfig] Last.UI.Common.Library.LibraryInfoContent type not found.");
+                return;
+            }
+
+            try
+            {
+                var method = AccessTools.Method(libraryInfoContentType, "UpdateView", new[] { AccessTools.TypeByName("Last.OutGame.Library.MonsterData") });
+                if (method != null)
+                {
+                    harmony.Patch(method,
+                        postfix: new HarmonyMethod(typeof(TextConfigPatch), nameof(LibraryInfoContentUpdateViewPostfix)));
+                    KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Dynamically patched LibraryInfoContent.UpdateView (Postfix).");
+                }
+                else
+                {
+                    KupoUIPRPlugin.PluginLog.LogWarning("[TextConfig] Method LibraryInfoContent.UpdateView not found.");
+                }
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to patch LibraryInfoContent.UpdateView: {ex}");
             }
         }
     }

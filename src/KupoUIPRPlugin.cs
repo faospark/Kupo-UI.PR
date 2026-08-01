@@ -302,6 +302,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         IconsConfigLoader.Initialize(ModulesRootPath);
         TextConfigPatch.PatchItemListContentData(harmony);
         TextConfigPatch.PatchShopListContentData(harmony);
+        TextConfigPatch.PatchLibraryInfoContent(harmony);
 
         Log.LogInfo($"{PluginName} v{PluginVersion} loaded.");
         Log.LogInfo($"DisableMouseCursor = {DisableMouseCursorConfig.Value}");
