@@ -192,6 +192,7 @@ internal static class ObjectConfigLoader
             TextColorWhite       = ReadBool(block, "TextColorWhite"),
             DisableShadow        = ReadBool(block, "DisableShadow"),
             DisableMask          = ReadBool(block, "DisableMask"),
+            IgnoreLayout         = ReadBool(block, "IgnoreLayout"),
             SourceFile       = sourceFile,
         };
 

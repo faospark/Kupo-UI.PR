@@ -95,7 +95,8 @@ internal static class ObjectConfigPatch
                     + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
                     + (e.Color.HasValue                      ? $" color=#{FormatColorToHex(e.Color.Value)}" : "")
                     + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : "")
-                    + (e.DisableMask.HasValue                ? $" disableMask={e.DisableMask.Value}"         : ""));
+                    + (e.DisableMask.HasValue                ? $" disableMask={e.DisableMask.Value}"         : "")
+                    + (e.IgnoreLayout.HasValue                ? $" ignoreLayout={e.IgnoreLayout.Value}"       : ""));
             }
         }
 
@@ -648,6 +649,10 @@ internal static class ObjectConfigPatch
                 if (imageComponent != null)
                 {
                     imageComponent.sprite = sprite;
+                    if (sprite != null && sprite.border != Vector4.zero)
+                    {
+                        imageComponent.type = Image.Type.Sliced;
+                    }
                 }
 
                 if (imgConfig.Position.HasValue)
@@ -688,6 +693,19 @@ internal static class ObjectConfigPatch
                 {
                     imageComponent.color = imgConfig.Color.Value;
                 }
+            }
+        }
+
+        if (entry.IgnoreLayout.HasValue && entry.IgnoreLayout.Value)
+        {
+            var layoutElement = go.GetComponent<LayoutElement>();
+            if (layoutElement == null)
+            {
+                layoutElement = go.AddComponent<LayoutElement>();
+            }
+            if (layoutElement != null)
+            {
+                layoutElement.ignoreLayout = true;
             }
         }
 

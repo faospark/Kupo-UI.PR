@@ -119,6 +119,12 @@ internal sealed class ObjectConfigEntry
     internal bool? DisableMask { get; set; }
 
     /// <summary>
+    /// When <c>true</c>, configures a <c>UnityEngine.UI.LayoutElement</c> with <c>ignoreLayout = true</c>
+    /// to prevent parent LayoutGroups from controlling this object's position.
+    /// </summary>
+    internal bool? IgnoreLayout { get; set; }
+
+    /// <summary>
     /// The disk path of the <c>ObjectConfig.json</c> file this entry was loaded from.
     /// Used for log messages.
     /// </summary>
