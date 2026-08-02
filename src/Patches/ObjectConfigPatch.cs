@@ -21,6 +21,7 @@ internal static class ObjectConfigPatch
     private static bool _hasTextColorWhiteRules;
     private static bool _hasColorRules;
     private static bool _hasDisableShadowRules;
+    private static bool _hasDisableMaskRules;
     private static bool _isApplyingColor;
     private static bool _isProcessingSetActive;
 
@@ -40,6 +41,7 @@ internal static class ObjectConfigPatch
         _hasTextColorWhiteRules = false;
         _hasColorRules = false;
         _hasDisableShadowRules = false;
+        _hasDisableMaskRules = false;
 
         _entriesByName.Clear();
         var entries = ObjectConfigLoader.Entries;
@@ -66,6 +68,10 @@ internal static class ObjectConfigPatch
             {
                 _hasDisableShadowRules = true;
             }
+            if (e.DisableMask == true)
+            {
+                _hasDisableMaskRules = true;
+            }
         }
 
         // Log a summary of every loaded rule so the user can verify parsing in the BepInEx log.
@@ -87,7 +93,8 @@ internal static class ObjectConfigPatch
                     + (string.IsNullOrEmpty(e.ChildAlignment) ? "" : $" childAlignment={e.ChildAlignment}")
                     + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
                     + (e.Color.HasValue                      ? $" color=#{FormatColorToHex(e.Color.Value)}" : "")
-                    + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : ""));
+                    + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : "")
+                    + (e.DisableMask.HasValue                ? $" disableMask={e.DisableMask.Value}"         : ""));
             }
         }
 
@@ -575,6 +582,26 @@ internal static class ObjectConfigPatch
             }
         }
 
+        if (entry.DisableMask.HasValue && entry.DisableMask.Value)
+        {
+            var masks = go.GetComponents<Mask>();
+            foreach (var mask in masks)
+            {
+                if (mask != null && mask.enabled)
+                {
+                    mask.enabled = false;
+                }
+            }
+            var rectMasks = go.GetComponents<RectMask2D>();
+            foreach (var rectMask in rectMasks)
+            {
+                if (rectMask != null && rectMask.enabled)
+                {
+                    rectMask.enabled = false;
+                }
+            }
+        }
+
         KupoUIPRPlugin.PluginLog.LogDebug(
             $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
     }
@@ -685,6 +712,95 @@ internal static class ObjectConfigPatch
     }
 
     /// <summary>
+    /// Intercepts Mask.OnEnable. If the target has a matching DisableMask rule,
+    /// we force it to remain disabled immediately.
+    /// </summary>
+    [HarmonyPatch(typeof(Mask), "OnEnable")]
+    [HarmonyPostfix]
+    private static void MaskOnEnablePostfix(Mask __instance)
+    {
+        if (!_hasDisableMaskRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+
+        var name = __instance.name;
+        if (name == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableMaskRule(__instance.gameObject, entry, sceneName)) return;
+            }
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableMaskRule(__instance.gameObject, entry, sceneName)) return;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Intercepts RectMask2D.OnEnable. If the target has a matching DisableMask rule,
+    /// we force it to remain disabled immediately.
+    /// </summary>
+    [HarmonyPatch(typeof(RectMask2D), "OnEnable")]
+    [HarmonyPostfix]
+    private static void RectMask2DOnEnablePostfix(RectMask2D __instance)
+    {
+        if (!_hasDisableMaskRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+
+        var name = __instance.name;
+        if (name == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableMaskRule(__instance.gameObject, entry, sceneName)) return;
+            }
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableMaskRule(__instance.gameObject, entry, sceneName)) return;
+            }
+        }
+    }
+
+    private static bool ApplyDisableMaskRule(GameObject go, ObjectConfigEntry entry, string sceneName)
+    {
+        if (entry.DisableMask != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(go, entry.TargetPath)) return false;
+
+        var masks = go.GetComponents<Mask>();
+        foreach (var mask in masks)
+        {
+            if (mask != null && mask.enabled) mask.enabled = false;
+        }
+        var rectMasks = go.GetComponents<RectMask2D>();
+        foreach (var rectMask in rectMasks)
+        {
+            if (rectMask != null && rectMask.enabled) rectMask.enabled = false;
+        }
+        return true;
+    }
+
+    /// <summary>
     /// Sets the color of a <see cref="Graphic"/> component to the target color, guarded by
     /// a re-entrancy flag to prevent infinite loops when Harmony intercepts the setter.
     /// </summary>
@@ -717,6 +833,7 @@ internal static class ObjectConfigPatch
     /// Walks up the transform hierarchy and verifies that the path from some
     /// ancestor down to <paramref name="target"/> matches <paramref name="expectedPath"/>.
     /// Path uses forward-slash notation and is matched from the target upward.
+    /// Supports index targeting, e.g. "Text[1]" matches the second child named "Text".
     /// </summary>
     private static bool MatchesHierarchyPath(GameObject target, string expectedPath)
     {
@@ -725,15 +842,90 @@ internal static class ObjectConfigPatch
         var current = target.transform;
         for (var i = parts.Length - 1; i >= 0; i--)
         {
-            if (current == null || !IsNameMatch(current.name, parts[i]))
+            if (current == null)
             {
                 return false;
+            }
+
+            var segment = parts[i];
+            var expectedName = segment;
+            int? expectedIndex = null;
+
+            if (segment.EndsWith("]") && segment.Contains("["))
+            {
+                var openBrace = segment.LastIndexOf('[');
+                var closeBrace = segment.LastIndexOf(']');
+                if (openBrace >= 0 && closeBrace > openBrace)
+                {
+                    var indexStr = segment.Substring(openBrace + 1, closeBrace - openBrace - 1);
+                    if (int.TryParse(indexStr, out var parsedIndex))
+                    {
+                        expectedName = segment.Substring(0, openBrace);
+                        expectedIndex = parsedIndex;
+                    }
+                }
+            }
+
+            if (!IsNameMatch(current.name, expectedName))
+            {
+                return false;
+            }
+
+            if (expectedIndex.HasValue)
+            {
+                var actualIndex = GetNameSiblingIndex(current, expectedName);
+                if (actualIndex != expectedIndex.Value)
+                {
+                    return false;
+                }
             }
 
             current = current.parent;
         }
 
         return true;
+    }
+
+    private static int GetNameSiblingIndex(Transform transform, string expectedName)
+    {
+        var parent = transform.parent;
+        if (parent != null)
+        {
+            int index = 0;
+            for (int i = 0; i < parent.childCount; i++)
+            {
+                var child = parent.GetChild(i);
+                if (child == transform)
+                {
+                    return index;
+                }
+                if (IsNameMatch(child.name, expectedName))
+                {
+                    index++;
+                }
+            }
+        }
+        else
+        {
+            var scene = transform.gameObject.scene;
+            if (scene.IsValid())
+            {
+                var rootObjects = scene.GetRootGameObjects();
+                int index = 0;
+                foreach (var root in rootObjects)
+                {
+                    if (root.transform == transform)
+                    {
+                        return index;
+                    }
+                    if (IsNameMatch(root.name, expectedName))
+                    {
+                        index++;
+                    }
+                }
+            }
+        }
+        return 0;
     }
 
     /// <summary>

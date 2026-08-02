@@ -113,6 +113,12 @@ internal sealed class ObjectConfigEntry
     internal bool? DisableShadow { get; set; }
 
     /// <summary>
+    /// When <c>true</c> and the GameObject has one or more
+    /// <c>UnityEngine.UI.Mask</c> or <c>UnityEngine.UI.RectMask2D</c> components, disables them all.
+    /// </summary>
+    internal bool? DisableMask { get; set; }
+
+    /// <summary>
     /// The disk path of the <c>ObjectConfig.json</c> file this entry was loaded from.
     /// Used for log messages.
     /// </summary>

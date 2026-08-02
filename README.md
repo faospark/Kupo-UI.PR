@@ -421,7 +421,8 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
       "ResizeTextMinSize": 12,
       "TextColorWhite": true,
       "Color": "#FF5500",
-      "DisableShadow": true
+      "DisableShadow": true,
+      "DisableMask": true
     }
   ]
 }
@@ -450,6 +451,7 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `TextColorWhite`       | No       | Legacy shortcut to force`Text.color` to white. Use `Color` for custom colors.                                                                                                                                                                                                                                                                                         |
 | `Color`                | No       | Forces`Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name, or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). See [Supported Color Names](#supported-color-names) for a list of valid names. |
 | `DisableShadow`        | No       | Disables all`UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                                                |
+| `DisableMask`          | No       | Disables all`UnityEngine.UI.Mask` and `UnityEngine.UI.RectMask2D` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                   |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 
@@ -503,6 +505,19 @@ The path is matched by walking up the transform hierarchy, so it does not need t
 >
 > - The **last segment of `TargetPath` must match `TargetObjectName`** exactly. The matcher walks upward from the object itself.
 > - **No trailing slash.** A path ending with `/` produces an empty final segment that will never match, causing the rule to silently do nothing.
+> - **Index-based sibling targeting (`Name[index]`)**: If multiple objects have the exact same name under the same parent, you can append a 0-based index to any path segment, e.g. `TargetPath: "parent_object/child_object[1]"`. The index is computed specifically among siblings that share that name (e.g., `[0]` is the first sibling with that name, `[1]` is the second sibling with that name, etc.).
+
+### Disabling a Mask on a Specific Object
+
+If you want to disable a mask on a specific element that might share a generic name with others (like `viewport` or `Mask`) under the same parent, combine `TargetPath` with an index and `DisableMask`:
+
+```json
+{
+  "TargetObjectName": "viewport",
+  "TargetPath": "Canvas/aspect_parent/menu_parent/scroll_view/viewport[0]",
+  "DisableMask": true
+}
+```
 
 ### Hiding an Object
 
