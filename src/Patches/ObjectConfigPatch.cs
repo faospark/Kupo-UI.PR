@@ -28,6 +28,7 @@ internal static class ObjectConfigPatch
     private static readonly ConditionalWeakTable<GameObject, object> _processedObjects = new();
     private static readonly ConditionalWeakTable<GameObject, object> _hierarchyProcessedObjects = new();
     private static readonly Dictionary<string, List<ObjectConfigEntry>> _entriesByName = new(StringComparer.Ordinal);
+    private static readonly Dictionary<string, Sprite> _customImageCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly object _dummyValue = new();
 
     /// <summary>
@@ -602,6 +603,94 @@ internal static class ObjectConfigPatch
             }
         }
 
+        if (entry.NewImages != null && entry.NewImages.Count > 0)
+        {
+            foreach (var imgConfig in entry.NewImages)
+            {
+                var relativePath = imgConfig.ImagePath;
+                var baseDir = System.IO.Path.GetDirectoryName(entry.SourceFile);
+                var absolutePath = System.IO.Path.Combine(baseDir, relativePath);
+                try
+                {
+                    absolutePath = System.IO.Path.GetFullPath(absolutePath);
+                }
+                catch
+                {
+                    // Fall back to combined path if normalization fails
+                }
+
+                var sprite = GetOrCreateCustomSprite(absolutePath);
+                if (sprite == null)
+                {
+                    continue;
+                }
+
+                var childTransform = go.transform.Find(imgConfig.Name);
+                GameObject childGo;
+                RectTransform rectTransform;
+                Image imageComponent;
+
+                if (childTransform != null)
+                {
+                    childGo = childTransform.gameObject;
+                    rectTransform = childGo.GetComponent<RectTransform>();
+                    imageComponent = childGo.GetComponent<Image>();
+                }
+                else
+                {
+                    childGo = new GameObject(imgConfig.Name);
+                    childGo.transform.SetParent(go.transform, false);
+
+                    rectTransform = childGo.AddComponent<RectTransform>();
+                    imageComponent = childGo.AddComponent<Image>();
+                }
+
+                if (imageComponent != null)
+                {
+                    imageComponent.sprite = sprite;
+                }
+
+                if (imgConfig.Position.HasValue)
+                {
+                    var p = imgConfig.Position.Value;
+                    rectTransform.localPosition = new Vector3(p.X, p.Y, p.Z);
+                }
+
+                if (imgConfig.Rotation.HasValue)
+                {
+                    var r = imgConfig.Rotation.Value;
+                    rectTransform.localEulerAngles = new Vector3(r.X, r.Y, r.Z);
+                }
+
+                if (imgConfig.Scale.HasValue)
+                {
+                    var s = imgConfig.Scale.Value;
+                    rectTransform.localScale = new Vector3(s.X, s.Y, s.Z);
+                }
+                else if (childTransform == null)
+                {
+                    rectTransform.localScale = Vector3.one;
+                }
+
+                if (imgConfig.Size.HasValue)
+                {
+                    var sz = imgConfig.Size.Value;
+                    rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, sz.X);
+                    rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, sz.Y);
+                }
+                else if (childTransform == null)
+                {
+                    rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, sprite.rect.width);
+                    rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, sprite.rect.height);
+                }
+
+                if (imgConfig.Color.HasValue && imageComponent != null)
+                {
+                    imageComponent.color = imgConfig.Color.Value;
+                }
+            }
+        }
+
         KupoUIPRPlugin.PluginLog.LogDebug(
             $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
     }
@@ -947,5 +1036,96 @@ internal static class ObjectConfigPatch
         }
 
         return path;
+    }
+
+    private static Sprite GetOrCreateCustomSprite(string absolutePath)
+    {
+        if (_customImageCache.TryGetValue(absolutePath, out var cached) && cached != null)
+        {
+            return cached;
+        }
+
+        try
+        {
+            if (System.IO.File.Exists(absolutePath))
+            {
+                var bytes = System.IO.File.ReadAllBytes(absolutePath);
+                var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
+                if (ImageConversion.LoadImage(tex, bytes))
+                {
+                    // Load sidecar metadata if present
+                    var metadata = KupoUI.PR.Textures.TextureResolver.LoadTextureMetadata(absolutePath);
+
+                    // Apply filter/wrap modes
+                    tex.filterMode = KupoUI.PR.Textures.TextureResolver.ResolveFilterMode(absolutePath, metadata);
+                    tex.wrapMode = KupoUI.PR.Textures.TextureResolver.ResolveWrapMode(absolutePath, metadata);
+
+                    // Determine Rect, Pivot, Border, and PixelsPerUnit
+                    var rect = new Rect(0, 0, tex.width, tex.height);
+                    if (metadata != null)
+                    {
+                        var rx = metadata.RectX ?? 0;
+                        var ry = metadata.RectY ?? 0;
+                        var rw = metadata.Width > 0 ? metadata.Width : tex.width;
+                        var rh = metadata.Height > 0 ? metadata.Height : tex.height;
+                        rect = new Rect(rx, ry, rw, rh);
+                    }
+
+                    var pivot = new Vector2(0.5f, 0.5f);
+                    if (metadata != null)
+                    {
+                        var metadataPivot = KupoUI.PR.Textures.TextureResolver.ParsePivot(metadata);
+                        if (metadataPivot.HasValue)
+                        {
+                            pivot = metadataPivot.Value;
+                        }
+                    }
+
+                    var border = Vector4.zero;
+                    if (metadata != null)
+                    {
+                        var metadataBorder = KupoUI.PR.Textures.TextureResolver.ParseBorder(metadata);
+                        if (metadataBorder.HasValue)
+                        {
+                            border = metadataBorder.Value;
+                        }
+                    }
+
+                    var pixelsPerUnit = 100f;
+                    if (metadata != null && metadata.PixelsPerUnit > 0f)
+                    {
+                        pixelsPerUnit = metadata.PixelsPerUnit;
+                    }
+
+                    var sprite = Sprite.Create(
+                        tex,
+                        rect,
+                        pivot,
+                        pixelsPerUnit,
+                        0,
+                        SpriteMeshType.FullRect,
+                        border);
+
+                    sprite.name = System.IO.Path.GetFileNameWithoutExtension(absolutePath) + "_Custom";
+                    
+                    // Prevent garbage collection of texture/sprite
+                    UnityEngine.Object.DontDestroyOnLoad(tex);
+                    UnityEngine.Object.DontDestroyOnLoad(sprite);
+
+                    _customImageCache[absolutePath] = sprite;
+                    return sprite;
+                }
+            }
+            else
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning($"[ObjectConfig] Custom image file not found: {absolutePath}");
+            }
+        }
+        catch (Exception ex)
+        {
+            KupoUIPRPlugin.PluginLog.LogWarning($"[ObjectConfig] Failed to load custom image '{absolutePath}': {ex.Message}");
+        }
+
+        return null;
     }
 }

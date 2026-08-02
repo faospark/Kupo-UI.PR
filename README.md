@@ -452,6 +452,7 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `Color`                | No       | Forces`Graphic.color` on `UnityEngine.UI.Graphic` components (`Text`, `Image`, `RawImage`). Re-enforced on every color write to prevent game overrides. Accepts Hex string (e.g. `"#FF5500"`, `"#FF5500FF"`), color name, or RGBA object (`{"r": 1.0, "g": 0.5, "b": 0.0, "a": 1.0}`). See [Supported Color Names](#supported-color-names) for a list of valid names. |
 | `DisableShadow`        | No       | Disables all`UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                                                |
 | `DisableMask`          | No       | Disables all`UnityEngine.UI.Mask` and `UnityEngine.UI.RectMask2D` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                   |
+| `NewImages`            | No       | A list of custom image UI elements to instantiate and parent under this GameObject. See [Inserting Custom Image Objects](#inserting-custom-image-objects) below.                                                                                                                                                                                                         |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
 
@@ -530,6 +531,42 @@ If you want to disable a mask on a specific element that might share a generic n
 ```
 
 > **Note on `SetActive: false` behaviour:** The rule uses a Harmony prefix that intercepts every `SetActive(true)` call and flips it to `false` before Unity processes it. This permanently prevents the object from becoming active — no flicker, no one-frame delay.
+
+### Inserting Custom Image Objects
+
+You can instantiate and insert new custom image objects (with standard Unity UI `Image` components) as children of a targeted UI element using the `NewImages` property. 
+
+The image file path is resolved **relative to the `ObjectConfig.json` file** itself. If `Size` is omitted, the image will default to its natural pixel dimensions.
+
+> [!TIP]
+> **Sidecar Metadata Support**: Just like standard texture overrides, you can drop a sidecar `.json` metadata file next to your custom image (e.g., `my_images/badge.json` next to `my_images/badge.png`) to define custom **9-slicing borders**, **pivots**, **pixelsPerUnit**, filter modes, and texture sub-rects.
+
+```json
+{
+  "TargetObjectName": "menu_base(Clone)",
+  "NewImages": [
+    {
+      "Name": "custom_badge",
+      "ImagePath": "my_images/badge.png",
+      "Position": { "x": 120, "y": -45, "z": 0 },
+      "Size": { "x": 64, "y": 64 },
+      "Color": "#FFFFFF"
+    }
+  ]
+}
+```
+
+#### Fields inside `NewImages`
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `Name` | **Yes** | The name of the new child GameObject to create. If an object with this name already exists as a child, it will be updated/re-used rather than duplicated. |
+| `ImagePath` | **Yes** | Path to the image file (supporting `.png`, `.jpg`, `.jpeg`, `.tga`, or `.dds`), relative to the directory of the `ObjectConfig.json`. |
+| `Position` | No | Sibling-local position offset (`x`, `y`, `z`). |
+| `Rotation` | No | Euler rotation angles (`x`, `y`, `z`). |
+| `Scale` | No | Sibling-local scale factors (`x`, `y`, `z`). Defaults to `1.0` if omitted. |
+| `Size` | No | Width (`x`) and height (`y`) bounds. Defaults to the image's natural dimensions if omitted. |
+| `Color` | No | Color tint overlay to apply to the image component. Supports Hex strings or RGBA objects. |
 
 ### Text Alignment Values
 

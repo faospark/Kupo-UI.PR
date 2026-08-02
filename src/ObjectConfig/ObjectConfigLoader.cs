@@ -266,6 +266,97 @@ internal static class ObjectConfigLoader
             }
         }
 
+        // NewImages
+        var newImagesContent = ExtractArrayContent(block, "NewImages");
+        if (newImagesContent != null)
+        {
+            entry.NewImages = new List<InsertedImageConfig>();
+            var imageBlocks = SplitObjectBlocks(newImagesContent);
+            foreach (var imgBlock in imageBlocks)
+            {
+                var imgName = ReadString(imgBlock, "Name");
+                var imgPath = ReadString(imgBlock, "ImagePath");
+                if (string.IsNullOrWhiteSpace(imgName) || string.IsNullOrWhiteSpace(imgPath))
+                {
+                    continue;
+                }
+
+                var imgConfig = new InsertedImageConfig
+                {
+                    Name = imgName.Trim(),
+                    ImagePath = imgPath.Trim()
+                };
+
+                // Position
+                var imgPosBlock = ReadSubObject(imgBlock, "Position");
+                if (imgPosBlock != null)
+                {
+                    imgConfig.Position = new Vec3
+                    {
+                        X = ReadFloat(imgPosBlock, "x"),
+                        Y = ReadFloat(imgPosBlock, "y"),
+                        Z = ReadFloat(imgPosBlock, "z"),
+                    };
+                }
+
+                // Rotation
+                var imgRotBlock = ReadSubObject(imgBlock, "Rotation");
+                if (imgRotBlock != null)
+                {
+                    imgConfig.Rotation = new Vec3
+                    {
+                        X = ReadFloat(imgRotBlock, "x"),
+                        Y = ReadFloat(imgRotBlock, "y"),
+                        Z = ReadFloat(imgRotBlock, "z"),
+                    };
+                }
+
+                // Scale
+                var imgScaleBlock = ReadSubObject(imgBlock, "Scale");
+                if (imgScaleBlock != null)
+                {
+                    imgConfig.Scale = new Vec3
+                    {
+                        X = ReadFloat(imgScaleBlock, "x"),
+                        Y = ReadFloat(imgScaleBlock, "y"),
+                        Z = ReadFloat(imgScaleBlock, "z"),
+                    };
+                }
+
+                // Size
+                var imgSizeBlock = ReadSubObject(imgBlock, "Size");
+                if (imgSizeBlock != null)
+                {
+                    imgConfig.Size = new Vec3
+                    {
+                        X = ReadFloat(imgSizeBlock, "x"),
+                        Y = ReadFloat(imgSizeBlock, "y"),
+                        Z = ReadFloat(imgSizeBlock, "z"),
+                    };
+                }
+
+                // Color
+                var imgColorStr = ReadString(imgBlock, "Color");
+                if (!string.IsNullOrWhiteSpace(imgColorStr))
+                {
+                    if (TryParseColorString(imgColorStr, out var parsedColor))
+                    {
+                        imgConfig.Color = parsedColor;
+                    }
+                }
+                else
+                {
+                    var imgColorBlock = ReadSubObject(imgBlock, "Color");
+                    if (imgColorBlock != null)
+                    {
+                        imgConfig.Color = ParseColorObject(imgColorBlock);
+                    }
+                }
+
+                entry.NewImages.Add(imgConfig);
+            }
+        }
+
         return entry;
     }
 

@@ -123,6 +123,22 @@ internal sealed class ObjectConfigEntry
     /// Used for log messages.
     /// </summary>
     internal string SourceFile { get; set; }
+
+    /// <summary>
+    /// Custom image UI elements to instantiate and insert under this GameObject.
+    /// </summary>
+    internal System.Collections.Generic.List<InsertedImageConfig> NewImages { get; set; }
+}
+
+internal sealed class InsertedImageConfig
+{
+    internal string Name { get; set; }
+    internal string ImagePath { get; set; }
+    internal Vec3? Position { get; set; }
+    internal Vec3? Rotation { get; set; }
+    internal Vec3? Scale { get; set; }
+    internal Vec3? Size { get; set; }
+    internal UnityEngine.Color? Color { get; set; }
 }
 
 /// <summary>A lightweight three-component float vector used by <see cref="ObjectConfigEntry"/>.</summary>
