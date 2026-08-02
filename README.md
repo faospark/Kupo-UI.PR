@@ -453,6 +453,7 @@ The `objects` array can contain as many entries as you need, spread across one f
 | `DisableShadow`        | No       | Disables all`UnityEngine.UI.Shadow` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                                                |
 | `DisableMask`          | No       | Disables all`UnityEngine.UI.Mask` and `UnityEngine.UI.RectMask2D` components on the matching GameObject. Use `true`.                                                                                                                                                                                                                                                   |
 | `IgnoreLayout`         | No       | Adds/sets a `UnityEngine.UI.LayoutElement` with `ignoreLayout = true` to prevent parent `LayoutGroups` (like `VerticalLayoutGroup`) from overriding this object's position. Use `true`.                                                                                                                                                                                |
+| `SiblingIndex`         | No       | Sets the sibling layout order/depth index in the hierarchy (e.g. `0` to move the object to the very back, or `-1` to bring it to the very front). Provide an integer.                                                                                                                                                                                                   |
 | `NewImages`            | No       | A list of custom image UI elements to instantiate and parent under this GameObject. See [Inserting Custom Image Objects](#inserting-custom-image-objects) below.                                                                                                                                                                                                         |
 
 > **Note:** All fields except `TargetObjectName` are optional. Only include the ones you want to change — unspecified fields leave the object unchanged.
@@ -561,7 +562,7 @@ The image file path is resolved **relative to the `ObjectConfig.json` file** its
 
 | Field | Required | Description |
 | --- | --- | --- |
-| `Name` | **Yes** | The name of the new child GameObject to create. If an object with this name already exists as a child, it will be updated/re-used rather than duplicated. |
+| `Name` | **Yes** | The name of the new child GameObject to create. If an object with this name already exists as a child, it will be updated/re-used rather than duplicated. **Supports path-like names** (e.g., `"container_name/image_name"`) to automatically create intermediate empty container GameObjects (which automatically ignore parent layout groups). |
 | `ImagePath` | **Yes** | Path to the image file (supporting `.png`, `.jpg`, `.jpeg`, `.tga`, or `.dds`), relative to the directory of the `ObjectConfig.json`. |
 | `Position` | No | Sibling-local position offset (`x`, `y`, `z`). |
 | `Rotation` | No | Euler rotation angles (`x`, `y`, `z`). |
@@ -569,6 +570,8 @@ The image file path is resolved **relative to the `ObjectConfig.json` file** its
 | `Size` | No | Width (`x`) and height (`y`) bounds. Defaults to the image's natural dimensions if omitted. |
 | `Color` | No | Color tint overlay to apply to the image component. Supports Hex strings or RGBA objects. |
 | `ImageType` | No | Sets the render type for the Unity UI Image component. Accepted values (case-insensitive): `Simple`, `Sliced`, `Tiled`, `Filled`. Defaults to `Sliced` if a border is present, or `Simple` if not. |
+| `SiblingIndex` | No | Sets the sibling draw/layout depth order of the new image (e.g., `0` to place it at the very back behind other children, or `-1` to place it at the very front). |
+| `IgnoreLayout` | No | Adds/sets a `UnityEngine.UI.LayoutElement` with `ignoreLayout = true` on the new image to prevent parent `LayoutGroups` from overriding its position. Use `true`. |
 
 ### Text Alignment Values
 
@@ -791,6 +794,26 @@ background_canvas/ui_root/backgrou_root/
 - The object is only created once per activation cycle — no duplicates on re-activation.
 - The texture is kept alive with `DontDestroyOnLoad` to survive additive scene reloads.
 - For best results, use an image sized to your target resolution (e.g. 1920×1080).
+
+### Main Menu Background Image
+
+Drop any supported image named `MainMenuBg` into any mod folder to inject a custom background image behind the main menu. No config entry is required — if the file is absent, nothing happens.
+
+```
+<GameRoot>/Modules/00-Mods/MyMod/MainMenuBg.png
+```
+
+**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds`
+
+**How it works:**
+
+The patch watches for the main menu's `menu_parent` container or `menu_base(Clone)` object under:
+
+```
+Canvas/aspect_parent/menu_parent
+```
+
+When either is activated, a new `MainMenuBgObject` `RawImage` GameObject is injected as a sibling of `menu_parent` immediately behind it (lower sibling index), stretched to fill the parent `aspect_parent` rect. The background automatically mirrors the active state of `menu_parent` and is cleaned up when `menu_parent` is destroyed.
 
 ---
 

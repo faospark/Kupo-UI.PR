@@ -193,6 +193,7 @@ internal static class ObjectConfigLoader
             DisableShadow        = ReadBool(block, "DisableShadow"),
             DisableMask          = ReadBool(block, "DisableMask"),
             IgnoreLayout         = ReadBool(block, "IgnoreLayout"),
+            SiblingIndex         = ReadInt(block, "SiblingIndex"),
             SourceFile       = sourceFile,
         };
 
@@ -357,6 +358,12 @@ internal static class ObjectConfigLoader
                 // ImageType
                 imgConfig.ImageType = ReadString(imgBlock, "ImageType")?.Trim();
 
+                // SiblingIndex
+                imgConfig.SiblingIndex = ReadInt(imgBlock, "SiblingIndex");
+
+                // IgnoreLayout
+                imgConfig.IgnoreLayout = ReadBool(imgBlock, "IgnoreLayout");
+
                 entry.NewImages.Add(imgConfig);
             }
         }
@@ -379,7 +386,7 @@ internal static class ObjectConfigLoader
     {
         var match = Regex.Match(
             json,
-            $"\"{Regex.Escape(key)}\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)",
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*\"?(-?\\d+(?:\\.\\d+)?)\"?",
             RegexOptions.IgnoreCase);
         return match.Success
             && float.TryParse(
@@ -395,7 +402,7 @@ internal static class ObjectConfigLoader
     {
         var match = Regex.Match(
             json,
-            $"\"{Regex.Escape(key)}\"\\s*:\\s*(true|false)",
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*\"?(true|false)\"?",
             RegexOptions.IgnoreCase);
         if (!match.Success)
         {
@@ -409,7 +416,7 @@ internal static class ObjectConfigLoader
     {
         var match = Regex.Match(
             json,
-            $"\"{Regex.Escape(key)}\"\\s*:\\s*(-?\\d+)",
+            $"\"{Regex.Escape(key)}\"\\s*:\\s*\"?(-?\\d+)\"?",
             RegexOptions.IgnoreCase);
         if (!match.Success)
         {

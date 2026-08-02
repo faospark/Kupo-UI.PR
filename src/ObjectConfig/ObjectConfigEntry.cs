@@ -125,6 +125,11 @@ internal sealed class ObjectConfigEntry
     internal bool? IgnoreLayout { get; set; }
 
     /// <summary>
+    /// When present, sets the sibling index of the GameObject in its hierarchy (0 = back, -1 = front).
+    /// </summary>
+    internal int? SiblingIndex { get; set; }
+
+    /// <summary>
     /// The disk path of the <c>ObjectConfig.json</c> file this entry was loaded from.
     /// Used for log messages.
     /// </summary>
@@ -146,6 +151,8 @@ internal sealed class InsertedImageConfig
     internal Vec3? Size { get; set; }
     internal UnityEngine.Color? Color { get; set; }
     internal string ImageType { get; set; }
+    internal int? SiblingIndex { get; set; }
+    internal bool? IgnoreLayout { get; set; }
 }
 
 /// <summary>A lightweight three-component float vector used by <see cref="ObjectConfigEntry"/>.</summary>

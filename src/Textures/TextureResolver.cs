@@ -12,6 +12,7 @@ namespace KupoUI.PR.Textures;
 internal static class TextureResolver
 {
     private static readonly Dictionary<string, string> TexturePathIndex = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, string> MetadataPathIndex = new(StringComparer.OrdinalIgnoreCase);
     private static readonly HashSet<string> AmbiguousTextureNames = new(StringComparer.OrdinalIgnoreCase);
     // Path-based index: keys are normalised "GameAssets/…/Name" strings (no extension, forward slashes).
     // Populated for any file whose disk path contains a "GameAssets" folder segment inside the layer.
@@ -550,6 +551,7 @@ internal static class TextureResolver
     private static void BuildIndex(string root, string gameTag)
     {
         TexturePathIndex.Clear();
+        MetadataPathIndex.Clear();
         AmbiguousTextureNames.Clear();
         PathTextureIndex.Clear();
         TextureCache.Clear();
@@ -792,10 +794,21 @@ internal static class TextureResolver
         }
 
         var metadataPath = Path.ChangeExtension(texturePath, ".json");
-        if (!File.Exists(metadataPath))
+        var exists = File.Exists(metadataPath);
+        KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Checking metadata path: '{metadataPath}' (Exists={exists})");
+        if (!exists)
         {
-            MetadataCache[texturePath] = null;
-            return null;
+            var key = Path.GetFileNameWithoutExtension(texturePath).Trim();
+            if (MetadataPathIndex.TryGetValue(key, out var fallbackPath) && File.Exists(fallbackPath))
+            {
+                metadataPath = fallbackPath;
+                KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Using fallback metadata path for '{key}': '{metadataPath}'");
+            }
+            else
+            {
+                MetadataCache[texturePath] = null;
+                return null;
+            }
         }
 
         try
@@ -1032,8 +1045,10 @@ internal static class TextureResolver
             }
 
             var extension = Path.GetExtension(file);
+            var isJson = extension.Equals(".json", StringComparison.OrdinalIgnoreCase);
+
             // [OPT-7] O(1) HashSet lookup instead of five sequential Equals comparisons.
-            if (!SupportedExtensions.Contains(extension))
+            if (!isJson && !SupportedExtensions.Contains(extension))
             {
                 continue;
             }
@@ -1043,6 +1058,12 @@ internal static class TextureResolver
             var key = Path.GetFileNameWithoutExtension(file).Trim();
             if (string.IsNullOrEmpty(key))
             {
+                continue;
+            }
+
+            if (isJson)
+            {
+                MetadataPathIndex[key] = file;
                 continue;
             }
 

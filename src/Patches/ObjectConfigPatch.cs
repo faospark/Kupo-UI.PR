@@ -96,7 +96,8 @@ internal static class ObjectConfigPatch
                     + (e.Color.HasValue                      ? $" color=#{FormatColorToHex(e.Color.Value)}" : "")
                     + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : "")
                     + (e.DisableMask.HasValue                ? $" disableMask={e.DisableMask.Value}"         : "")
-                    + (e.IgnoreLayout.HasValue                ? $" ignoreLayout={e.IgnoreLayout.Value}"       : ""));
+                    + (e.IgnoreLayout.HasValue                ? $" ignoreLayout={e.IgnoreLayout.Value}"       : "")
+                    + (e.SiblingIndex.HasValue                ? $" siblingIndex={e.SiblingIndex.Value}"       : ""));
             }
         }
 
@@ -336,11 +337,11 @@ internal static class ObjectConfigPatch
             return false;
         }
 
-        ApplyEntry(go, entry);
+        ApplyEntry(go, entry, currentScene);
         return true;
     }
 
-    private static void ApplyEntry(GameObject go, ObjectConfigEntry entry)
+    private static void ApplyEntry(GameObject go, ObjectConfigEntry entry, string currentScene)
     {
         var t = go.transform;
 
@@ -614,24 +615,10 @@ internal static class ObjectConfigPatch
                     continue;
                 }
 
-                var childTransform = go.transform.Find(imgConfig.Name);
-                GameObject childGo;
-                RectTransform rectTransform;
-                Image imageComponent;
-
-                if (childTransform != null)
+                GameObject childGo = FindOrCreateChildPath(go, imgConfig.Name, out var rectTransform, out var imageComponent, out var isNewChild);
+                if (childGo == null)
                 {
-                    childGo = childTransform.gameObject;
-                    rectTransform = childGo.GetComponent<RectTransform>();
-                    imageComponent = childGo.GetComponent<Image>();
-                }
-                else
-                {
-                    childGo = new GameObject(imgConfig.Name);
-                    childGo.transform.SetParent(go.transform, false);
-
-                    rectTransform = childGo.AddComponent<RectTransform>();
-                    imageComponent = childGo.AddComponent<Image>();
+                    continue;
                 }
 
                 if (imageComponent != null)
@@ -672,7 +659,7 @@ internal static class ObjectConfigPatch
                     var s = imgConfig.Scale.Value;
                     rectTransform.localScale = new Vector3(s.X, s.Y, s.Z);
                 }
-                else if (childTransform == null)
+                else if (isNewChild)
                 {
                     rectTransform.localScale = Vector3.one;
                 }
@@ -683,7 +670,7 @@ internal static class ObjectConfigPatch
                     rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, sz.X);
                     rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, sz.Y);
                 }
-                else if (childTransform == null)
+                else if (isNewChild)
                 {
                     rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, sprite.rect.width);
                     rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, sprite.rect.height);
@@ -692,6 +679,49 @@ internal static class ObjectConfigPatch
                 if (imgConfig.Color.HasValue && imageComponent != null)
                 {
                     imageComponent.color = imgConfig.Color.Value;
+                }
+
+                var topLevelName = imgConfig.Name;
+                var slashIdx = imgConfig.Name.IndexOf('/');
+                if (slashIdx > 0)
+                {
+                    topLevelName = imgConfig.Name.Substring(0, slashIdx);
+                }
+                var topLevelTransform = go.transform.Find(topLevelName);
+
+                if (imgConfig.SiblingIndex.HasValue && topLevelTransform != null)
+                {
+                    var idx = imgConfig.SiblingIndex.Value;
+                    if (idx == -1)
+                    {
+                        topLevelTransform.SetAsLastSibling();
+                    }
+                    else
+                    {
+                        topLevelTransform.SetSiblingIndex(idx);
+                    }
+                }
+
+                if (imgConfig.IgnoreLayout.HasValue && imgConfig.IgnoreLayout.Value && topLevelTransform != null)
+                {
+                    var le = topLevelTransform.GetComponent<LayoutElement>();
+                    if (le == null)
+                    {
+                        le = topLevelTransform.gameObject.AddComponent<LayoutElement>();
+                    }
+                    if (le != null)
+                    {
+                        le.ignoreLayout = true;
+                    }
+                }
+
+                if (isNewChild)
+                {
+                    ApplyMatchingRules(childGo, currentScene);
+                    if (!_processedObjects.TryGetValue(childGo, out _))
+                    {
+                        _processedObjects.Add(childGo, _dummyValue);
+                    }
                 }
             }
         }
@@ -706,6 +736,19 @@ internal static class ObjectConfigPatch
             if (layoutElement != null)
             {
                 layoutElement.ignoreLayout = true;
+            }
+        }
+
+        if (entry.SiblingIndex.HasValue)
+        {
+            var idx = entry.SiblingIndex.Value;
+            if (idx == -1)
+            {
+                t.SetAsLastSibling();
+            }
+            else
+            {
+                t.SetSiblingIndex(idx);
             }
         }
 
@@ -1113,6 +1156,7 @@ internal static class ObjectConfigPatch
                         border = metadataBorder.Value;
                     }
                 }
+                KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Custom sprite '{cleanName}' metadata status: HasMetadata={metadata != null}, Border={border}");
 
                 var pixelsPerUnit = 100f;
                 if (metadata != null && metadata.PixelsPerUnit > 0f)
@@ -1203,6 +1247,7 @@ internal static class ObjectConfigPatch
                             border = metadataBorder.Value;
                         }
                     }
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Custom sprite '{absolutePath}' metadata status: HasMetadata={metadata != null}, Border={border}");
 
                     var pixelsPerUnit = 100f;
                     if (metadata != null && metadata.PixelsPerUnit > 0f)
@@ -1255,6 +1300,76 @@ internal static class ObjectConfigPatch
                 }
             }
         }
+        return null;
+    }
+
+    private static GameObject FindOrCreateChildPath(GameObject parentGo, string namePath, out RectTransform rectTransform, out Image imageComponent, out bool isNewChild)
+    {
+        rectTransform = null;
+        imageComponent = null;
+        isNewChild = false;
+
+        if (string.IsNullOrEmpty(namePath))
+        {
+            return null;
+        }
+
+        var parts = namePath.Split('/');
+        var current = parentGo.transform;
+
+        for (int i = 0; i < parts.Length; i++)
+        {
+            var part = parts[i];
+            if (string.IsNullOrEmpty(part)) continue;
+
+            var child = current.Find(part);
+            GameObject childGo;
+            if (child == null)
+            {
+                childGo = new GameObject(part);
+                childGo.transform.SetParent(current, false);
+                childGo.AddComponent<RectTransform>();
+                child = childGo.transform;
+                if (i == parts.Length - 1)
+                {
+                    isNewChild = true;
+                }
+            }
+            else
+            {
+                childGo = child.gameObject;
+            }
+
+            current = child;
+
+            if (i == parts.Length - 1)
+            {
+                rectTransform = childGo.GetComponent<RectTransform>();
+                if (rectTransform == null)
+                {
+                    rectTransform = childGo.AddComponent<RectTransform>();
+                }
+                imageComponent = childGo.GetComponent<Image>();
+                if (imageComponent == null)
+                {
+                    imageComponent = childGo.AddComponent<Image>();
+                }
+                return childGo;
+            }
+            else
+            {
+                var le = childGo.GetComponent<LayoutElement>();
+                if (le == null)
+                {
+                    le = childGo.AddComponent<LayoutElement>();
+                }
+                if (le != null)
+                {
+                    le.ignoreLayout = true;
+                }
+            }
+        }
+
         return null;
     }
 }
