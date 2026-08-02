@@ -608,19 +608,7 @@ internal static class ObjectConfigPatch
         {
             foreach (var imgConfig in entry.NewImages)
             {
-                var relativePath = imgConfig.ImagePath;
-                var baseDir = System.IO.Path.GetDirectoryName(entry.SourceFile);
-                var absolutePath = System.IO.Path.Combine(baseDir, relativePath);
-                try
-                {
-                    absolutePath = System.IO.Path.GetFullPath(absolutePath);
-                }
-                catch
-                {
-                    // Fall back to combined path if normalization fails
-                }
-
-                var sprite = GetOrCreateCustomSprite(absolutePath);
+                var sprite = GetOrCreateCustomSprite(imgConfig.ImagePath, entry.SourceFile);
                 if (sprite == null)
                 {
                     continue;
@@ -649,7 +637,19 @@ internal static class ObjectConfigPatch
                 if (imageComponent != null)
                 {
                     imageComponent.sprite = sprite;
-                    if (sprite != null && sprite.border != Vector4.zero)
+                    if (!string.IsNullOrEmpty(imgConfig.ImageType))
+                    {
+                        if (System.Enum.TryParse(imgConfig.ImageType, ignoreCase: true, out Image.Type parsedType))
+                        {
+                            imageComponent.type = parsedType;
+                        }
+                        else
+                        {
+                            KupoUIPRPlugin.PluginLog.LogWarning(
+                                $"[ObjectConfig] Invalid ImageType '{imgConfig.ImageType}' specified for child '{imgConfig.Name}'. Use Simple, Sliced, Tiled, or Filled.");
+                        }
+                    }
+                    else if (sprite != null && sprite.border != Vector4.zero)
                     {
                         imageComponent.type = Image.Type.Sliced;
                     }
@@ -1056,11 +1056,110 @@ internal static class ObjectConfigPatch
         return path;
     }
 
-    private static Sprite GetOrCreateCustomSprite(string absolutePath)
+    private static Sprite GetOrCreateCustomSprite(string imagePath, string entrySourceFile)
     {
-        if (_customImageCache.TryGetValue(absolutePath, out var cached) && cached != null)
+        var isSimpleName = !imagePath.Contains("/") && !imagePath.Contains("\\");
+        var cleanName = imagePath;
+        if (isSimpleName)
         {
-            return cached;
+            if (imagePath.EndsWith(".png", StringComparison.OrdinalIgnoreCase) ||
+                imagePath.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) ||
+                imagePath.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase) ||
+                imagePath.EndsWith(".tga", StringComparison.OrdinalIgnoreCase) ||
+                imagePath.EndsWith(".dds", StringComparison.OrdinalIgnoreCase))
+            {
+                cleanName = System.IO.Path.GetFileNameWithoutExtension(imagePath);
+            }
+        }
+
+        if (isSimpleName)
+        {
+            var cacheKey = "Resolver::" + cleanName;
+            if (_customImageCache.TryGetValue(cacheKey, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            KupoUI.PR.Textures.TextureResolver.TextureOverrideMetadata metadata;
+            var tex = KupoUI.PR.Textures.TextureResolver.LoadTexture(cleanName, null, out metadata);
+            if (tex != null)
+            {
+                var rect = new Rect(0, 0, tex.width, tex.height);
+                if (metadata != null)
+                {
+                    var rx = metadata.RectX ?? 0;
+                    var ry = metadata.RectY ?? 0;
+                    var rw = metadata.Width > 0 ? metadata.Width : tex.width;
+                    var rh = metadata.Height > 0 ? metadata.Height : tex.height;
+                    rect = new Rect(rx, ry, rw, rh);
+                }
+
+                var pivot = new Vector2(0.5f, 0.5f);
+                if (metadata != null)
+                {
+                    var metadataPivot = KupoUI.PR.Textures.TextureResolver.ParsePivot(metadata);
+                    if (metadataPivot.HasValue)
+                    {
+                        pivot = metadataPivot.Value;
+                    }
+                }
+
+                var border = Vector4.zero;
+                if (metadata != null)
+                {
+                    var metadataBorder = KupoUI.PR.Textures.TextureResolver.ParseBorder(metadata);
+                    if (metadataBorder.HasValue)
+                    {
+                        border = metadataBorder.Value;
+                    }
+                }
+
+                var pixelsPerUnit = 100f;
+                if (metadata != null && metadata.PixelsPerUnit > 0f)
+                {
+                    pixelsPerUnit = metadata.PixelsPerUnit;
+                }
+
+                var sprite = Sprite.Create(
+                    tex,
+                    rect,
+                    pivot,
+                    pixelsPerUnit,
+                    0,
+                    SpriteMeshType.FullRect,
+                    border);
+
+                sprite.name = cleanName + "_Custom";
+                UnityEngine.Object.DontDestroyOnLoad(sprite);
+
+                _customImageCache[cacheKey] = sprite;
+                return sprite;
+            }
+
+            // Fallback to searching the base game sprites loaded in memory
+            var baseGameSprite = FindBaseGameSprite(cleanName);
+            if (baseGameSprite != null)
+            {
+                _customImageCache[cacheKey] = baseGameSprite;
+                return baseGameSprite;
+            }
+        }
+
+        var relativePath = imagePath;
+        var baseDir = System.IO.Path.GetDirectoryName(entrySourceFile);
+        var absolutePath = System.IO.Path.Combine(baseDir, relativePath);
+        try
+        {
+            absolutePath = System.IO.Path.GetFullPath(absolutePath);
+        }
+        catch
+        {
+            // Fallback
+        }
+
+        if (_customImageCache.TryGetValue(absolutePath, out var cachedFile) && cachedFile != null)
+        {
+            return cachedFile;
         }
 
         try
@@ -1071,14 +1170,10 @@ internal static class ObjectConfigPatch
                 var tex = new Texture2D(2, 2, TextureFormat.RGBA32, false);
                 if (ImageConversion.LoadImage(tex, bytes))
                 {
-                    // Load sidecar metadata if present
                     var metadata = KupoUI.PR.Textures.TextureResolver.LoadTextureMetadata(absolutePath);
-
-                    // Apply filter/wrap modes
                     tex.filterMode = KupoUI.PR.Textures.TextureResolver.ResolveFilterMode(absolutePath, metadata);
                     tex.wrapMode = KupoUI.PR.Textures.TextureResolver.ResolveWrapMode(absolutePath, metadata);
 
-                    // Determine Rect, Pivot, Border, and PixelsPerUnit
                     var rect = new Rect(0, 0, tex.width, tex.height);
                     if (metadata != null)
                     {
@@ -1126,7 +1221,6 @@ internal static class ObjectConfigPatch
 
                     sprite.name = System.IO.Path.GetFileNameWithoutExtension(absolutePath) + "_Custom";
                     
-                    // Prevent garbage collection of texture/sprite
                     UnityEngine.Object.DontDestroyOnLoad(tex);
                     UnityEngine.Object.DontDestroyOnLoad(sprite);
 
@@ -1144,6 +1238,23 @@ internal static class ObjectConfigPatch
             KupoUIPRPlugin.PluginLog.LogWarning($"[ObjectConfig] Failed to load custom image '{absolutePath}': {ex.Message}");
         }
 
+        return null;
+    }
+
+    private static Sprite FindBaseGameSprite(string spriteName)
+    {
+        var sprites = Resources.FindObjectsOfTypeAll<Sprite>();
+        foreach (var s in sprites)
+        {
+            if (s != null)
+            {
+                var cleanName = KupoUI.PR.Textures.TextureResolver.NormalizeName(s.name);
+                if (string.Equals(cleanName, spriteName, StringComparison.OrdinalIgnoreCase))
+                {
+                    return s;
+                }
+            }
+        }
         return null;
     }
 }

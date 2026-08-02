@@ -568,6 +568,7 @@ The image file path is resolved **relative to the `ObjectConfig.json` file** its
 | `Scale` | No | Sibling-local scale factors (`x`, `y`, `z`). Defaults to `1.0` if omitted. |
 | `Size` | No | Width (`x`) and height (`y`) bounds. Defaults to the image's natural dimensions if omitted. |
 | `Color` | No | Color tint overlay to apply to the image component. Supports Hex strings or RGBA objects. |
+| `ImageType` | No | Sets the render type for the Unity UI Image component. Accepted values (case-insensitive): `Simple`, `Sliced`, `Tiled`, `Filled`. Defaults to `Sliced` if a border is present, or `Simple` if not. |
 
 ### Text Alignment Values
 

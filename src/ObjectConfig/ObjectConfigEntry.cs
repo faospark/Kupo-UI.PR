@@ -145,6 +145,7 @@ internal sealed class InsertedImageConfig
     internal Vec3? Scale { get; set; }
     internal Vec3? Size { get; set; }
     internal UnityEngine.Color? Color { get; set; }
+    internal string ImageType { get; set; }
 }
 
 /// <summary>A lightweight three-component float vector used by <see cref="ObjectConfigEntry"/>.</summary>

@@ -354,6 +354,9 @@ internal static class ObjectConfigLoader
                     }
                 }
 
+                // ImageType
+                imgConfig.ImageType = ReadString(imgBlock, "ImageType")?.Trim();
+
                 entry.NewImages.Add(imgConfig);
             }
         }

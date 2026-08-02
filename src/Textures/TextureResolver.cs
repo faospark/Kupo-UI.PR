@@ -438,7 +438,7 @@ internal static class TextureResolver
         return rect;
     }
 
-    private static Texture2D LoadTexture(string textureName, string assetAddressHint, out TextureOverrideMetadata metadata)
+    internal static Texture2D LoadTexture(string textureName, string assetAddressHint, out TextureOverrideMetadata metadata)
     {
         MaybeRefreshIndex();
         metadata = null;
