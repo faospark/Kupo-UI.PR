@@ -22,6 +22,10 @@ internal static class ObjectConfigPatch
     private static bool _hasColorRules;
     private static bool _hasDisableShadowRules;
     private static bool _hasDisableMaskRules;
+    private static bool _hasIgnoreLayoutRules;
+    private static bool _hasDisableContentSizeFitterRules;
+    private static bool _hasDisableLayoutGroupRules;
+    private static bool _hasDisableLayoutElementRules;
     private static bool _isApplyingColor;
     private static bool _isProcessingSetActive;
 
@@ -43,6 +47,10 @@ internal static class ObjectConfigPatch
         _hasColorRules = false;
         _hasDisableShadowRules = false;
         _hasDisableMaskRules = false;
+        _hasIgnoreLayoutRules = false;
+        _hasDisableContentSizeFitterRules = false;
+        _hasDisableLayoutGroupRules = false;
+        _hasDisableLayoutElementRules = false;
 
         _entriesByName.Clear();
         var entries = ObjectConfigLoader.Entries;
@@ -72,6 +80,44 @@ internal static class ObjectConfigPatch
             if (e.DisableMask == true)
             {
                 _hasDisableMaskRules = true;
+            }
+            if (e.IgnoreLayout == true)
+            {
+                _hasIgnoreLayoutRules = true;
+            }
+            if (e.DisableContentSizeFitter == true)
+            {
+                _hasDisableContentSizeFitterRules = true;
+            }
+            if (e.DisableLayoutGroup == true)
+            {
+                _hasDisableLayoutGroupRules = true;
+            }
+            if (e.DisableLayoutElement == true)
+            {
+                _hasDisableLayoutElementRules = true;
+            }
+            if (e.NewImages != null)
+            {
+                foreach (var img in e.NewImages)
+                {
+                    if (img.IgnoreLayout == true)
+                    {
+                        _hasIgnoreLayoutRules = true;
+                    }
+                    if (img.DisableContentSizeFitter == true)
+                    {
+                        _hasDisableContentSizeFitterRules = true;
+                    }
+                    if (img.DisableLayoutGroup == true)
+                    {
+                        _hasDisableLayoutGroupRules = true;
+                    }
+                    if (img.DisableLayoutElement == true)
+                    {
+                        _hasDisableLayoutElementRules = true;
+                    }
+                }
             }
         }
 
@@ -715,6 +761,33 @@ internal static class ObjectConfigPatch
                     }
                 }
 
+                if (imgConfig.DisableContentSizeFitter == true)
+                {
+                    var fitters = childGo.GetComponents<ContentSizeFitter>();
+                    foreach (var f in fitters)
+                    {
+                        if (f != null && f.enabled) f.enabled = false;
+                    }
+                }
+
+                if (imgConfig.DisableLayoutGroup == true)
+                {
+                    var groups = childGo.GetComponents<LayoutGroup>();
+                    foreach (var g in groups)
+                    {
+                        if (g != null && g.enabled) g.enabled = false;
+                    }
+                }
+
+                if (imgConfig.DisableLayoutElement == true)
+                {
+                    var elements = childGo.GetComponents<LayoutElement>();
+                    foreach (var le in elements)
+                    {
+                        if (le != null && le.enabled) le.enabled = false;
+                    }
+                }
+
                 if (isNewChild)
                 {
                     ApplyMatchingRules(childGo, currentScene);
@@ -736,6 +809,33 @@ internal static class ObjectConfigPatch
             if (layoutElement != null)
             {
                 layoutElement.ignoreLayout = true;
+            }
+        }
+
+        if (entry.DisableContentSizeFitter == true)
+        {
+            var fitters = go.GetComponents<ContentSizeFitter>();
+            foreach (var f in fitters)
+            {
+                if (f != null && f.enabled) f.enabled = false;
+            }
+        }
+
+        if (entry.DisableLayoutGroup == true)
+        {
+            var groups = go.GetComponents<LayoutGroup>();
+            foreach (var g in groups)
+            {
+                if (g != null && g.enabled) g.enabled = false;
+            }
+        }
+
+        if (entry.DisableLayoutElement == true)
+        {
+            var elements = go.GetComponents<LayoutElement>();
+            foreach (var le in elements)
+            {
+                if (le != null && le.enabled) le.enabled = false;
             }
         }
 
@@ -951,6 +1051,204 @@ internal static class ObjectConfigPatch
     }
 
     /// <summary>
+    /// Intercepts LayoutElement.OnEnable. If the target has a matching IgnoreLayout rule,
+    /// we force ignoreLayout to remain true immediately.
+    /// </summary>
+    [HarmonyPatch(typeof(LayoutElement), "OnEnable")]
+    [HarmonyPostfix]
+    private static void LayoutElementOnEnablePostfix(LayoutElement __instance)
+    {
+        if (!_hasIgnoreLayoutRules && !_hasDisableLayoutElementRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+
+        var name = __instance.name;
+        if (name == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableLayoutElementRule(__instance, entry, sceneName)) return;
+                if (ApplyIgnoreLayoutRule(__instance, entry, sceneName)) return;
+            }
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableLayoutElementRule(__instance, entry, sceneName)) return;
+                if (ApplyIgnoreLayoutRule(__instance, entry, sceneName)) return;
+            }
+        }
+    }
+
+    private static bool ApplyIgnoreLayoutRule(LayoutElement instance, ObjectConfigEntry entry, string sceneName)
+    {
+        if (entry.IgnoreLayout != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(instance.gameObject, entry.TargetPath)) return false;
+
+        instance.ignoreLayout = true;
+        return true;
+    }
+
+    private static bool ApplyDisableLayoutElementRule(LayoutElement instance, ObjectConfigEntry entry, string sceneName)
+    {
+        if (entry.DisableLayoutElement != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(instance.gameObject, entry.TargetPath)) return false;
+
+        instance.enabled = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Intercepts ContentSizeFitter.OnEnable. If the target has a matching DisableContentSizeFitter rule,
+    /// we force it to remain disabled.
+    /// </summary>
+    [HarmonyPatch(typeof(ContentSizeFitter), "OnEnable")]
+    [HarmonyPostfix]
+    private static void ContentSizeFitterOnEnablePostfix(ContentSizeFitter __instance)
+    {
+        if (!_hasDisableContentSizeFitterRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+
+        var name = __instance.name;
+        if (name == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableContentSizeFitterRule(__instance, entry, sceneName)) return;
+            }
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableContentSizeFitterRule(__instance, entry, sceneName)) return;
+            }
+        }
+    }
+
+    private static bool ApplyDisableContentSizeFitterRule(ContentSizeFitter instance, ObjectConfigEntry entry, string sceneName)
+    {
+        if (entry.DisableContentSizeFitter != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(instance.gameObject, entry.TargetPath)) return false;
+
+        instance.enabled = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Intercepts LayoutGroup.OnEnable. If the target has a matching DisableLayoutGroup rule,
+    /// we force it to remain disabled.
+    /// </summary>
+    [HarmonyPatch(typeof(LayoutGroup), "OnEnable")]
+    [HarmonyPostfix]
+    private static void LayoutGroupOnEnablePostfix(LayoutGroup __instance)
+    {
+        if (!_hasDisableLayoutGroupRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+
+        var name = __instance.name;
+        if (name == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableLayoutGroupRule(__instance, entry, sceneName)) return;
+            }
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (ApplyDisableLayoutGroupRule(__instance, entry, sceneName)) return;
+            }
+        }
+    }
+
+    private static bool ApplyDisableLayoutGroupRule(LayoutGroup instance, ObjectConfigEntry entry, string sceneName)
+    {
+        if (entry.DisableLayoutGroup != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(instance.gameObject, entry.TargetPath)) return false;
+
+        instance.enabled = false;
+        return true;
+    }
+
+    /// <summary>
+    /// Intercepts the LayoutElement.ignoreLayout setter to block the game from overriding it back to false.
+    /// </summary>
+    [HarmonyPatch(typeof(LayoutElement), nameof(LayoutElement.ignoreLayout), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void LayoutElementIgnoreLayoutPrefix(LayoutElement __instance, ref bool value)
+    {
+        if (!_hasIgnoreLayoutRules) return;
+        if (__instance == null || __instance.gameObject == null) return;
+        if (value) return; // Already setting it to true
+
+        var name = __instance.name;
+        if (name == null) return;
+
+        var sceneName = SceneManager.GetActiveScene().name;
+
+        if (_entriesByName.TryGetValue(name, out var list))
+        {
+            foreach (var entry in list)
+            {
+                if (CheckAndForceIgnoreLayout(__instance.gameObject, entry, sceneName, ref value)) return;
+            }
+        }
+
+        var trimmed = name.Trim();
+        if (trimmed != name && _entriesByName.TryGetValue(trimmed, out list))
+        {
+            foreach (var entry in list)
+            {
+                if (CheckAndForceIgnoreLayout(__instance.gameObject, entry, sceneName, ref value)) return;
+            }
+        }
+    }
+
+    private static bool CheckAndForceIgnoreLayout(GameObject go, ObjectConfigEntry entry, string sceneName, ref bool value)
+    {
+        if (entry.IgnoreLayout != true) return false;
+        if (!string.IsNullOrEmpty(entry.SceneName)
+            && !entry.SceneName.Equals(sceneName, StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.IsNullOrEmpty(entry.TargetPath)
+            && !MatchesHierarchyPath(go, entry.TargetPath)) return false;
+
+        value = true;
+        return true;
+    }
+
+    /// <summary>
     /// Sets the color of a <see cref="Graphic"/> component to the target color, guarded by
     /// a re-entrancy flag to prevent infinite loops when Harmony intercepts the setter.
     /// </summary>
@@ -1156,7 +1454,10 @@ internal static class ObjectConfigPatch
                         border = metadataBorder.Value;
                     }
                 }
-                KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Custom sprite '{cleanName}' metadata status: HasMetadata={metadata != null}, Border={border}");
+                if (KupoUIPRPlugin.IsTextureLoggerEnabled)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Custom sprite '{cleanName}' metadata status: HasMetadata={metadata != null}, Border={border}");
+                }
 
                 var pixelsPerUnit = 100f;
                 if (metadata != null && metadata.PixelsPerUnit > 0f)
@@ -1247,7 +1548,10 @@ internal static class ObjectConfigPatch
                             border = metadataBorder.Value;
                         }
                     }
-                    KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Custom sprite '{absolutePath}' metadata status: HasMetadata={metadata != null}, Border={border}");
+                    if (KupoUIPRPlugin.IsTextureLoggerEnabled)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Custom sprite '{absolutePath}' metadata status: HasMetadata={metadata != null}, Border={border}");
+                    }
 
                     var pixelsPerUnit = 100f;
                     if (metadata != null && metadata.PixelsPerUnit > 0f)

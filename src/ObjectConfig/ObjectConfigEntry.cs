@@ -125,6 +125,21 @@ internal sealed class ObjectConfigEntry
     internal bool? IgnoreLayout { get; set; }
 
     /// <summary>
+    /// When <c>true</c> and the GameObject has a <c>UnityEngine.UI.ContentSizeFitter</c> component, disables it.
+    /// </summary>
+    internal bool? DisableContentSizeFitter { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> and the GameObject has a <c>UnityEngine.UI.LayoutGroup</c> component, disables it.
+    /// </summary>
+    internal bool? DisableLayoutGroup { get; set; }
+
+    /// <summary>
+    /// When <c>true</c> and the GameObject has a <c>UnityEngine.UI.LayoutElement</c> component, disables it.
+    /// </summary>
+    internal bool? DisableLayoutElement { get; set; }
+
+    /// <summary>
     /// When present, sets the sibling index of the GameObject in its hierarchy (0 = back, -1 = front).
     /// </summary>
     internal int? SiblingIndex { get; set; }
@@ -153,6 +168,9 @@ internal sealed class InsertedImageConfig
     internal string ImageType { get; set; }
     internal int? SiblingIndex { get; set; }
     internal bool? IgnoreLayout { get; set; }
+    internal bool? DisableContentSizeFitter { get; set; }
+    internal bool? DisableLayoutGroup { get; set; }
+    internal bool? DisableLayoutElement { get; set; }
 }
 
 /// <summary>A lightweight three-component float vector used by <see cref="ObjectConfigEntry"/>.</summary>

@@ -795,14 +795,20 @@ internal static class TextureResolver
 
         var metadataPath = Path.ChangeExtension(texturePath, ".json");
         var exists = File.Exists(metadataPath);
-        KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Checking metadata path: '{metadataPath}' (Exists={exists})");
+        if (_verboseLogs)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Checking metadata path: '{metadataPath}' (Exists={exists})");
+        }
         if (!exists)
         {
             var key = Path.GetFileNameWithoutExtension(texturePath).Trim();
             if (MetadataPathIndex.TryGetValue(key, out var fallbackPath) && File.Exists(fallbackPath))
             {
                 metadataPath = fallbackPath;
-                KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Using fallback metadata path for '{key}': '{metadataPath}'");
+                if (_verboseLogs)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[TextureResolver] Using fallback metadata path for '{key}': '{metadataPath}'");
+                }
             }
             else
             {

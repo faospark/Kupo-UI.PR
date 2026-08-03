@@ -193,6 +193,9 @@ internal static class ObjectConfigLoader
             DisableShadow        = ReadBool(block, "DisableShadow"),
             DisableMask          = ReadBool(block, "DisableMask"),
             IgnoreLayout         = ReadBool(block, "IgnoreLayout"),
+            DisableContentSizeFitter = ReadBool(block, "DisableContentSizeFitter"),
+            DisableLayoutGroup   = ReadBool(block, "DisableLayoutGroup"),
+            DisableLayoutElement = ReadBool(block, "DisableLayoutElement"),
             SiblingIndex         = ReadInt(block, "SiblingIndex"),
             SourceFile       = sourceFile,
         };
@@ -363,6 +366,11 @@ internal static class ObjectConfigLoader
 
                 // IgnoreLayout
                 imgConfig.IgnoreLayout = ReadBool(imgBlock, "IgnoreLayout");
+
+                // Layout Disabling
+                imgConfig.DisableContentSizeFitter = ReadBool(imgBlock, "DisableContentSizeFitter");
+                imgConfig.DisableLayoutGroup = ReadBool(imgBlock, "DisableLayoutGroup");
+                imgConfig.DisableLayoutElement = ReadBool(imgBlock, "DisableLayoutElement");
 
                 entry.NewImages.Add(imgConfig);
             }
