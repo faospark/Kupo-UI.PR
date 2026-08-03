@@ -28,6 +28,7 @@ internal static class ObjectConfigPatch
     private static bool _hasDisableLayoutElementRules;
     private static bool _isApplyingColor;
     private static bool _isProcessingSetActive;
+    private static string _activeSceneName = string.Empty;
 
     private static readonly ConditionalWeakTable<GameObject, object> _processedObjects = new();
     private static readonly ConditionalWeakTable<GameObject, object> _hierarchyProcessedObjects = new();
@@ -42,6 +43,15 @@ internal static class ObjectConfigPatch
     {
         _modulesRootPath = modulesRootPath;
         ObjectConfigLoader.Load(_modulesRootPath);
+
+        try
+        {
+            _activeSceneName = SceneManager.GetActiveScene().name ?? string.Empty;
+        }
+        catch
+        {
+            _activeSceneName = string.Empty;
+        }
 
         _hasTextColorWhiteRules = false;
         _hasColorRules = false;
@@ -181,7 +191,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -259,7 +269,7 @@ internal static class ObjectConfigPatch
         _isProcessingSetActive = true;
         try
         {
-            var sceneName = SceneManager.GetActiveScene().name;
+            var sceneName = _activeSceneName;
             ApplyToHierarchy(__instance, sceneName);
         }
         finally
@@ -279,6 +289,14 @@ internal static class ObjectConfigPatch
     {
         ExternalModDetector.LogLoadedOptionalMods(KupoUIPRPlugin.PluginLog);
         var sceneName = scene.name;
+        try
+        {
+            _activeSceneName = SceneManager.GetActiveScene().name ?? sceneName;
+        }
+        catch
+        {
+            _activeSceneName = sceneName;
+        }
         KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] Scene loaded: '{sceneName}' (mode={mode}). Scanning hierarchy...");
 
         var rootObjects = scene.GetRootGameObjects();
@@ -875,7 +893,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -929,7 +947,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -975,7 +993,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1009,7 +1027,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1064,7 +1082,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1124,7 +1142,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1170,7 +1188,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1216,7 +1234,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = SceneManager.GetActiveScene().name;
+        var sceneName = _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {

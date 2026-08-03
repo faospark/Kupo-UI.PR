@@ -17,6 +17,7 @@ namespace KupoUI.PR.Patches
 
         private static bool _isApplyingText;
         private static string _cachedLanguage;
+        private static string _activeSceneName = string.Empty;
         // Populated by GetMessagePostfix: maps resolved text value → its message key.
         // Used to reverse-look up the real system ID (e.g. MSG_ITEM_NAME_38) from item name strings.
         internal static readonly Dictionary<string, string> ReverseMessageMap = new(StringComparer.Ordinal);
@@ -25,6 +26,14 @@ namespace KupoUI.PR.Patches
         internal static void Initialize(string modulesRootPath)
         {
             TextConfigLoader.Load(modulesRootPath);
+            try
+            {
+                _activeSceneName = SceneManager.GetActiveScene().name ?? string.Empty;
+            }
+            catch
+            {
+                _activeSceneName = string.Empty;
+            }
             KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Patch initialized.");
         }
 
@@ -204,7 +213,7 @@ namespace KupoUI.PR.Patches
             var entries = TextConfigLoader.Entries;
             if (entries.Count == 0) return;
 
-            var sceneName = SceneManager.GetActiveScene().name;
+            var sceneName = _activeSceneName;
 
             foreach (var entry in entries)
             {
@@ -288,11 +297,19 @@ namespace KupoUI.PR.Patches
         {
             _cachedLanguage = null; // Clear cached language to capture any dynamic configuration updates
             var sceneName = scene.name;
+            try
+            {
+                _activeSceneName = SceneManager.GetActiveScene().name ?? sceneName;
+            }
+            catch
+            {
+                _activeSceneName = sceneName;
+            }
             var rootObjects = scene.GetRootGameObjects();
 
             foreach (var root in rootObjects)
             {
-                ApplyToHierarchy(root, sceneName);
+                ApplyToHierarchy(root, _activeSceneName);
             }
         }
 
@@ -304,7 +321,7 @@ namespace KupoUI.PR.Patches
             if (__instance == null || __instance.gameObject == null) return;
             if (__instance is Text textComp)
             {
-                ApplyMatchingRules(textComp.gameObject, SceneManager.GetActiveScene().name);
+                ApplyMatchingRules(textComp.gameObject, _activeSceneName);
             }
         }
 
