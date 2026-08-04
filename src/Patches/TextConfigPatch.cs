@@ -118,7 +118,7 @@ namespace KupoUI.PR.Patches
                     var setTextMethod = AccessTools.Method(iconTextViewType, "SetText", new[] { typeof(string) });
                     if (setTextMethod != null)
                     {
-                        harmony.Patch(setTextMethod, prefix: new HarmonyMethod(typeof(TextConfigPatch), nameof(IconTextViewSetTextPrefix)));
+                        harmony.Patch(setTextMethod, postfix: new HarmonyMethod(typeof(TextConfigPatch), nameof(IconTextViewSetTextPostfix)));
                         KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Dynamically patched Last.UI.IconTextView.SetText.");
                     }
                 }
@@ -206,14 +206,15 @@ namespace KupoUI.PR.Patches
         // ── HOOK 1: INTERCEPT TEXT.TEXT SETTER ──────────────────────────────────
         [HarmonyPatch(typeof(Text), nameof(Text.text), MethodType.Setter)]
         [HarmonyPrefix]
-        private static void TextSetterPrefix(Text __instance, ref string value)
+        [HarmonyPriority(Priority.First)]
+        private static bool TextSetterPrefix(Text __instance, ref string value)
         {
-            if (_isApplyingText || __instance == null) return;
+            if (_isApplyingText || __instance == null) return true;
 
             var entries = TextConfigLoader.Entries;
-            if (entries.Count == 0) return;
+            if (entries.Count == 0) return true;
 
-            var sceneName = _activeSceneName;
+            var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
             foreach (var entry in entries)
             {
@@ -237,7 +238,10 @@ namespace KupoUI.PR.Patches
 
                 value = GetMergedText(value, entry.NewText);
             }
+
+            return true;
         }
+
 
         [HarmonyPatch(typeof(Last.Management.MessageManager), nameof(Last.Management.MessageManager.GetMessage), new[] { typeof(string), typeof(bool) })]
         [HarmonyPostfix]
@@ -309,7 +313,7 @@ namespace KupoUI.PR.Patches
 
             foreach (var root in rootObjects)
             {
-                ApplyToHierarchy(root, _activeSceneName);
+                ApplyToHierarchy(root, sceneName);
             }
         }
 
@@ -321,7 +325,7 @@ namespace KupoUI.PR.Patches
             if (__instance == null || __instance.gameObject == null) return;
             if (__instance is Text textComp)
             {
-                ApplyMatchingRules(textComp.gameObject, _activeSceneName);
+                ApplyMatchingRules(textComp.gameObject, textComp.gameObject.scene.name ?? _activeSceneName);
             }
         }
 
@@ -392,7 +396,7 @@ namespace KupoUI.PR.Patches
             }
         }
 
-        private static void IconTextViewSetTextPrefix(Il2CppSystem.Object __instance, ref string text)
+        private static void IconTextViewSetTextPostfix(Il2CppSystem.Object __instance, string text)
         {
             if (__instance == null || string.IsNullOrEmpty(text)) return;
 
@@ -407,14 +411,15 @@ namespace KupoUI.PR.Patches
                     }
                 }
 
-                OverrideByOriginalText(ref text);
-
-                // Run helper for custom inline icon replacement on IconTextView
-                IconTextViewHelper.ProcessSetText(__instance, ref text);
+                // Run helper for custom inline icon replacement on IconTextView — runs AFTER native SetText
+                // so our sprite assignment wins over whatever the native method set.
+                string textCopy = text;
+                OverrideByOriginalText(ref textCopy);
+                IconTextViewHelper.ProcessSetText(__instance, ref textCopy);
             }
             catch (Exception ex)
             {
-                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in IconTextView.SetText prefix: {ex}");
+                KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in IconTextView.SetText postfix: {ex}");
             }
         }
 
@@ -473,7 +478,8 @@ namespace KupoUI.PR.Patches
 
                 if (!string.IsNullOrEmpty(entry.TargetPath) && !MatchesHierarchyPath(go, entry.TargetPath)) continue;
 
-                EnforceText(textComp, GetMergedText(textComp.text, entry.NewText));
+                var newText = GetMergedText(textComp.text, entry.NewText);
+                EnforceText(textComp, newText);
             }
         }
 
@@ -489,6 +495,25 @@ namespace KupoUI.PR.Patches
             {
                 _isApplyingText = false;
             }
+        }
+
+        private static Last.UI.IconTextView GetAssociatedIconTextView(Text textComp)
+        {
+            if (textComp == null) return null;
+            Transform curr = textComp.transform;
+            while (curr != null)
+            {
+                var component = curr.GetComponent<Last.UI.IconTextView>();
+                if (component != null)
+                {
+                    if (component.nameText == textComp || component.nameText == null)
+                    {
+                        return component;
+                    }
+                }
+                curr = curr.parent;
+            }
+            return null;
         }
 
         private static bool IsNameMatch(string name1, string name2)
@@ -886,6 +911,36 @@ namespace KupoUI.PR.Patches
                         // Use the native SetIconImage and UseIconImage
                         iconText.SetIconImage(sprite);
                         iconText.UseIconImage();
+
+                        // Also explicitly activate the components to be absolutely sure they are visible!
+                        var iconBase = iconText.iconBase;
+                        if (iconBase != null)
+                        {
+                            iconBase.SetActive(true);
+                        }
+                        var img = iconText.iconImage;
+                        if (img != null)
+                        {
+                            img.sprite = sprite;
+                            img.enabled = true;
+                            img.gameObject.SetActive(true);
+                        }
+                        var iconRootTr = iconText.transform.Find("icon_root");
+                        if (iconRootTr != null)
+                        {
+                            var iconTr = iconRootTr.Find("icon");
+                            if (iconTr != null)
+                            {
+                                var iconImg = iconTr.GetComponent<UnityEngine.UI.Image>();
+                                if (iconImg != null)
+                                {
+                                    iconImg.sprite = sprite;
+                                    iconImg.enabled = true;
+                                    iconImg.gameObject.SetActive(true);
+                                }
+                            }
+                            iconRootTr.gameObject.SetActive(true);
+                        }
                     }
                     else
                     {

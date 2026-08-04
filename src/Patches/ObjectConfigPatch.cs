@@ -191,7 +191,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -269,7 +269,7 @@ internal static class ObjectConfigPatch
         _isProcessingSetActive = true;
         try
         {
-            var sceneName = _activeSceneName;
+            var sceneName = __instance.scene.name ?? _activeSceneName;
             ApplyToHierarchy(__instance, sceneName);
         }
         finally
@@ -893,7 +893,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -947,7 +947,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -993,7 +993,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1027,7 +1027,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1082,7 +1082,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1142,7 +1142,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1188,7 +1188,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {
@@ -1234,7 +1234,7 @@ internal static class ObjectConfigPatch
         var name = __instance.name;
         if (name == null) return;
 
-        var sceneName = _activeSceneName;
+        var sceneName = __instance.gameObject.scene.name ?? _activeSceneName;
 
         if (_entriesByName.TryGetValue(name, out var list))
         {

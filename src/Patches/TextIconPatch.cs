@@ -109,12 +109,14 @@ namespace KupoUI.PR.Patches
             }
             else
             {
-                // Confirm no icons so future redraws skip all work.
-                if (_overlayStates.TryGetValue(ptr, out var state))
+                // Only mark as no-icons / clear state if the setter prefix did NOT already
+                // process an IC_ tag for this frame. If Tags is populated, the setter stripped
+                // the tag and stored it — preserve it so DrawIcons (postfix) can render it.
+                if (!_overlayStates.TryGetValue(ptr, out var state) || state.Tags == null || state.Tags.Count == 0)
                 {
-                    state.Tags = null;
+                    if (state != null) state.Tags = null;
+                    _confirmedNoIcons.TryAdd(ptr, true);
                 }
-                _confirmedNoIcons.TryAdd(ptr, true);
             }
         }
 
