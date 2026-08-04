@@ -50,12 +50,29 @@ namespace KupoUI.PR.IconsConfig
         // ── Public API ────────────────────────────────────────────────────────
 
         internal static bool HasSprite(string tag)
-            => !string.IsNullOrEmpty(tag) && _sprites.ContainsKey(tag);
+            => !string.IsNullOrEmpty(tag) && GetSprite(tag) != null;
 
         internal static Sprite GetSprite(string tag)
         {
+            if (string.IsNullOrEmpty(tag)) return null;
+
             if (_sprites.TryGetValue(tag, out var sprite))
                 return sprite;
+
+            // Fallback: Check game's native Last.UI.IconTextUtility
+            try
+            {
+                var nativeSprite = Last.UI.IconTextUtility.GetIcon(tag);
+                if (nativeSprite != null)
+                {
+                    _sprites[tag] = nativeSprite; // Cache locally for fast future lookups
+                    return nativeSprite;
+                }
+            }
+            catch
+            {
+                // Native IconTextUtility lookup safely ignored if uninitialized or fails
+            }
 
             if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
                 KupoUIPRPlugin.PluginLog.LogWarning(
@@ -88,6 +105,7 @@ namespace KupoUI.PR.IconsConfig
             {
                 if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
                     KupoUIPRPlugin.PluginLog.LogInfo("[IconsConfig] No icon entries found.");
+                SyncSpritesToNativeIconTextUtility();
                 return;
             }
 
@@ -97,9 +115,41 @@ namespace KupoUI.PR.IconsConfig
             if (!TryLoadFromCache(cacheDir, gameTag, tagToFile))
                 BuildAtlasAndCache(cacheDir, gameTag, tagToFile);
 
+            SyncSpritesToNativeIconTextUtility();
+
             if (KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
                 KupoUIPRPlugin.PluginLog.LogInfo(
                     $"[IconsConfig] Ready: {_sprites.Count} icon sprite(s) from atlas.");
+        }
+
+        private static void SyncSpritesToNativeIconTextUtility()
+        {
+            try
+            {
+                var nativeDict = Last.UI.IconTextUtility.sprites;
+                if (nativeDict == null) return;
+
+                int synced = 0;
+                foreach (var kv in _sprites)
+                {
+                    if (!nativeDict.ContainsKey(kv.Key))
+                    {
+                        nativeDict.Add(kv.Key, kv.Value);
+                        synced++;
+                    }
+                }
+
+                if (synced > 0 && KupoUIPRPlugin.DiagnosticIconLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo(
+                        $"[IconsConfig] Synced {synced} custom icon sprite(s) to Last.UI.IconTextUtility.");
+                }
+            }
+            catch (Exception ex)
+            {
+                KupoUIPRPlugin.PluginLog.LogWarning(
+                    $"[IconsConfig] Could not sync custom sprites to Last.UI.IconTextUtility: {ex.Message}");
+            }
         }
 
         // ── Phase 1: gather tag → file mappings ───────────────────────────────
