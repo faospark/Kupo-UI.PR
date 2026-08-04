@@ -124,7 +124,21 @@ namespace KupoUI.PR.Patches
                 }
                 catch (Exception ex)
                 {
-                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch IconTextView: {ex}");
+                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch IconTextView.SetText: {ex}");
+                }
+
+                try
+                {
+                    var setTextColorMethod = AccessTools.Method(iconTextViewType, "SetTextColor");
+                    if (setTextColorMethod != null)
+                    {
+                        harmony.Patch(setTextColorMethod, prefix: new HarmonyMethod(typeof(TextConfigPatch), nameof(IconTextViewSetTextColorPrefix)));
+                        KupoUIPRPlugin.PluginLog.LogInfo("[TextConfig] Dynamically patched Last.UI.IconTextView.SetTextColor.");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Failed to dynamically patch IconTextView.SetTextColor: {ex}");
                 }
             }
         }
@@ -396,6 +410,17 @@ namespace KupoUI.PR.Patches
             }
         }
 
+        /// <summary>
+        /// Intercepts <c>IconTextView.SetTextColor</c> and forces full-white when the
+        /// "disable item dimming" config option is on. This is the primary mechanism the
+        /// game uses to grey out unusable items in the item list.
+        /// </summary>
+        private static void IconTextViewSetTextColorPrefix(ref Color32 color)
+        {
+            if (!KupoUIPRPlugin.DisableItemDimmingConfig.Value) return;
+            color = new Color32(255, 255, 255, 255);
+        }
+
         private static void IconTextViewSetTextPostfix(Il2CppSystem.Object __instance, string text)
         {
             if (__instance == null || string.IsNullOrEmpty(text)) return;
@@ -649,7 +674,13 @@ namespace KupoUI.PR.Patches
                     }
                 }
 
-                if (string.IsNullOrEmpty(tagName)) return;
+                if (string.IsNullOrEmpty(tagName))
+                {
+                    // Even without a custom icon swap, still restore full colour when the config is on.
+                    if (KupoUIPRPlugin.DisableItemDimmingConfig.Value)
+                        ForceFullColor(iconTextComp);
+                    return;
+                }
 
                 var sprite = KupoUI.PR.IconsConfig.IconsConfigLoader.GetSprite(tagName);
                 if (sprite == null)
@@ -704,6 +735,27 @@ namespace KupoUI.PR.Patches
                         nameText.text = GetCleanText(currentTxt);
                     }
                 }
+
+                // 5. Restore full colour on the icon and text if the config is enabled.
+                if (KupoUIPRPlugin.DisableItemDimmingConfig.Value)
+                    ForceFullColor(iconTextComp);
+            }
+
+            /// <summary>
+            /// Resets both the name text colour and the icon image colour to full white,
+            /// counteracting the grey tint the game applies to unusable items.
+            /// </summary>
+            private static void ForceFullColor(Last.UI.IconTextView iconTextComp)
+            {
+                if (iconTextComp == null) return;
+
+                // Reset the text colour via the public API so the game's own colour logic is overridden.
+                iconTextComp.SetTextColor(new Color32(255, 255, 255, 255));
+
+                // Reset the icon sprite tint directly — the game sets this separately from the text.
+                var iconImg = iconTextComp.iconImage;
+                if (iconImg != null)
+                    iconImg.color = Color.white;
             }
 
             internal static void ProcessSelectFieldContentUpdateViewPostfix(Il2CppSystem.Object cellObj, Il2CppSystem.Object dataObj)

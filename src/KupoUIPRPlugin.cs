@@ -36,6 +36,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> ButtonPromptsFolderConfig { get; private set; } = null!;
     internal static ConfigEntry<string> DiagnosticTextureLoggerConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> ScaledDownMenuConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DisableItemDimmingConfig { get; private set; } = null!;
     internal static ConfigEntry<string> TitleScreenBgColorConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> MessageSpeakerPrefixConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> SpeakerNameUppercaseConfig { get; private set; } = null!;
@@ -102,6 +103,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "ScaledDownMenu",
             true,
             "Shrinks the entire in-game menu by 10%");
+
+        DisableItemDimmingConfig = Config.Bind(
+            "UI",
+            "DisableItemDimming",
+            false,
+            "If true, forces all item list icons and names to display at full colour, ignoring the grey dim tint applied to unusable items.");
 
         TitleScreenBgColorConfig = Config.Bind(
             "UI",
@@ -310,6 +317,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"SaveHighlightColor = {SaveHighlightColorConfig.Value}");
         Log.LogInfo($"EnableCustomTextures = {EnableCustomTextures}");
         Log.LogInfo($"ScaledDownMenu = {ScaledDownMenuConfig.Value}");
+        Log.LogInfo($"DisableItemDimming = {DisableItemDimmingConfig.Value}");
         Log.LogInfo($"TitleScreenBgColor = {TitleScreenBgColorConfig.Value}");
         Log.LogInfo($"MessageSpeakerPrefix = {MessageSpeakerPrefixConfig.Value}");
         Log.LogInfo($"SpeakerNameUppercase = {SpeakerNameUppercaseConfig.Value}");
