@@ -866,7 +866,7 @@ When either is activated, a new `MainMenuBgObject` `RawImage` GameObject is inje
 
 `UI-Dialog.EnableSpeakerPortraits` (default `true`) — Dynamically injects a speaker portrait image inside the message window during dialogue sequences.
 
-- Portraits are resolved from the texture index using the speaker ID. Place portrait images in any mod folder matching the speaker asset name.
+- **Portrait Directory Requirement**: Place portrait image files (`.png`, `.jpg`, `.dds`, etc.) inside a folder named `SpeakerPortraits/` (e.g., `Modules/Shared/SpeakerPortraits/` or `Modules/<ModFolder>/SpeakerPortraits/`). The `Modules/Shared/SpeakerPortraits/` directory is created automatically on first run. Portraits are resolved using the speaker ID (e.g., `SPEAKER_77.png`) or display name (e.g., `Cecil.png`).
 - `UI-Dialog.FlipSpeakerPortraits` (default `true`) — Flip all injected portraits horizontally.
 - `UI-Dialog.SpeakerPortraitsPadding` (default `0,0,0,0`) — Offset padding `left,top,right,bottom` in pixels to shrink and shift the injected portrait container.
 - `UI-Dialog.SpeakerPortraitsTextOffset` (default `0`) — Offset (in pixels) for the dialogue text box (`lastText`) when speaker portraits are active. Supports `X` or `X,Y` format (e.g., `-75` or `-75,10`). Positive X moves right, positive Y moves up.
