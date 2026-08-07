@@ -583,32 +583,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
         var gameTag = Textures.TextureResolver.CurrentGameTag;
         foreach (var configPath in files)
         {
-            var normalizedPath = configPath.Replace('\\', '/');
-            var pathSegments = normalizedPath.Split('/');
-            var skipFile = false;
-            foreach (var segment in pathSegments)
+            if (ModulePathFilter.ShouldSkipConfigFile(configPath, ModulesRootPath))
             {
-                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
-                {
-                    skipFile = true;
-                    break;
-                }
-
-                var isGameTagFolder =
-                    segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
-
-                if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
-                {
-                    skipFile = true;
-                    break;
-                }
+                continue;
             }
-            if (skipFile) continue;
 
             try
             {
@@ -683,32 +661,10 @@ public sealed class KupoUIPRPlugin : BasePlugin
         var gameTag = Textures.TextureResolver.CurrentGameTag;
         foreach (var configPath in files)
         {
-            var normalizedPath = configPath.Replace('\\', '/');
-            var pathSegments = normalizedPath.Split('/');
-            var skipFile = false;
-            foreach (var segment in pathSegments)
+            if (ModulePathFilter.ShouldSkipConfigFile(configPath, ModulesRootPath))
             {
-                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
-                {
-                    skipFile = true;
-                    break;
-                }
-
-                var isGameTagFolder =
-                    segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
-
-                if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
-                {
-                    skipFile = true;
-                    break;
-                }
+                continue;
             }
-            if (skipFile) continue;
 
             try
             {

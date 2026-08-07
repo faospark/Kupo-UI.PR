@@ -218,52 +218,34 @@ internal static class MessageSpeakerPrefixPatch
                 // Fallback silently if MessageManager is not yet initialized or ready
             }
 
-            if (KupoUIPRPlugin.SpeakerNameNewLineConfig.Value)
-            {
-                separator = "";
-            }
+            bool newLine = KupoUIPRPlugin.SpeakerNameNewLineConfig.Value;
+            bool uppercase = KupoUIPRPlugin.SpeakerNameUppercaseConfig.Value;
+            int limit = KupoUIPRPlugin.DialogueLineLengthLimitConfig.Value;
 
-            if (KupoUIPRPlugin.SpeakerNameUppercaseConfig.Value)
-            {
-                speakerName = speakerName.ToUpperInvariant();
-            }
-
-            var prefix = speakerName + separator;
-            if (KupoUIPRPlugin.SpeakerNameNewLineConfig.Value)
-            {
-                prefix += "\n";
-            }
+            string checkSpeakerName = uppercase ? speakerName.ToUpperInvariant() : speakerName;
+            string effectiveSeparator = newLine ? "" : separator;
+            string checkPrefix = checkSpeakerName + effectiveSeparator + (newLine ? "\n" : "");
 
             // Guard against double-prefix if this fires twice.
-            if (!value.StartsWith(prefix, StringComparison.Ordinal))
+            if (!value.StartsWith(checkPrefix, StringComparison.Ordinal))
             {
                 if (KupoUIPRPlugin.DiagnosticMessageSpeakerPrefixLoggingConfig.Value)
                 {
+                    int nameCharCount = GetSpeakerNameLength(speakerName);
                     KupoUIPRPlugin.PluginLog.LogInfo(
-                        $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' to message '{value}'");
+                        $"[MessageSpeakerPrefix] Prepending speaker '{speakerName}' (Length: {nameCharCount} chars) to message '{value}'");
                 }
 
                 _isApplying = true;
                 try
                 {
-                    int limit = KupoUIPRPlugin.DialogueLineLengthLimitConfig.Value;
-                    if (limit > 0)
-                    {
-                        if (KupoUIPRPlugin.SpeakerNameNewLineConfig.Value)
-                        {
-                            // Wrap the dialogue text alone, then prepend speaker name with newline
-                            value = prefix + WrapText(value, limit);
-                        }
-                        else
-                        {
-                            // Wrap the entire combined string together
-                            value = WrapText(prefix + value, limit);
-                        }
-                    }
-                    else
-                    {
-                        value = prefix + value;
-                    }
+                    value = ApplySpeakerPrefix(
+                        message: value,
+                        speakerName: speakerName,
+                        separator: separator,
+                        speakerNameNewLine: newLine,
+                        lineLengthLimit: limit,
+                        uppercaseSpeaker: uppercase);
                 }
                 finally
                 {
@@ -278,6 +260,84 @@ internal static class MessageSpeakerPrefixPatch
         {
             DialogueFontSizePatch.ApplyFontSize(__instance, targetSize);
             DialogueFontSizePatch.ApplyFontSize(spekerText, targetSize);
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Counts the number of visible characters in a speaker name (excluding rich-text tags).
+    /// </summary>
+    public static int GetSpeakerNameLength(string speakerName)
+    {
+        if (string.IsNullOrEmpty(speakerName)) return 0;
+
+        int length = 0;
+        for (int i = 0; i < speakerName.Length; i++)
+        {
+            if (speakerName[i] == '<')
+            {
+                int tagClose = speakerName.IndexOf('>', i);
+                if (tagClose != -1)
+                {
+                    i = tagClose;
+                    continue;
+                }
+            }
+            length++;
+        }
+        return length;
+    }
+
+    /// <summary>
+    /// Applies speaker prefix formatting and line wrapping to dialogue text based on configuration settings.
+    /// When <paramref name="lineLengthLimit"/> > 0 and <paramref name="speakerNameNewLine"/> is true:
+    ///   - Speaker name is placed on its own line above dialogue and NOT counted towards lineLengthLimit.
+    /// When <paramref name="lineLengthLimit"/> > 0 and <paramref name="speakerNameNewLine"/> is false:
+    ///   - Speaker name is prepended on the same line as dialogue and IS counted towards lineLengthLimit on line 1.
+    /// </summary>
+    public static string ApplySpeakerPrefix(
+        string message,
+        string speakerName,
+        string separator,
+        bool speakerNameNewLine,
+        int lineLengthLimit,
+        bool uppercaseSpeaker = false)
+    {
+        if (string.IsNullOrWhiteSpace(speakerName))
+        {
+            return lineLengthLimit > 0 ? WrapText(message, lineLengthLimit) : message;
+        }
+
+        if (uppercaseSpeaker)
+        {
+            speakerName = speakerName.ToUpperInvariant();
+        }
+
+        string effectiveSeparator = speakerNameNewLine ? "" : separator;
+        string prefix = speakerName + effectiveSeparator;
+
+        if (speakerNameNewLine)
+        {
+            prefix += "\n";
+        }
+
+        if (lineLengthLimit > 0)
+        {
+            if (speakerNameNewLine)
+            {
+                // When SpeakerNameNewLine is ON: wrap dialogue alone so speaker name on newline above is NOT counted towards limit
+                return prefix + WrapText(message, lineLengthLimit);
+            }
+            else
+            {
+                // When SpeakerNameNewLine is OFF: wrap entire combined string so speaker name IS counted on line 1 limit
+                return WrapText(prefix + message, lineLengthLimit);
+            }
+        }
+        else
+        {
+            return prefix + message;
         }
     }
 

@@ -43,47 +43,14 @@ internal static class ObjectConfigLoader
             return;
         }
 
-        var gameTag = Textures.TextureResolver.CurrentGameTag;
-        var sharedRoot = Path.Combine(modulesRootPath, "Shared");
-        var normalizedSharedRoot = sharedRoot.Replace('\\', '/').TrimEnd('/') + "/";
-
         // Gather all ObjectConfig.json files under Modules/ recursively.
         var allFiles = Directory.GetFiles(modulesRootPath, ConfigFileName, SearchOption.AllDirectories);
 
         foreach (var file in allFiles)
         {
-            var normalizedFile = file.Replace('\\', '/');
-
-            // Apply game-tag filtering for files inside any FFx/ sub-folders anywhere in the path.
-            var pathSegments = normalizedFile.Split('/');
-            var skipFile = false;
-
-            foreach (var segment in pathSegments)
+            if (ModulePathFilter.ShouldSkipConfigFile(file, modulesRootPath))
             {
-                if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
-                {
-                    skipFile = true;
-                    break;
-                }
-
-                var isGameTagFolder =
-                    segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
-                    segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
-
-                if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
-                {
-                    skipFile = true;
-                    break;
-                }
-            }
-
-            if (skipFile)
-            {
-                continue; // Skip configs for other games.
+                continue;
             }
 
             filesToLoad.Add(file);

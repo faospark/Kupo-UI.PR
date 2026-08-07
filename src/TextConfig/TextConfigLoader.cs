@@ -26,7 +26,6 @@ namespace KupoUI.PR.TextConfig
                 return;
             }
 
-            var gameTag = Textures.TextureResolver.CurrentGameTag;
             var filesToLoad = new List<string>();
 
             // Find all TextConfig.json files recursively
@@ -34,34 +33,10 @@ namespace KupoUI.PR.TextConfig
 
             foreach (var file in allFiles)
             {
-                var normalizedFile = file.Replace('\\', '/');
-                var pathSegments = normalizedFile.Split('/');
-                var skipFile = false;
-
-                foreach (var segment in pathSegments)
+                if (ModulePathFilter.ShouldSkipConfigFile(file, modulesRootPath))
                 {
-                    if (segment.StartsWith("block", StringComparison.OrdinalIgnoreCase))
-                    {
-                        skipFile = true;
-                        break;
-                    }
-
-                    var isGameTagFolder =
-                        segment.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
-                        segment.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
-                        segment.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
-                        segment.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
-                        segment.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
-                        segment.Equals("FF6", StringComparison.OrdinalIgnoreCase);
-
-                    if (isGameTagFolder && !segment.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
-                    {
-                        skipFile = true;
-                        break;
-                    }
+                    continue;
                 }
-
-                if (skipFile) continue;
 
                 filesToLoad.Add(file);
             }

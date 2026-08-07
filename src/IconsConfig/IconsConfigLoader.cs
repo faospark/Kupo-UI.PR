@@ -166,30 +166,10 @@ namespace KupoUI.PR.IconsConfig
 
                 foreach (var configFile in allConfigs)
                 {
-                    // Game-tag / block folder filtering.
-                    var normalised = configFile.Replace('\\', '/');
-                    var segments   = normalised.Split('/');
-                    var skip       = false;
-
-                    foreach (var seg in segments)
+                    if (ModulePathFilter.ShouldSkipConfigFile(configFile, modulesRootPath))
                     {
-                        if (seg.StartsWith("block", StringComparison.OrdinalIgnoreCase))
-                        { skip = true; break; }
-
-                        bool isGameTagFolder =
-                            seg.Equals("FF1", StringComparison.OrdinalIgnoreCase) ||
-                            seg.Equals("FF2", StringComparison.OrdinalIgnoreCase) ||
-                            seg.Equals("FF3", StringComparison.OrdinalIgnoreCase) ||
-                            seg.Equals("FF4", StringComparison.OrdinalIgnoreCase) ||
-                            seg.Equals("FF5", StringComparison.OrdinalIgnoreCase) ||
-                            seg.Equals("FF6", StringComparison.OrdinalIgnoreCase);
-
-                        if (isGameTagFolder &&
-                            !seg.Equals(gameTag, StringComparison.OrdinalIgnoreCase))
-                        { skip = true; break; }
+                        continue;
                     }
-
-                    if (skip) continue;
 
                     string json = File.ReadAllText(configFile);
 
