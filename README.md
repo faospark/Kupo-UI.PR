@@ -291,6 +291,7 @@ Use the file name **without extension** to match the in-game texture/sprite name
 
 ### Ignoring / Game-Tag / Blocking Folders
 
+- **Category Folder Scoping**: For category folders (`01-UI-Themes`, `02-UI-Frames`, `03-UI-BgColor`, `04-UI-Cursors`, `05-Button-Prompts`), configuration `.json` files (`ObjectConfig.json`, `TextConfig.json`, `IconsConfig.json`, `SpeakerNames.json`, `MenuPortraitMap.json`) are **only** loaded from the specified active pack folder (e.g. `UIThemesFolder = MyTheme`). Inactive pack folders under these 5 categories are skipped, preventing unselected themes or frames from conflicting with mods in `00-Mods/` or `Shared/`.
 - **Blocked Folders**: If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, configs, portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
 - **Game-Tag Folders**: If a configuration file (`SpeakerNames.json` / `speaker-names.json`, `MenuPortraitMap.json`, `ObjectConfig.json`, `TextConfig.json`, `IconsConfig.json`) or portrait image is located under a game-tag sub-folder (e.g., `FF1`, `FF2`, `FF3`, `FF4`, `FF5`, `FF6`) that does not match the game currently running, it will be skipped entirely.
 
@@ -395,9 +396,9 @@ Set to `All` to enable all categories, or use a comma-separated list (e.g. `Disc
 
 ## ObjectConfig.json — Data-Driven GameObject Tweaks
 
-Manipulate Unity GameObjects at runtime (position, rotation, scale, active state, text properties) without writing C# — just drop an `ObjectConfig.json` file anywhere inside `Modules/`.
+Manipulate Unity GameObjects at runtime (position, rotation, scale, active state, text properties) without writing C# — just drop an `ObjectConfig.json` file anywhere inside `Modules/` (`00-Mods/`, `Shared/`, or your active category pack folder).
 
-The plugin scans **all** `ObjectConfig.json` files found recursively under `Modules/` on startup. Files placed inside `Shared/FF1`–`FF6` sub-folders are filtered to the detected game, so only the matching game's rules are applied.
+The plugin scans `ObjectConfig.json` files under `Modules/` on startup. Configuration files inside category folders (`01-UI-Themes`–`05-Button-Prompts`) are loaded **only** from the currently active pack folder. Files placed inside `Shared/FF1`–`FF6` sub-folders are filtered to the detected game, so only the matching game's rules are applied.
 
 ### Folder Placement
 
@@ -409,7 +410,9 @@ The plugin scans **all** `ObjectConfig.json` files found recursively under `Modu
         ObjectConfig.json   ← picked up
     01-UI-Themes/
       MyTheme/
-        ObjectConfig.json   ← also picked up
+        ObjectConfig.json   ← picked up (only if UIThemesFolder = MyTheme)
+      OtherTheme/
+        ObjectConfig.json   ← skipped (not active theme)
     Shared/
       ObjectConfig.json     ← picked up (applies to all games)
       FF2/
@@ -615,7 +618,7 @@ Values are case-insensitive. If the object has no corresponding component (`Text
 
 ## TextConfig.json — Data-Driven Text Customization
 
-Like `ObjectConfig.json`, you can place files named `TextConfig.json` anywhere recursively under the `Modules/` directory. They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
+Like `ObjectConfig.json`, you can place files named `TextConfig.json` under the `Modules/` directory (`00-Mods/`, `Shared/`, or inside your active category pack folder). They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
 
 This is highly useful for:
 - **Partial Re-translations**: Safely swap specific dialogue lines or interface text database-wide without needing full language localization files or bundle-packing.
