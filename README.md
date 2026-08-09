@@ -348,7 +348,11 @@ Default_00.json
   "border": "4,4,4,4",
   "rectX": 0,
   "rectY": 16,
-  "flipHorizontal": false
+  "flipHorizontal": false,
+  "preserveAspect": true,
+  "scale": 1.0,
+  "offsetX": 0.5,
+  "offsetY": -0.8
 }
 ```
 
@@ -365,6 +369,10 @@ Default_00.json
 | `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).                                 |
 | `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                                                 |
 | `flipHorizontal` / `flipX`  | Flip the replacement texture horizontally.                                                                               |
+| `preserveAspect`            | Bilinear-scale custom sprite to best-fit inside the original bounding rect, padded with transparency. Prevents cropping. |
+| `scale`                     | Extra multiplier applied on top of the `preserveAspect` best-fit (e.g. `0.8` = 80%, `1.5` = 150%).                       |
+| `offsetX`                   | Shift custom sprite renderer position inside the battle frame horizontally (positive = right, negative = left).          |
+| `offsetY`                   | Shift custom sprite renderer position inside the battle frame vertically (positive = up, negative = down).               |
 
 > **Note:** When `width`/`height` are provided, sprite creation uses them to override replacement rect sizing; when values do not fit atlas coordinates, origin-clamped sizing is used as a fallback.
 

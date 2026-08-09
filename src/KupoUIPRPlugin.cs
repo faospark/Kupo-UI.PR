@@ -55,6 +55,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> FlipSpeakerPortraitsConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SpeakerPortraitsPaddingConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticBattleLoggingConfig { get; private set; } = null!;
 
     /// <summary>
     /// Speaker ID → display name registrations loaded from the "speakers" block of SpeakerNames.json / speaker-names.json.
@@ -248,6 +249,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "PortraitLogging",
             true,
             "If true, outputs debug information for portrait lifecycle and resolution.");
+
+        DiagnosticBattleLoggingConfig = Config.Bind(
+            "Z - Diagnostics",
+            "BattleLogging",
+            false,
+            "If true, outputs detailed diagnostic logging for battle sprite resolution, dimensions, and mesh renderer hierarchy.");
 
         DisableMouseCursorConfig = Config.Bind(
             "Utility",

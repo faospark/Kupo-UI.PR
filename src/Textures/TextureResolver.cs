@@ -60,6 +60,8 @@ internal static class TextureResolver
     private static readonly Regex RxFlipX = new(@"""flipX""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxPreserveAspect = new(@"""preserveAspect""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxScale = new(@"""scale""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxOffsetX = new(@"""offsetX""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxOffsetY = new(@"""offsetY""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static bool _initialized;
     private static bool _verboseLogs;
@@ -331,6 +333,7 @@ internal static class TextureResolver
         {
             pivot = metadataPivot.Value;
         }
+
 
         var border = original.border;
         var metadataBorder = ParseBorder(metadata);
@@ -853,7 +856,9 @@ internal static class TextureResolver
                 RectY = MatchNullableInt(RxRectY.Match(json)),
                 FlipHorizontal = MatchBool(RxFlipHorizontal.Match(json)) ?? MatchBool(RxFlipX.Match(json)),
                 PreserveAspect = MatchBool(RxPreserveAspect.Match(json)) ?? false,
-                Scale = MatchFloat(RxScale.Match(json))
+                Scale = MatchFloat(RxScale.Match(json)),
+                OffsetX = MatchNullableFloat(RxOffsetX.Match(json)),
+                OffsetY = MatchNullableFloat(RxOffsetY.Match(json))
             };
 
             MetadataCache[texturePath] = metadata;
@@ -875,6 +880,12 @@ internal static class TextureResolver
 
     private static int? MatchNullableInt(Match m) =>
         m.Success && int.TryParse(m.Groups[1].Value, out var v) ? v : (int?)null;
+
+    private static float? MatchNullableFloat(Match m) =>
+        m.Success && float.TryParse(m.Groups[1].Value,
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var v) ? v : (float?)null;
 
     private static float MatchFloat(Match m) =>
         m.Success && float.TryParse(m.Groups[1].Value,
@@ -1322,6 +1333,10 @@ internal static class TextureResolver
         /// Only used when preserveAspect is true.
         /// </summary>
         internal float Scale { get; set; }
+        /// <summary>Offset X applied to battle monster Mesh transform position.</summary>
+        internal float? OffsetX { get; set; }
+        /// <summary>Offset Y applied to battle monster Mesh transform position.</summary>
+        internal float? OffsetY { get; set; }
     }
 
     private static Texture2D CreateAspectPreservedTexture(Texture2D srcTex, int targetW, int targetH, TextureOverrideMetadata metadata)
