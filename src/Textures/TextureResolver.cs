@@ -58,6 +58,8 @@ internal static class TextureResolver
     private static readonly Regex RxRectY = new(@"""rectY""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxFlipHorizontal = new(@"""flipHorizontal""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxFlipX = new(@"""flipX""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxPreserveAspect = new(@"""preserveAspect""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxScale = new(@"""scale""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static bool _initialized;
     private static bool _verboseLogs;
@@ -306,6 +308,19 @@ internal static class TextureResolver
         }
 
         var rect = ResolveReplacementRect(original, customTexture, metadata);
+
+        if (metadata != null && metadata.PreserveAspect)
+        {
+            int targetW = (int)original.rect.width;
+            int targetH = (int)original.rect.height;
+            if (targetW > 0 && targetH > 0 && (customTexture.width != targetW || customTexture.height != targetH))
+            {
+                var aspectTex = CreateAspectPreservedTexture(customTexture, targetW, targetH, metadata);
+                aspectTex.name = customTexture.name + "_Aspect";
+                customTexture = aspectTex;
+                rect = new Rect(0f, 0f, targetW, targetH);
+            }
+        }
 
         var pivot = original.rect.width > 0f && original.rect.height > 0f
             ? new Vector2(original.pivot.x / original.rect.width, original.pivot.y / original.rect.height)
@@ -742,7 +757,7 @@ internal static class TextureResolver
     /// <summary>
     /// Returns the override file path for an addressable asset address using the path-based index.
     /// </summary>
-    private static bool TryGetFilePathByAddress(string assetAddress, out string filePath)
+    internal static bool TryGetFilePathByAddress(string assetAddress, out string filePath)
     {
         filePath = null;
         var pathKey = NormalizeAddressToPathKey(assetAddress);
@@ -764,7 +779,7 @@ internal static class TextureResolver
     /// Like <see cref="TryGetFilePathByName"/> but skips the <see cref="NormalizeName"/> step.
     /// Use when the caller has already normalized the key to avoid redundant string allocations.
     /// </summary>
-    private static bool TryGetFilePathByNormalizedName(string normalizedKey, out string filePath)
+    internal static bool TryGetFilePathByNormalizedName(string normalizedKey, out string filePath)
     {
         filePath = null;
 
@@ -836,7 +851,9 @@ internal static class TextureResolver
                 Border = MatchString(RxBorder.Match(json)),
                 RectX = MatchNullableInt(RxRectX.Match(json)),
                 RectY = MatchNullableInt(RxRectY.Match(json)),
-                FlipHorizontal = MatchBool(RxFlipHorizontal.Match(json)) ?? MatchBool(RxFlipX.Match(json))
+                FlipHorizontal = MatchBool(RxFlipHorizontal.Match(json)) ?? MatchBool(RxFlipX.Match(json)),
+                PreserveAspect = MatchBool(RxPreserveAspect.Match(json)) ?? false,
+                Scale = MatchFloat(RxScale.Match(json))
             };
 
             MetadataCache[texturePath] = metadata;
@@ -1290,5 +1307,73 @@ internal static class TextureResolver
         /// <summary>Explicit Y pixel offset into the replacement texture rect. Null = inherit from original sprite rect.</summary>
         internal int? RectY { get; set; }
         internal bool? FlipHorizontal { get; set; }
+        /// <summary>
+        /// When true, scales the replacement PNG to best-fit within the original sprite rect
+        /// while preserving the PNG's own aspect ratio. Any unused area is filled with
+        /// transparent pixels. Prevents cropping when the replacement is wider than the
+        /// original rect. Set to true in the sidecar JSON as "preserveAspect": true.
+        /// </summary>
+        internal bool PreserveAspect { get; set; }
+        /// <summary>
+        /// Optional multiplier applied on top of the preserveAspect best-fit scale.
+        /// 1.0 (default) = fill the rect as tightly as possible.
+        /// 0.8 = 80% of the best-fit size (smaller, more padding around the image).
+        /// 1.2 = 120% of the best-fit size (larger; clamped to the rect).
+        /// Only used when preserveAspect is true.
+        /// </summary>
+        internal float Scale { get; set; }
+    }
+
+    private static Texture2D CreateAspectPreservedTexture(Texture2D srcTex, int targetW, int targetH, TextureOverrideMetadata metadata)
+    {
+        // Calculate the scale to best-fit srcTex inside targetW x targetH
+        float scaleX = (float)targetW / srcTex.width;
+        float scaleY = (float)targetH / srcTex.height;
+        float scale = Math.Min(scaleX, scaleY);
+
+        // Apply scale multiplier if defined
+        float userScale = (metadata != null && metadata.Scale > 0f) ? metadata.Scale : 1.0f;
+        scale *= userScale;
+
+        int scaledW = Math.Max(1, Math.Min(targetW, (int)(srcTex.width * scale)));
+        int scaledH = Math.Max(1, Math.Min(targetH, (int)(srcTex.height * scale)));
+        int offsetX = (targetW - scaledW) / 2;
+        int offsetY = (targetH - scaledH) / 2;
+
+        var srcPixels = srcTex.GetPixels();
+        var dstPixels = new Color[targetW * targetH]; // initialized to transparent (all zeros)
+
+        for (int dy = 0; dy < scaledH; dy++)
+        {
+            float sy = (dy + 0.5f) / scaledH * srcTex.height - 0.5f;
+            int sy0 = Math.Max(0, (int)sy);
+            int sy1 = Math.Min(srcTex.height - 1, sy0 + 1);
+            float fy = sy - sy0;
+
+            for (int dx = 0; dx < scaledW; dx++)
+            {
+                float sx = (dx + 0.5f) / scaledW * srcTex.width - 0.5f;
+                int sx0 = Math.Max(0, (int)sx);
+                int sx1 = Math.Min(srcTex.width - 1, sx0 + 1);
+                float fx = sx - sx0;
+
+                Color c00 = srcPixels[sy0 * srcTex.width + sx0];
+                Color c10 = srcPixels[sy0 * srcTex.width + sx1];
+                Color c01 = srcPixels[sy1 * srcTex.width + sx0];
+                Color c11 = srcPixels[sy1 * srcTex.width + sx1];
+
+                Color lerped = Color.Lerp(Color.Lerp(c00, c10, fx),
+                                          Color.Lerp(c01, c11, fx), fy);
+
+                dstPixels[(offsetY + dy) * targetW + (offsetX + dx)] = lerped;
+            }
+        }
+
+        var dstTex = new Texture2D(targetW, targetH, TextureFormat.RGBA32, false);
+        dstTex.filterMode = srcTex.filterMode;
+        dstTex.wrapMode = srcTex.wrapMode;
+        dstTex.SetPixels(dstPixels);
+        dstTex.Apply(true, false);
+        return dstTex;
     }
 }
