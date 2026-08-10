@@ -61,6 +61,8 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
     - [File Format](#file-format-2)
     - [Language-Agnostic Icon Injection (e.g. for Inventory Items)](#language-agnostic-icon-injection-eg-for-inventory-items)
     - [Performance \& Texture Atlases](#performance--texture-atlases)
+  - [DatabaseConfig.json — Data-Driven Database Customization](#databaseconfigjson--data-driven-database-customization)
+    - [DatabaseConfig.json Structure](#databaseconfigjson-structure)
   - [Title Screen](#title-screen)
     - [Title Screen Background Color](#title-screen-background-color)
     - [Title Screen Full Background Image](#title-screen-full-background-image)
@@ -120,6 +122,7 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
 - Data-driven GameObject tweaks and custom image insertion (`NewImages`) via `ObjectConfig.json` (no C# required)
 - Data-driven menu and UI text customization/localization via `TextConfig.json` (no C# required)
 - Custom rich text inline icons via `IconsConfig.json` with automatic texture atlas packing & disk caching
+- Data-driven database table overrides (e.g., coordinates, BGMs, flags) via `DatabaseConfig.json` (no C# required)
 - Custom full-screen title background image injection (`TitlescreenFullBG`)
 - Custom main menu background image injection (`MainMenuBg`)
 - Configurable title screen background color
@@ -783,6 +786,43 @@ To solve this, **KupoUI.PR automatically packs all registered custom icons into 
 - **Instant Loading**: Subsequent game launches load the pre-packed atlas PNGs and layout metadata directly (taking only a few milliseconds) and bypass reading individual icon PNGs.
 - **Smart Invalidation**: The index saves the exact file modification timestamps of all source icons. If you edit, add, or remove any icon or config file, the cache is automatically invalidated and rebuilt on the next startup. You can also delete the `.cache/` folder to force a clean rebuild.
 - **Seamless Fallback**: If atlas creation fails for any reason (e.g., Unity engine or platform constraint), the plugin gracefully falls back to using individual sprites.
+
+---
+
+## DatabaseConfig.json — Data-Driven Database Customization
+
+You can patch specific fields in the game's static database tables at runtime. Currently, KupoUI.PR supports delta patching for the `monster_party` table (encounters database) to modify monster positions, encounter BGMs, battle backgrounds, and enemy layouts without replacing or corrupting the master files.
+
+### DatabaseConfig.json Structure
+
+Create `DatabaseConfig.json` inside your module directory (e.g. `Modules/Shared/` or `Modules/00-Mods/MyMod/`). The file contains a root scope with an optional `GameTag` and a `"MonsterParty"` array of override objects:
+
+```json
+{
+  "GameTag": "FF4",
+  "MonsterParty": [
+    {
+      "id": 1,
+      "battle_background_asset_id": 25,
+      "battle_bgm_asset_id": 3,
+      "monster1_x_position": 60,
+      "monster1_y_position": -15
+    }
+  ]
+}
+```
+
+- **id**: (Required) The unique ID of the encounter group row to patch (corresponds to the `id` column in `monster_party.csv`).
+- **Supported Fields**: You can specify any subset of the following parameters to overwrite in the game's memory at startup:
+  - `battle_background_asset_id`, `battle_bgm_asset_id`
+  - `appearance_production`, `script_name` (maps to `ScriptNameId` internally)
+  - `battle_pattern1` to `battle_pattern6`
+  - `not_escape`, `battle_flag_group_id`
+  - `get_value`, `get_ap`
+  - `monster1` to `monster9` (monster ID mapping)
+  - `monster1_x_position` to `monster9_x_position` (coordinate offsets, integers)
+  - `monster1_y_position` to `monster9_y_position` (coordinate offsets, integers)
+  - `monster1_group` to `monster9_group` (group target mapping)
 
 ---
 
