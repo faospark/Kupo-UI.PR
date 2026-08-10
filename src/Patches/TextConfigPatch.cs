@@ -1266,6 +1266,19 @@ namespace KupoUI.PR.Patches
 
             if (monsterAreaObj != null)
             {
+                // Print all children of MonsterArea for diagnostic purposes
+                for (int i = 0; i < monsterAreaObj.transform.childCount; i++)
+                {
+                    var child = monsterAreaObj.transform.GetChild(i);
+                    var childComps = child.GetComponents<UnityEngine.Component>();
+                    var compNames = new List<string>();
+                    foreach (var c in childComps)
+                    {
+                        if (c != null) compNames.Add(c.GetType().FullName);
+                    }
+                    KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Child {i}: {child.name} | active={child.gameObject.activeSelf} | scale={child.localScale} | comps={string.Join(", ", compNames)}");
+                }
+
                 var imageTransform = monsterAreaObj.transform.Find("Image");
                 if (imageTransform != null)
                 {
@@ -1278,6 +1291,16 @@ namespace KupoUI.PR.Patches
                     if (image != null && image.sprite != null)
                     {
                         var sprite = image.sprite;
+                        if (!sprite.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase))
+                        {
+                            KupoUI.PR.Textures.AssetAddressTracker.TryGetAddress(sprite, sprite.texture, out var assetAddress);
+                            if (KupoUI.PR.Textures.TextureResolver.TryCreateReplacementSprite(sprite, out var replacement, assetAddress, isUi: true))
+                            {
+                                image.sprite = replacement;
+                                sprite = replacement;
+                            }
+                        }
+
                         var metadata = CustomTexturePatch.GetMetadataForSprite(sprite, null);
                         
                         if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
@@ -1287,24 +1310,25 @@ namespace KupoUI.PR.Patches
 
                         if (metadata != null)
                         {
-                            int targetW = metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width;
-                            int targetH = metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height;
+                            int targetW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width);
+                            int targetH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height);
 
                             if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                             {
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Applying sizing: targetSize={targetW}x{targetH}, offset=({metadata.OffsetX}, {metadata.OffsetY})");
+                                KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Applying sizing: targetSize={targetW}x{targetH}, offset=({metadata.ResolvedOffsetX}, {metadata.ResolvedOffsetY})");
                             }
 
-                            if (metadata.Width > 0 || metadata.Height > 0)
+                            if (metadata.SpriteWidth > 0 || metadata.SpriteHeight > 0 || metadata.Width > 0 || metadata.Height > 0)
                             {
                                 image.rectTransform.SetSizeWithCurrentAnchors(UnityEngine.RectTransform.Axis.Horizontal, targetW);
                                 image.rectTransform.SetSizeWithCurrentAnchors(UnityEngine.RectTransform.Axis.Vertical, targetH);
+                                image.preserveAspect = false;
                             }
 
-                            if (metadata.OffsetX.HasValue || metadata.OffsetY.HasValue)
+                            if (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue)
                             {
-                                float ox = metadata.OffsetX ?? 0f;
-                                float oy = metadata.OffsetY ?? 0f;
+                                float ox = metadata.ResolvedOffsetX ?? 0f;
+                                float oy = metadata.ResolvedOffsetY ?? 0f;
                                 image.rectTransform.anchoredPosition = new Vector2(ox, oy);
                             }
                         }

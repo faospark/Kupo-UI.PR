@@ -1446,8 +1446,8 @@ internal static class ObjectConfigPatch
                 var rect = new Rect(0, 0, tex.width, tex.height);
                 if (metadata != null)
                 {
-                    var rx = metadata.RectX ?? 0;
-                    var ry = metadata.RectY ?? 0;
+                    var rx = metadata.ResolvedRectX ?? 0;
+                    var ry = metadata.ResolvedRectY ?? 0;
                     var rw = metadata.Width > 0 ? metadata.Width : tex.width;
                     var rh = metadata.Height > 0 ? metadata.Height : tex.height;
                     rect = new Rect(rx, ry, rw, rh);
@@ -1478,9 +1478,16 @@ internal static class ObjectConfigPatch
                 }
 
                 var pixelsPerUnit = 100f;
-                if (metadata != null && metadata.PixelsPerUnit > 0f)
+                if (metadata != null)
                 {
-                    pixelsPerUnit = metadata.PixelsPerUnit;
+                    if (metadata.PixelsPerUnit > 0f)
+                    {
+                        pixelsPerUnit = metadata.PixelsPerUnit;
+                    }
+                    else if (metadata.SpriteWidth > 0)
+                    {
+                        pixelsPerUnit = 100f * ((float)rect.width / metadata.SpriteWidth);
+                    }
                 }
 
                 var sprite = Sprite.Create(
@@ -1540,8 +1547,8 @@ internal static class ObjectConfigPatch
                     var rect = new Rect(0, 0, tex.width, tex.height);
                     if (metadata != null)
                     {
-                        var rx = metadata.RectX ?? 0;
-                        var ry = metadata.RectY ?? 0;
+                        var rx = metadata.ResolvedRectX ?? 0;
+                        var ry = metadata.ResolvedRectY ?? 0;
                         var rw = metadata.Width > 0 ? metadata.Width : tex.width;
                         var rh = metadata.Height > 0 ? metadata.Height : tex.height;
                         rect = new Rect(rx, ry, rw, rh);
@@ -1572,9 +1579,16 @@ internal static class ObjectConfigPatch
                     }
 
                     var pixelsPerUnit = 100f;
-                    if (metadata != null && metadata.PixelsPerUnit > 0f)
+                    if (metadata != null)
                     {
-                        pixelsPerUnit = metadata.PixelsPerUnit;
+                        if (metadata.PixelsPerUnit > 0f)
+                        {
+                            pixelsPerUnit = metadata.PixelsPerUnit;
+                        }
+                        else if (metadata.SpriteWidth > 0)
+                        {
+                            pixelsPerUnit = 100f * ((float)rect.width / metadata.SpriteWidth);
+                        }
                     }
 
                     var sprite = Sprite.Create(

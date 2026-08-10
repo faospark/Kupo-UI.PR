@@ -62,6 +62,12 @@ internal static class TextureResolver
     private static readonly Regex RxScale = new(@"""scale""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxOffsetX = new(@"""offsetX""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxOffsetY = new(@"""offsetY""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxSpriteWidth = new(@"""spriteWidth""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxSpriteHeight = new(@"""spriteHeight""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxSpriteRectX = new(@"""spriteRectX""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxSpriteRectY = new(@"""spriteRectY""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxSpriteOffsetX = new(@"""spriteOffsetX""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxSpriteOffsetY = new(@"""spriteOffsetY""\s*:\s*(-?\d+(?:\.\d+)?)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
     private static bool _initialized;
     private static bool _verboseLogs;
@@ -298,9 +304,11 @@ internal static class TextureResolver
         var isAtlasSprite = IsLikelyAtlasTextureName(textureName);
         var spriteAddressHint = isAtlasSprite ? null : assetAddressHint;
         var customTexture = LoadTexture(spriteName, spriteAddressHint, out var metadata);
+        bool isStandalone = customTexture != null;
         if (customTexture == null && !isAtlasSprite)
         {
             customTexture = LoadTexture(textureName, assetAddressHint, out metadata);
+            isStandalone = true;
         }
 
         if (customTexture == null)
@@ -309,7 +317,7 @@ internal static class TextureResolver
             return false;
         }
 
-        var rect = ResolveReplacementRect(original, customTexture, metadata);
+        var rect = ResolveReplacementRect(original, customTexture, metadata, isStandalone);
 
         if (metadata != null && metadata.PreserveAspect)
         {
@@ -383,14 +391,14 @@ internal static class TextureResolver
 
         var originalPixelsPerUnit = original.pixelsPerUnit > 0f ? original.pixelsPerUnit : 100f;
 
-        if (isUi)
+        if (isUi && (metadata == null || (metadata.SpriteWidth <= 0 && metadata.SpriteHeight <= 0)))
         {
             return originalPixelsPerUnit;
         }
 
         var originalRect = original.rect;
-        var targetWidth = originalRect.width;
-        var targetHeight = originalRect.height;
+        var targetWidth = (metadata != null && metadata.SpriteWidth > 0) ? (float)metadata.SpriteWidth : originalRect.width;
+        var targetHeight = (metadata != null && metadata.SpriteHeight > 0) ? (float)metadata.SpriteHeight : originalRect.height;
 
         if (targetWidth <= 0f || targetHeight <= 0f
             || replacementRect.width <= 0f || replacementRect.height <= 0f)
@@ -412,10 +420,10 @@ internal static class TextureResolver
         return originalPixelsPerUnit * dominantRatio;
     }
 
-    private static Rect ResolveReplacementRect(Sprite original, Texture2D replacementTexture, TextureOverrideMetadata metadata)
+    private static Rect ResolveReplacementRect(Sprite original, Texture2D replacementTexture, TextureOverrideMetadata metadata, bool isStandalone)
     {
         var rect = original.rect;
-        if (rect.x < 0f || rect.y < 0f || rect.width <= 0f || rect.height <= 0f
+        if (isStandalone || rect.x < 0f || rect.y < 0f || rect.width <= 0f || rect.height <= 0f
             || rect.xMax > replacementTexture.width || rect.yMax > replacementTexture.height)
         {
             // Fallback for standalone replacement textures that do not match original atlas coordinates.
@@ -451,10 +459,10 @@ internal static class TextureResolver
 
         // Apply explicit rect origin overrides after size resolution.
         // rectX/rectY specify the pixel offset within the replacement texture to start sampling from.
-        if (metadata != null && (metadata.RectX.HasValue || metadata.RectY.HasValue))
+        if (metadata != null && (metadata.ResolvedRectX.HasValue || metadata.ResolvedRectY.HasValue))
         {
-            var overrideX = metadata.RectX.HasValue ? (float)metadata.RectX.Value : rect.x;
-            var overrideY = metadata.RectY.HasValue ? (float)metadata.RectY.Value : rect.y;
+            var overrideX = metadata.ResolvedRectX.HasValue ? (float)metadata.ResolvedRectX.Value : rect.x;
+            var overrideY = metadata.ResolvedRectY.HasValue ? (float)metadata.ResolvedRectY.Value : rect.y;
             overrideX = Mathf.Clamp(overrideX, 0f, Mathf.Max(0f, replacementTexture.width - rect.width));
             overrideY = Mathf.Clamp(overrideY, 0f, Mathf.Max(0f, replacementTexture.height - rect.height));
             rect = new Rect(overrideX, overrideY, rect.width, rect.height);
@@ -864,7 +872,13 @@ internal static class TextureResolver
                 PreserveAspect = MatchBool(RxPreserveAspect.Match(json)) ?? false,
                 Scale = MatchFloat(RxScale.Match(json)),
                 OffsetX = MatchNullableFloat(RxOffsetX.Match(json)),
-                OffsetY = MatchNullableFloat(RxOffsetY.Match(json))
+                OffsetY = MatchNullableFloat(RxOffsetY.Match(json)),
+                SpriteWidth = MatchInt(RxSpriteWidth.Match(json)),
+                SpriteHeight = MatchInt(RxSpriteHeight.Match(json)),
+                SpriteRectX = MatchNullableInt(RxSpriteRectX.Match(json)),
+                SpriteRectY = MatchNullableInt(RxSpriteRectY.Match(json)),
+                SpriteOffsetX = MatchNullableFloat(RxSpriteOffsetX.Match(json)),
+                SpriteOffsetY = MatchNullableFloat(RxSpriteOffsetY.Match(json))
             };
 
             MetadataCache[texturePath] = metadata;
@@ -876,6 +890,44 @@ internal static class TextureResolver
             MetadataCache[texturePath] = null;
             return null;
         }
+    }
+
+    internal static TextureOverrideMetadata LoadMetadataByNormalizedName(string normalizedKey)
+    {
+        if (string.IsNullOrEmpty(normalizedKey))
+        {
+            return null;
+        }
+
+        if (MetadataCache.TryGetValue(normalizedKey, out var cachedMetadata))
+        {
+            return cachedMetadata;
+        }
+
+        if (TryGetFilePathByNormalizedName(normalizedKey, out var texturePath))
+        {
+            var meta = LoadTextureMetadata(texturePath);
+            if (meta != null)
+            {
+                MetadataCache[normalizedKey] = meta;
+                return meta;
+            }
+        }
+
+        if (MetadataPathIndex.TryGetValue(normalizedKey, out var metadataPath) && File.Exists(metadataPath))
+        {
+            var meta = LoadTextureMetadata(metadataPath);
+            MetadataCache[normalizedKey] = meta;
+            return meta;
+        }
+
+        MetadataCache[normalizedKey] = null;
+        return null;
+    }
+
+    internal static TextureOverrideMetadata LoadMetadataByName(string name)
+    {
+        return LoadMetadataByNormalizedName(NormalizeName(name));
     }
 
     // Tiny helpers that extract a typed value from a pre-executed Match result.
@@ -1343,6 +1395,17 @@ internal static class TextureResolver
         internal float? OffsetX { get; set; }
         /// <summary>Offset Y applied to battle monster Mesh transform position.</summary>
         internal float? OffsetY { get; set; }
+        internal int SpriteWidth { get; set; }
+        internal int SpriteHeight { get; set; }
+        internal int? SpriteRectX { get; set; }
+        internal int? SpriteRectY { get; set; }
+        internal float? SpriteOffsetX { get; set; }
+        internal float? SpriteOffsetY { get; set; }
+
+        internal int? ResolvedRectX => SpriteRectX ?? RectX;
+        internal int? ResolvedRectY => SpriteRectY ?? RectY;
+        internal float? ResolvedOffsetX => SpriteOffsetX ?? OffsetX;
+        internal float? ResolvedOffsetY => SpriteOffsetY ?? OffsetY;
     }
 
     private static Texture2D CreateAspectPreservedTexture(Texture2D srcTex, int targetW, int targetH, TextureOverrideMetadata metadata)

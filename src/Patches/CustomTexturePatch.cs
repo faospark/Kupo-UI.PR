@@ -169,6 +169,23 @@ internal static class CustomTexturePatch
                     }
                 }
 
+                // Print all sibling children under parent (MonsterArea)
+                if (__instance.transform.parent != null)
+                {
+                    var parentTrans = __instance.transform.parent;
+                    for (int i = 0; i < parentTrans.childCount; i++)
+                    {
+                        var child = parentTrans.GetChild(i);
+                        var childComps = child.GetComponents<UnityEngine.Component>();
+                        var compNames = new List<string>();
+                        foreach (var c in childComps)
+                        {
+                            if (c != null) compNames.Add(c.GetType().FullName);
+                        }
+                        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Sibling Child {i}: {child.name} | active={child.gameObject.activeSelf} | scale={child.localScale} | comps={string.Join(", ", compNames)}");
+                    }
+                }
+
                 // Print components on parent GameObject
                 if (__instance.transform.parent != null)
                 {
@@ -192,7 +209,7 @@ internal static class CustomTexturePatch
                 // For the Bestiary/Library monster image, preserve aspect ratio and use Simple type
                 if (__instance.name == "Image")
                 {
-                    __instance.preserveAspect = true;
+                    __instance.preserveAspect = false; // Disable to allow custom aspect ratio!
                     __instance.type = UnityEngine.UI.Image.Type.Simple;
                 }
 
@@ -215,10 +232,10 @@ internal static class CustomTexturePatch
                 // Force localScale to (1, 1, 1) to bypass any game layout squishing
                 __instance.transform.localScale = UnityEngine.Vector3.one;
 
-                int targetW = metadata.Width > 0 ? metadata.Width : (int)value.rect.width;
-                int targetH = metadata.Height > 0 ? metadata.Height : (int)value.rect.height;
+                int targetW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : (int)value.rect.width);
+                int targetH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : (int)value.rect.height);
 
-                if (metadata.Width > 0 || metadata.Height > 0)
+                if (metadata.SpriteWidth > 0 || metadata.SpriteHeight > 0 || metadata.Width > 0 || metadata.Height > 0)
                 {
                     if (__instance.rectTransform != null)
                     {
@@ -231,12 +248,12 @@ internal static class CustomTexturePatch
                     }
                 }
 
-                if (metadata.OffsetX.HasValue || metadata.OffsetY.HasValue)
+                if (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue)
                 {
                     if (__instance.rectTransform != null)
                     {
-                        float ox = metadata.OffsetX ?? 0f;
-                        float oy = metadata.OffsetY ?? 0f;
+                        float ox = metadata.ResolvedOffsetX ?? 0f;
+                        float oy = metadata.ResolvedOffsetY ?? 0f;
                         __instance.rectTransform.anchoredPosition = new Vector2(ox, oy);
                         if (__instance.name == "Image")
                         {
@@ -283,22 +300,13 @@ internal static class CustomTexturePatch
         if (string.IsNullOrEmpty(spriteName)) return null;
 
         var normalizedName = TextureResolver.NormalizeName(spriteName);
-        string filePath = null;
 
         if (!string.IsNullOrEmpty(assetAddress) && TextureResolver.TryGetFilePathByAddress(assetAddress, out var addressedPath))
         {
-            filePath = addressedPath;
-        }
-        else if (TextureResolver.TryGetFilePathByNormalizedName(normalizedName, out var normalPath))
-        {
-            filePath = normalPath;
+            return TextureResolver.LoadTextureMetadata(addressedPath);
         }
 
-        if (filePath != null)
-        {
-            return TextureResolver.LoadTextureMetadata(filePath);
-        }
-        return null;
+        return TextureResolver.LoadMetadataByNormalizedName(normalizedName);
     }
 
     [HarmonyPatch(typeof(Image), nameof(Image.SetNativeSize))]
@@ -515,46 +523,57 @@ internal static class CustomTexturePatch
     {
         if (controller == null || sprite == null) return;
 
+        var image = (controller.view != null) ? controller.view.monsterImage : null;
+        if (image == null)
+        {
+            // Fallback to recursive find if view is not initialized
+            var monsterArea = FindTransformRecursive(controller.transform, "MonsterArea");
+            if (monsterArea != null)
+            {
+                var imageTransform = monsterArea.Find("Image");
+                if (imageTransform != null)
+                {
+                    image = imageTransform.GetComponent<Image>();
+                }
+            }
+        }
+
+        if (image != null && image.sprite != null && !image.sprite.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase))
+        {
+            AssetAddressTracker.TryGetAddress(image.sprite, image.sprite.texture, out var assetAddress);
+            if (TextureResolver.TryCreateReplacementSprite(image.sprite, out var replacement, assetAddress, isUi: true))
+            {
+                image.sprite = replacement;
+                sprite = replacement;
+            }
+        }
+
         // Retrieve metadata for this sprite name
         var metadata = GetMetadataForSprite(sprite, null);
         KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] ApplyCustomSizingToMenuImage: sprite={sprite.name}, hasMetadata={metadata != null}");
 
         if (metadata != null)
         {
-            var image = (controller.view != null) ? controller.view.monsterImage : null;
-            if (image == null)
-            {
-                // Fallback to recursive find if view is not initialized
-                var monsterArea = FindTransformRecursive(controller.transform, "MonsterArea");
-                if (monsterArea != null)
-                {
-                    var imageTransform = monsterArea.Find("Image");
-                    if (imageTransform != null)
-                    {
-                        image = imageTransform.GetComponent<Image>();
-                    }
-                }
-            }
-
             KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] ApplyCustomSizingToMenuImage: target Image component found={image != null}");
 
             if (image != null && image.rectTransform != null)
             {
-                int targetW = metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width;
-                int targetH = metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height;
+                int targetW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width);
+                int targetH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height);
 
-                KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Applying sizing to Bestiary Image: Sprite={sprite.name}, TargetSize={targetW}x{targetH}, Offset=({metadata.OffsetX}, {metadata.OffsetY})");
+                KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Applying sizing to Bestiary Image: Sprite={sprite.name}, TargetSize={targetW}x{targetH}, Offset=({metadata.ResolvedOffsetX}, {metadata.ResolvedOffsetY})");
 
-                if (metadata.Width > 0 || metadata.Height > 0)
+                if (metadata.SpriteWidth > 0 || metadata.SpriteHeight > 0 || metadata.Width > 0 || metadata.Height > 0)
                 {
                     image.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetW);
                     image.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, targetH);
+                    image.preserveAspect = false;
                 }
 
-                if (metadata.OffsetX.HasValue || metadata.OffsetY.HasValue)
+                if (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue)
                 {
-                    float ox = metadata.OffsetX ?? 0f;
-                    float oy = metadata.OffsetY ?? 0f;
+                    float ox = metadata.ResolvedOffsetX ?? 0f;
+                    float oy = metadata.ResolvedOffsetY ?? 0f;
                     image.rectTransform.anchoredPosition = new Vector2(ox, oy);
                 }
             }
@@ -571,5 +590,34 @@ internal static class CustomTexturePatch
             if (result != null) return result;
         }
         return null;
+    }
+
+    [HarmonyPatch(typeof(RectTransform), nameof(RectTransform.sizeDelta), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void RectTransformSizeDeltaPrefix(RectTransform __instance, ref Vector2 value)
+    {
+        if (!KupoUIPRPlugin.EnableCustomTextures) return;
+        if (__instance == null) return;
+
+        if (__instance.name == "Image" && __instance.transform.parent != null && __instance.transform.parent.name == "MonsterArea")
+        {
+            var image = __instance.GetComponent<Image>();
+            if (image != null && image.sprite != null)
+            {
+                var sprite = image.sprite;
+                var metadata = GetMetadataForSprite(sprite, null);
+                if (metadata != null)
+                {
+                    float customW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : 0);
+                    float customH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : 0);
+
+                    if (customW > 0f && customH > 0f && value.y > 0f)
+                    {
+                        float aspect = customW / customH;
+                        value = new Vector2(value.y * aspect, value.y);
+                    }
+                }
+            }
+        }
     }
 }

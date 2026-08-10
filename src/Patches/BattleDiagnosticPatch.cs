@@ -29,27 +29,17 @@ internal static class BattleDiagnosticPatch
         if (AssetIdToSpriteName.TryGetValue(assetId, out var spriteName))
         {
             // Resolve metadata for this sprite name
-            var normalizedName = KupoUI.PR.Textures.TextureResolver.NormalizeName(spriteName);
-            string filePath = null;
-            if (KupoUI.PR.Textures.TextureResolver.TryGetFilePathByNormalizedName(normalizedName, out var normalPath))
+            var metadata = KupoUI.PR.Textures.TextureResolver.LoadMetadataByName(spriteName);
+            if (metadata != null)
             {
-                filePath = normalPath;
-            }
-
-            if (filePath != null)
-            {
-                var metadata = KupoUI.PR.Textures.TextureResolver.LoadTextureMetadata(filePath);
-                if (metadata != null && (metadata.Width > 0 || metadata.Height > 0))
+                int customW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : 0);
+                int customH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : 0);
+                if (customW > 0 && customH > 0)
                 {
-                    int customW = metadata.Width > 0 ? metadata.Width : 0;
-                    int customH = metadata.Height > 0 ? metadata.Height : 0;
-                    if (customW > 0 && customH > 0)
+                    _currentCustomSize = new Tuple<int, int>(customW, customH);
+                    if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                     {
-                        _currentCustomSize = new Tuple<int, int>(customW, customH);
-                        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
-                        {
-                            KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] Stored custom size {customW}x{customH} for upcoming enemy creation of asset ID {assetId}");
-                        }
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] Stored custom size {customW}x{customH} for upcoming enemy creation of asset ID {assetId}");
                     }
                 }
             }
@@ -226,31 +216,14 @@ internal static class BattleDiagnosticPatch
         }
 
         KupoUI.PR.Textures.AssetAddressTracker.TryGetAddress(sprite, sprite.texture, out var assetAddress);
-        var normalizedName = KupoUI.PR.Textures.TextureResolver.NormalizeName(spriteName);
-        string filePath;
+        var metadata = CustomTexturePatch.GetMetadataForSprite(sprite, assetAddress);
         
-        if (!string.IsNullOrEmpty(assetAddress) && KupoUI.PR.Textures.TextureResolver.TryGetFilePathByAddress(assetAddress, out var addressedPath))
+        if (metadata != null)
         {
-            filePath = addressedPath;
-        }
-        else if (KupoUI.PR.Textures.TextureResolver.TryGetFilePathByNormalizedName(normalizedName, out var normalPath))
-        {
-            filePath = normalPath;
-        }
-        else
-        {
-            filePath = null;
-        }
-
-        if (filePath != null)
-        {
-            var metadata = KupoUI.PR.Textures.TextureResolver.LoadTextureMetadata(filePath);
-            if (metadata != null && (metadata.Width > 0 || metadata.Height > 0))
-            {
-                int customW = metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width;
-                int customH = metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height;
-                
-                CustomSizes[__instance.Pointer] = new Tuple<int, int>(customW, customH);
+            int customW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width);
+            int customH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height);
+            
+            CustomSizes[__instance.Pointer] = new Tuple<int, int>(customW, customH);
                 if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                 {
                     KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic]   Stored custom size {customW}x{customH} for BattleSpriteEntity {__instance.name} (ptr={__instance.Pointer:X})");
@@ -286,7 +259,7 @@ internal static class BattleDiagnosticPatch
                     }
                 }
                 // Apply offsets directly to the Mesh vertices
-                if (metadata.OffsetX.HasValue || metadata.OffsetY.HasValue)
+                if (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue)
                 {
                     Transform meshTransform = null;
                     var children = __instance.GetComponentsInChildren<Transform>(true);
@@ -304,8 +277,8 @@ internal static class BattleDiagnosticPatch
                         var filter = meshTransform.GetComponent<MeshFilter>();
                         if (filter != null && filter.mesh != null)
                         {
-                            float ox = metadata.OffsetX ?? 0f;
-                            float oy = metadata.OffsetY ?? 0f;
+                            float ox = metadata.ResolvedOffsetX ?? 0f;
+                            float oy = metadata.ResolvedOffsetY ?? 0f;
                             
                             var vertices = filter.mesh.vertices;
                             for (int i = 0; i < vertices.Length; i++)
@@ -338,7 +311,6 @@ internal static class BattleDiagnosticPatch
                 }
             }
         }
-    }
 
     [HarmonyPatch(typeof(BattleSpriteEntity), nameof(BattleSpriteEntity.Init))]
     [HarmonyPrefix]

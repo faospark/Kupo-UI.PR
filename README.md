@@ -355,7 +355,13 @@ Default_00.json
   "preserveAspect": true,
   "scale": 1.0,
   "offsetX": 0.5,
-  "offsetY": -0.8
+  "offsetY": -0.8,
+  "spriteWidth": 36,
+  "spriteHeight": 56,
+  "spriteRectX": 0,
+  "spriteRectY": 0,
+  "spriteOffsetX": 0.0,
+  "spriteOffsetY": -28.0
 }
 ```
 
@@ -376,6 +382,12 @@ Default_00.json
 | `scale`                     | Extra multiplier applied on top of the `preserveAspect` best-fit (e.g. `0.8` = 80%, `1.5` = 150%).                       |
 | `offsetX`                   | Shift custom sprite renderer position inside the battle frame horizontally (positive = right, negative = left).          |
 | `offsetY`                   | Shift custom sprite renderer position inside the battle frame vertically (positive = up, negative = down).               |
+| `spriteWidth`               | Logical display width for sprite-specific layout (takes precedence over `width` in UI and Bestiary screens).             |
+| `spriteHeight`              | Logical display height for sprite-specific layout (takes precedence over `height`).                                     |
+| `spriteRectX`               | Pixel X offset within the replacement texture specific to the sprite rect.                                                |
+| `spriteRectY`               | Pixel Y offset within the replacement texture specific to the sprite rect.                                                |
+| `spriteOffsetX`             | Sizing layout offset X (takes precedence over `offsetX`).                                                                 |
+| `spriteOffsetY`             | Sizing layout offset Y (takes precedence over `offsetY`).                                                                 |
 
 > **Note:** When `width`/`height` are provided, sprite creation uses them to override replacement rect sizing; when values do not fit atlas coordinates, origin-clamped sizing is used as a fallback.
 
