@@ -37,6 +37,39 @@ internal static class BattleDiagnosticPatch
                 if (customW > 0 && customH > 0)
                 {
                     _currentCustomSize = new Tuple<int, int>(customW, customH);
+                    
+                    try
+                    {
+                        var monsterType = monster.GetType();
+                        var widthProp = monsterType.GetProperty("Width", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase) 
+                                        ?? monsterType.GetProperty("width", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+                        var heightProp = monsterType.GetProperty("Height", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase)
+                                         ?? monsterType.GetProperty("height", BindingFlags.Public | BindingFlags.Instance | BindingFlags.IgnoreCase);
+
+                        if (widthProp != null && widthProp.CanWrite)
+                        {
+                            widthProp.SetValue(monster, customW);
+                        }
+                        if (heightProp != null && heightProp.CanWrite)
+                        {
+                            heightProp.SetValue(monster, customH);
+                        }
+
+                        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                        {
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] Dynamically set monster size properties (Width={widthProp?.Name}, Height={heightProp?.Name}) to {customW}x{customH}");
+                            // Also print all properties to help debug if they are missing
+                            foreach (var p in monsterType.GetProperties(BindingFlags.Public | BindingFlags.Instance))
+                            {
+                                KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic]   Monster Property: {p.Name} (Type={p.PropertyType.Name}, CanWrite={p.CanWrite})");
+                            }
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogWarning($"[BattleDiagnostic] Failed to set monster properties via reflection: {ex.Message}");
+                    }
+
                     if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                     {
                         KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] Stored custom size {customW}x{customH} for upcoming enemy creation of asset ID {assetId}");
@@ -73,7 +106,11 @@ internal static class BattleDiagnosticPatch
 
                     if (!string.IsNullOrEmpty(groupName) && !string.IsNullOrEmpty(assetName))
                     {
-                        string computedSpriteName = $"{groupName.ToUpperInvariant()}_{assetName.ToUpperInvariant()}";
+                        string cleanGroup = groupName.Trim().ToUpperInvariant();
+                        string cleanAsset = assetName.Trim().ToUpperInvariant();
+                        string computedSpriteName = cleanAsset.StartsWith(cleanGroup, StringComparison.Ordinal)
+                            ? cleanAsset
+                            : $"{cleanGroup}_{cleanAsset}";
                         AssetIdToSpriteName[assetId] = computedSpriteName;
                         
                         if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
