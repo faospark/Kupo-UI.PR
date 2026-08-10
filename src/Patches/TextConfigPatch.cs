@@ -1238,10 +1238,92 @@ namespace KupoUI.PR.Patches
                         ProcessParamListView(view);
                     }
                 }
+
+                // 3. Process custom monster image scaling & offset
+                ApplyCustomSizingToLibraryInfo(__instance);
             }
             catch (Exception ex)
             {
                 KupoUIPRPlugin.PluginLog.LogError($"[TextConfig] Error in LibraryInfoContent.UpdateView Postfix: {ex}");
+            }
+        }
+
+        private static void ApplyCustomSizingToLibraryInfo(Last.UI.Common.Library.LibraryInfoContent instance)
+        {
+            if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+            {
+                KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch] ApplyCustomSizingToLibraryInfo: entered for instance={instance.name}");
+            }
+            
+            // Search globally for the MonsterArea GameObject in the active UI hierarchy
+            var monsterAreaObj = UnityEngine.GameObject.Find("MonsterArea");
+            if (monsterAreaObj == null)
+            {
+                // Fallback to recursive child transform search under the instance
+                var t = CustomTexturePatch.FindTransformRecursive(instance.transform, "MonsterArea");
+                monsterAreaObj = t != null ? t.gameObject : null;
+            }
+
+            if (monsterAreaObj != null)
+            {
+                var imageTransform = monsterAreaObj.transform.Find("Image");
+                if (imageTransform != null)
+                {
+                    var image = imageTransform.GetComponent<UnityEngine.UI.Image>();
+                    if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Found Image component: imageObj={image != null}, sprite={image?.sprite?.name}, texture={image?.sprite?.texture?.name}");
+                    }
+
+                    if (image != null && image.sprite != null)
+                    {
+                        var sprite = image.sprite;
+                        var metadata = CustomTexturePatch.GetMetadataForSprite(sprite, null);
+                        
+                        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                        {
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Sprite metadata lookup: sprite={sprite.name}, texture={sprite.texture?.name}, hasMetadata={metadata != null}");
+                        }
+
+                        if (metadata != null)
+                        {
+                            int targetW = metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width;
+                            int targetH = metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height;
+
+                            if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                            {
+                                KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Applying sizing: targetSize={targetW}x{targetH}, offset=({metadata.OffsetX}, {metadata.OffsetY})");
+                            }
+
+                            if (metadata.Width > 0 || metadata.Height > 0)
+                            {
+                                image.rectTransform.SetSizeWithCurrentAnchors(UnityEngine.RectTransform.Axis.Horizontal, targetW);
+                                image.rectTransform.SetSizeWithCurrentAnchors(UnityEngine.RectTransform.Axis.Vertical, targetH);
+                            }
+
+                            if (metadata.OffsetX.HasValue || metadata.OffsetY.HasValue)
+                            {
+                                float ox = metadata.OffsetX ?? 0f;
+                                float oy = metadata.OffsetY ?? 0f;
+                                image.rectTransform.anchoredPosition = new Vector2(ox, oy);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo("[CustomTexturePatch]   MonsterArea found, but no 'Image' child found under it.");
+                    }
+                }
+            }
+            else
+            {
+                if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo("[CustomTexturePatch]   Could not find transform 'MonsterArea' globally or under LibraryInfoContent.");
+                }
             }
         }
 

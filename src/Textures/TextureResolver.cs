@@ -263,7 +263,7 @@ internal static class TextureResolver
         }
     }
 
-    internal static bool TryCreateReplacementSprite(Sprite original, out Sprite replacement, string assetAddressHint = null)
+    internal static bool TryCreateReplacementSprite(Sprite original, out Sprite replacement, string assetAddressHint = null, bool isUi = false)
     {
         MaybeRefreshIndex();
 
@@ -342,7 +342,7 @@ internal static class TextureResolver
             border = metadataBorder.Value;
         }
 
-        var replacementPixelsPerUnit = CalculateReplacementPixelsPerUnit(original, rect, metadata);
+        var replacementPixelsPerUnit = CalculateReplacementPixelsPerUnit(original, rect, metadata, isUi);
 
         replacement = Sprite.Create(
             customTexture,
@@ -369,7 +369,7 @@ internal static class TextureResolver
         return true;
     }
 
-    private static float CalculateReplacementPixelsPerUnit(Sprite original, Rect replacementRect, TextureOverrideMetadata metadata)
+    private static float CalculateReplacementPixelsPerUnit(Sprite original, Rect replacementRect, TextureOverrideMetadata metadata, bool isUi = false)
     {
         if (original == null)
         {
@@ -382,6 +382,12 @@ internal static class TextureResolver
         }
 
         var originalPixelsPerUnit = original.pixelsPerUnit > 0f ? original.pixelsPerUnit : 100f;
+
+        if (isUi)
+        {
+            return originalPixelsPerUnit;
+        }
+
         var originalRect = original.rect;
         var targetWidth = originalRect.width;
         var targetHeight = originalRect.height;

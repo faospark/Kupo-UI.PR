@@ -314,6 +314,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ObjectConfigPatch.Initialize(ModulesRootPath);
         TextConfigPatch.Initialize(ModulesRootPath);
         IconsConfigLoader.Initialize(ModulesRootPath);
+        DatabaseConfigPatch.Initialize(ModulesRootPath, harmony);
         TextConfigPatch.PatchItemListContentData(harmony);
         TextConfigPatch.PatchShopListContentData(harmony);
         TextConfigPatch.PatchLibraryInfoContent(harmony);
@@ -816,4 +817,25 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
     internal static bool EnableCustomTextures => true;
+
+    private int _frameCounter = 0;
+    private void Update()
+    {
+        _frameCounter++;
+        if (_frameCounter % 60 == 0)
+        {
+            var monsterAreaObj = UnityEngine.GameObject.Find("MonsterArea");
+            var imageObj = monsterAreaObj != null ? monsterAreaObj.transform.Find("Image")?.gameObject : null;
+
+            if (imageObj != null)
+            {
+                var rt = imageObj.GetComponent<UnityEngine.RectTransform>();
+                var image = imageObj.GetComponent<UnityEngine.UI.Image>();
+                if (rt != null && image != null && image.sprite != null)
+                {
+                    PluginLog.LogWarning($"[BestiaryDiag] FrameUpdate: sizeDelta={rt.sizeDelta}, localScale={imageObj.transform.localScale}, anchoredPosition={rt.anchoredPosition}, sprite={image.sprite.name}, rect={image.sprite.rect}, active={imageObj.activeInHierarchy}");
+                }
+            }
+        }
+    }
 }
