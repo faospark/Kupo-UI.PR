@@ -877,8 +877,16 @@ background_canvas/ui_root/backgrou_root/
 **Notes:**
 
 - The object is only created once per activation cycle — no duplicates on re-activation.
-- The texture is kept alive with `DontDestroyOnLoad` to survive additive scene reloads.
 - For best results, use an image sized to your target resolution (e.g. 1920×1080).
+
+#### Custom Title Logo Image Overrides
+When using custom full-screen background images, you may want to hide or override the game's built-in title logos. To do this, replace the following three texture files with completely transparent PNG files in your mod folder:
+- `TitleLogoImage`
+- `TitleLogoImage_EN`
+- `TitleLogoImage_ZH-CH`
+
+> [!NOTE]
+> The game's main title logos are tied directly to the fade-in animation timeline sequence on startup, making them extremely difficult to cleanly patch via Harmony. Replacing these files with transparent textures on disk is the recommended way to hide or override them.
 
 ### Main Menu Background Image
 
