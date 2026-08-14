@@ -82,7 +82,7 @@ internal static class BattleDiagnosticPatch
 
     [HarmonyPatch(typeof(InstantiateManager), nameof(InstantiateManager.CreateEnemy))]
     [HarmonyPostfix]
-    private static void CreateEnemyPostfix(BattleEnemyEntity __result)
+    private static void CreateEnemyPostfix(BattleSpriteEntity __result)
     {
         _currentCustomSize = null;
     }
