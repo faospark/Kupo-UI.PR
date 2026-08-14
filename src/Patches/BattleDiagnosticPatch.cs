@@ -5,6 +5,7 @@ using HarmonyLib;
 using Last.Battle;
 using Last.Data.Master;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace KupoUI.PR.Patches;
 
@@ -238,7 +239,7 @@ internal static class BattleDiagnosticPatch
     [HarmonyPostfix]
     private static void SetSpritePostfix(BattleSpriteEntity __instance, Sprite sprite)
     {
-        if (sprite == null) return;
+        if (__instance == null || __instance.Pointer == IntPtr.Zero || sprite == null) return;
         
         if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
         {
@@ -353,6 +354,7 @@ internal static class BattleDiagnosticPatch
     [HarmonyPrefix]
     private static void InitPrefix(BattleSpriteEntity __instance, ref int width, ref int height, Vector2 facePosition, Vector2 mouthPosition, bool isPlayer)
     {
+        if (__instance == null || __instance.Pointer == IntPtr.Zero) return;
         if (_isRecallingSetSize) return;
 
         if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
@@ -386,6 +388,7 @@ internal static class BattleDiagnosticPatch
     [HarmonyPrefix]
     private static void SetSizePrefix(BattleSpriteEntity __instance, ref int width, ref int height, Vector2 facePosition, Vector2 mouthPosition)
     {
+        if (__instance == null || __instance.Pointer == IntPtr.Zero) return;
         if (_isRecallingSetSize) return;
 
         if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
@@ -415,15 +418,19 @@ internal static class BattleDiagnosticPatch
         }
     }
 
-    [HarmonyPatch(typeof(BattleSpriteEntity), nameof(BattleSpriteEntity.OnDestroy))]
-    [HarmonyPrefix]
-    private static void OnDestroyPrefix(BattleSpriteEntity __instance)
+    // Clear per-entity lookup tables on every scene load instead of hooking
+    // BattleSpriteEntity.OnDestroy — the game's own OnDestroy body throws a
+    // NullReferenceException on pre-pooled/uninitialized entities during the
+    // intro scene, and our Harmony prefix causes that body to still be invoked.
+    [HarmonyPatch(typeof(SceneManager), "Internal_SceneLoaded")]
+    [HarmonyPostfix]
+    private static void SceneLoadedPostfix()
     {
-        CustomSizes.Remove(__instance.Pointer);
-        SavedPositions.Remove(__instance.Pointer);
+        CustomSizes.Clear();
+        SavedPositions.Clear();
         if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
         {
-            KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] OnDestroy: Cleared custom size mapping for BattleSpriteEntity {__instance.name} (ptr={__instance.Pointer:X})");
+            KupoUIPRPlugin.PluginLog.LogInfo("[BattleDiagnostic] Scene loaded: cleared CustomSizes and SavedPositions.");
         }
     }
 }
