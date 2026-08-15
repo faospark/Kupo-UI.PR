@@ -673,7 +673,7 @@ internal static class ObjectConfigPatch
         {
             foreach (var imgConfig in entry.NewImages)
             {
-                var sprite = GetOrCreateCustomSprite(imgConfig.ImagePath, entry.SourceFile);
+                var sprite = GetOrCreateCustomSprite(imgConfig.ImagePath, entry.SourceFile, out var spriteMetadata);
                 if (sprite == null)
                 {
                     continue;
@@ -699,6 +699,11 @@ internal static class ObjectConfigPatch
                             KupoUIPRPlugin.PluginLog.LogWarning(
                                 $"[ObjectConfig] Invalid ImageType '{imgConfig.ImageType}' specified for child '{imgConfig.Name}'. Use Simple, Sliced, Tiled, or Filled.");
                         }
+                    }
+                    else if (spriteMetadata != null && IsRepeatWrapMode(spriteMetadata))
+                    {
+                        // wrapMode Repeat/Mirror in the metadata signals the image should tile.
+                        imageComponent.type = Image.Type.Tiled;
                     }
                     else if (sprite != null && sprite.border != Vector4.zero)
                     {
@@ -1415,8 +1420,13 @@ internal static class ObjectConfigPatch
         return path;
     }
 
-    private static Sprite GetOrCreateCustomSprite(string imagePath, string entrySourceFile)
+    private static bool IsRepeatWrapMode(KupoUI.PR.Textures.TextureResolver.TextureOverrideMetadata m)
+        => KupoUI.PR.Textures.TextureResolver.IsAnyAxisTiling(m);
+
+    private static Sprite GetOrCreateCustomSprite(string imagePath, string entrySourceFile,
+        out KupoUI.PR.Textures.TextureResolver.TextureOverrideMetadata outMetadata)
     {
+        outMetadata = null;
         var isSimpleName = !imagePath.Contains("/") && !imagePath.Contains("\\");
         var cleanName = imagePath;
         if (isSimpleName)
@@ -1443,6 +1453,7 @@ internal static class ObjectConfigPatch
             var tex = KupoUI.PR.Textures.TextureResolver.LoadTexture(cleanName, null, out metadata);
             if (tex != null)
             {
+                outMetadata = metadata;
                 var rect = new Rect(0, 0, tex.width, tex.height);
                 if (metadata != null)
                 {
@@ -1541,8 +1552,9 @@ internal static class ObjectConfigPatch
                 if (ImageConversion.LoadImage(tex, bytes))
                 {
                     var metadata = KupoUI.PR.Textures.TextureResolver.LoadTextureMetadata(absolutePath);
+                    outMetadata = metadata;
                     tex.filterMode = KupoUI.PR.Textures.TextureResolver.ResolveFilterMode(absolutePath, metadata);
-                    tex.wrapMode = KupoUI.PR.Textures.TextureResolver.ResolveWrapMode(absolutePath, metadata);
+                    KupoUI.PR.Textures.TextureResolver.ApplyWrapMode(tex, absolutePath, metadata);
 
                     var rect = new Rect(0, 0, tex.width, tex.height);
                     if (metadata != null)

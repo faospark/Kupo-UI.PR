@@ -346,9 +346,11 @@ Default_00.json
   "height": 144,
   "pixelsPerUnit": 100,
   "filterMode": "Point",
-  "wrapMode": "Clamp",
+  "wrapMode": "Repeat",
+  "wrapModeU": "Repeat",
+  "wrapModeV": "Repeat",
   "pivot": "0.5,0.5",
-  "border": "4,4,4,4",
+  "border": "0,0,0,0",
   "rectX": 0,
   "rectY": 16,
   "flipHorizontal": false,
@@ -365,31 +367,35 @@ Default_00.json
 }
 ```
 
-| Field                       | Description                                                                                                              |
-| --------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `width`                     | Logical source width used to calculate replacement sprite scale.                                                         |
-| `height`                    | Logical source height used to calculate replacement sprite scale.                                                        |
-| `pixelsPerUnit`             | Direct sprite PPU override (takes priority over auto scale calculation).                                                 |
-| `filterMode` / `filterType` | Filter override: `Point`, `Bilinear` (or `Linear` alias), or `Trilinear`. String mode takes priority over `pointFilter`. |
-| `pointFilter`               | Legacy boolean shorthand:`true` = `Point`, `false` = `Bilinear`.                                                         |
-| `wrapMode`                  | Wrap mode:`Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                                                   |
-| `pivot`                     | Normalized sprite anchor`"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.                                 |
-| `border`                    | 9-slice border in pixels`"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.                         |
-| `rectX`                     | Pixel X offset within the replacement texture (source UV position, not screen position).                                 |
-| `rectY`                     | Pixel Y offset within the replacement texture. Useful for sprite sheets.                                                 |
-| `flipHorizontal` / `flipX`  | Flip the replacement texture horizontally.                                                                               |
-| `preserveAspect`            | Bilinear-scale custom sprite to best-fit inside the original bounding rect, padded with transparency. Prevents cropping. |
-| `scale`                     | Extra multiplier applied on top of the `preserveAspect` best-fit (e.g. `0.8` = 80%, `1.5` = 150%).                       |
-| `offsetX`                   | Shift custom sprite renderer position inside the battle frame horizontally (positive = right, negative = left).          |
-| `offsetY`                   | Shift custom sprite renderer position inside the battle frame vertically (positive = up, negative = down).               |
-| `spriteWidth`               | Logical display width for sprite-specific layout (takes precedence over `width` in UI and Bestiary screens).             |
-| `spriteHeight`              | Logical display height for sprite-specific layout (takes precedence over `height`).                                     |
-| `spriteRectX`               | Pixel X offset within the replacement texture specific to the sprite rect.                                                |
-| `spriteRectY`               | Pixel Y offset within the replacement texture specific to the sprite rect.                                                |
-| `spriteOffsetX`             | Sizing layout offset X (takes precedence over `offsetX`).                                                                 |
-| `spriteOffsetY`             | Sizing layout offset Y (takes precedence over `offsetY`).                                                                 |
+| Field                                         | Description                                                                                                              |
+| --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| `width`                                       | Logical source width used to calculate replacement sprite scale.                                                         |
+| `height`                                      | Logical source height used to calculate replacement sprite scale.                                                        |
+| `pixelsPerUnit`                               | Direct sprite PPU override (takes priority over auto scale calculation).                                                 |
+| `filterMode` / `filterType`                   | Filter override: `Point`, `Bilinear` (or `Linear` alias), or `Trilinear`. String mode takes priority over `pointFilter`. |
+| `pointFilter`                                 | Legacy boolean shorthand: `true` = `Point`, `false` = `Bilinear`.                                                         |
+| `wrapMode` / `wrap_mode`                      | Global wrap mode: `Clamp`, `Repeat`, `Mirror`, `MirrorOnce`. Default: `Clamp`.                                           |
+| `wrapModeU` / `wrapModeX` / `wrap_mode_u/x`   | Horizontal (U/X axis) wrap mode override: `Clamp`, `Repeat`, `Mirror`.                                                   |
+| `wrapModeV` / `wrapModeY` / `wrap_mode_v/y`   | Vertical (V/Y axis) wrap mode override: `Clamp`, `Repeat`, `Mirror`.                                                     |
+| `repeatX` / `repeat_x`                        | Boolean shorthand for horizontal tiling: `true` = `"Repeat"`, `false` = `"Clamp"`.                                       |
+| `repeatY` / `repeat_y`                        | Boolean shorthand for vertical tiling: `true` = `"Repeat"`, `false` = `"Clamp"`.                                         |
+| `pivot`                                       | Normalized sprite anchor `"x,y"` (0–1). E.g. `"0.5,0.5"` = center, `"0,0"` = bottom-left.                                 |
+| `border`                                      | 9-slice border in pixels `"left,bottom,right,top"`. Use `"0,0,0,0"` to strip an inherited border.                         |
+| `rectX`                                       | Pixel X offset within the replacement texture (source UV position, not screen position).                                 |
+| `rectY`                                       | Pixel Y offset within the replacement texture. Useful for sprite sheets.                                                 |
+| `flipHorizontal` / `flipX`                    | Flip the replacement texture horizontally.                                                                               |
+| `preserveAspect`                              | Bilinear-scale custom sprite to best-fit inside the original bounding rect, padded with transparency. Prevents cropping. |
+| `scale`                                       | Extra multiplier applied on top of the `preserveAspect` best-fit (e.g. `0.8` = 80%, `1.5` = 150%).                       |
+| `offsetX`                                     | Shift custom sprite renderer position inside the battle frame horizontally (positive = right, negative = left).          |
+| `offsetY`                                     | Shift custom sprite renderer position inside the battle frame vertically (positive = up, negative = down).               |
+| `spriteWidth`                                 | Logical display width for sprite-specific layout (takes precedence over `width` in UI and Bestiary screens).             |
+| `spriteHeight`                                | Logical display height for sprite-specific layout (takes precedence over `height`).                                     |
+| `spriteRectX`                                 | Pixel X offset within the replacement texture specific to the sprite rect.                                                |
+| `spriteRectY`                                 | Pixel Y offset within the replacement texture specific to the sprite rect.                                                |
+| `spriteOffsetX`                               | Sizing layout offset X (takes precedence over `offsetX`).                                                                 |
+| `spriteOffsetY`                               | Sizing layout offset Y (takes precedence over `offsetY`).                                                                 |
 
-> **Note:** When `width`/`height` are provided, sprite creation uses them to override replacement rect sizing; when values do not fit atlas coordinates, origin-clamped sizing is used as a fallback.
+> **Automatic UI Texture Tiling:** When `wrapMode` (or per-axis U/V wrap modes) is set to `Repeat` or `Mirror` in sidecar metadata, KupoUI.PR automatically configures `UnityEngine.UI.Image` to `Image.Type.Tiled` and recalculates `uvRect` for `RawImage` components at render time (`OnPopulateMesh`). Outer 9-slice borders are cleared to `0,0,0,0` unless an explicit `border` inset is declared in metadata, preventing edge-stretching artifacts. Native game UI elements (e.g. save slot thumbnails, UI masks) without custom tiling sidecars are protected and rendered normally.
 
 ### Texture Formats & Filter Modes
 

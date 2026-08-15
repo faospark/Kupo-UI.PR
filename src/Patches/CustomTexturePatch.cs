@@ -32,24 +32,15 @@ internal static class CustomTexturePatch
     [HarmonyPostfix]
     private static void SpriteTexturePostfix(Sprite __instance, ref Texture2D __result)
     {
-        if (!KupoUIPRPlugin.EnableCustomTextures)
+        if (!KupoUIPRPlugin.EnableCustomTextures || __result == null || __result.name.EndsWith("_Custom"))
         {
             return;
         }
 
-        if (__result == null)
-        {
-            return;
-        }
-
-        if (__result.name.EndsWith("_Custom"))
-        {
-            return;
-        }
-
-        // [OPT-PERF] Skip sprites we have already handled — avoids per-frame work during scrolling.
+        // Add spriteId to processed set immediately — HashSet.Add returns false if already present.
+        // This prevents any recursive re-entry during rendering or layout updates.
         var spriteId = __instance.GetInstanceID();
-        if (SpriteTextureProcessedIds.Contains(spriteId))
+        if (!SpriteTextureProcessedIds.Add(spriteId))
         {
             return;
         }
@@ -62,22 +53,23 @@ internal static class CustomTexturePatch
             && !TextureResolver.HasTextureOverride(__result.name)
             && !TextureResolver.HasPathOverride(assetAddress))
         {
-            // Atlas textures are only replaced when an explicit atlas override file exists.
-            SpriteTextureProcessedIds.Add(spriteId);
             return;
         }
 
         TextureLogger.LogObservedTextureName(__result.name, "Sprite.texture.get");
 
-        TextureResolver.TryReplaceTextureInPlace(__result, __result.name, assetAddress);
+        bool replaced = TextureResolver.TryReplaceTextureInPlace(__result, __result.name, assetAddress);
 
-        // Mark as processed regardless of success so we don't retry on every frame.
-        SpriteTextureProcessedIds.Add(spriteId);
+        if (KupoUIPRPlugin.DiagnosticTextureTilingConfig != null && KupoUIPRPlugin.DiagnosticTextureTilingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[WrapModeDiag] SpriteTexturePostfix: sprite='{__instance?.name}', tex='{__result?.name}', replaced={replaced}, isTiling={TextureResolver.IsAnyAxisTiling(__result)}");
+        }
     }
 
     [HarmonyPatch(typeof(SpriteRenderer), nameof(SpriteRenderer.sprite), MethodType.Setter)]
     [HarmonyPrefix]
-    private static void SpriteRendererSpritePrefix(ref Sprite value)
+    private static void SpriteRendererSpritePrefix(SpriteRenderer __instance, ref Sprite value)
     {
         if (!KupoUIPRPlugin.EnableCustomTextures)
         {
@@ -111,6 +103,120 @@ internal static class CustomTexturePatch
         {
             value = replacement;
         }
+
+        if (__instance != null && value != null && value.texture != null && TextureResolver.IsAnyAxisTiling(value.texture))
+        {
+            __instance.drawMode = SpriteDrawMode.Tiled;
+        }
+    }
+
+    [HarmonyPatch(typeof(Image), nameof(Image.overrideSprite), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void UIImageOverrideSpritePrefix(Image __instance, ref Sprite value)
+    {
+        UIImageSpritePrefix(__instance, ref value);
+    }
+
+    internal static bool IsCustomTilingActive(Sprite sprite, string assetAddress = null)
+    {
+        if (sprite == null) return false;
+
+        var metadata = GetMetadataForSprite(sprite, assetAddress);
+        if (metadata != null)
+        {
+            return TextureResolver.IsAnyAxisTiling(metadata);
+        }
+
+        if (sprite.name != null && sprite.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase) && sprite.texture != null)
+        {
+            return TextureResolver.IsAnyAxisTiling(sprite.texture);
+        }
+
+        return false;
+    }
+
+    internal static bool IsCustomTilingActiveForTexture(Texture texture, string assetAddress = null)
+    {
+        if (texture == null || !(texture is Texture2D tex2d)) return false;
+
+        var metadata = TextureResolver.LoadMetadataByName(tex2d.name);
+        if (metadata != null)
+        {
+            return TextureResolver.IsAnyAxisTiling(metadata);
+        }
+
+        if (tex2d.name != null && tex2d.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase))
+        {
+            return TextureResolver.IsAnyAxisTiling(tex2d);
+        }
+
+        return false;
+    }
+
+    [HarmonyPatch(typeof(Image), nameof(Image.type), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void UIImageTypePrefix(Image __instance, ref Image.Type value)
+    {
+        if (!KupoUIPRPlugin.EnableCustomTextures || __instance == null) return;
+        var activeSprite = __instance.overrideSprite ?? __instance.sprite;
+        if (IsCustomTilingActive(activeSprite))
+        {
+            if (value != Image.Type.Tiled)
+            {
+                value = Image.Type.Tiled;
+                __instance.preserveAspect = false;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(Image), "OnPopulateMesh")]
+    [HarmonyPrefix]
+    private static void ImageOnPopulateMeshPrefix(Image __instance)
+    {
+        if (!KupoUIPRPlugin.EnableCustomTextures || __instance == null) return;
+        var activeSprite = __instance.overrideSprite ?? __instance.sprite;
+        if (IsCustomTilingActive(activeSprite))
+        {
+            if (__instance.type != Image.Type.Tiled)
+            {
+                __instance.type = Image.Type.Tiled;
+                __instance.preserveAspect = false;
+            }
+        }
+    }
+
+    [HarmonyPatch(typeof(RawImage), "OnPopulateMesh")]
+    [HarmonyPrefix]
+    private static void RawImageOnPopulateMeshPrefix(RawImage __instance)
+    {
+        if (!KupoUIPRPlugin.EnableCustomTextures || __instance == null) return;
+        if (__instance.texture is Texture2D tex2d && IsCustomTilingActiveForTexture(tex2d))
+        {
+            TextureResolver.ApplyRawImageTiling(__instance, tex2d);
+        }
+    }
+
+    [HarmonyPatch(typeof(RawImage), nameof(RawImage.texture), MethodType.Setter)]
+    [HarmonyPrefix]
+    private static void RawImageTexturePrefix(RawImage __instance, ref Texture value)
+    {
+        if (!KupoUIPRPlugin.EnableCustomTextures || __instance == null || value == null) return;
+
+        if (value is Texture2D tex2d)
+        {
+            AssetAddressTracker.TryGetAddress(null, tex2d, out var assetAddress);
+            TextureResolver.TryReplaceTextureInPlace(tex2d, tex2d.name, assetAddress);
+
+            if (IsCustomTilingActiveForTexture(tex2d, assetAddress))
+            {
+                TextureResolver.ApplyRawImageTiling(__instance, tex2d);
+                if (KupoUIPRPlugin.DiagnosticTextureTilingConfig != null && KupoUIPRPlugin.DiagnosticTextureTilingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo(
+                        $"[WrapModeDiag] RawImageTexturePrefix set uvRect on '{__instance.name}' (texture='{tex2d.name}') -> {__instance.uvRect}");
+                }
+            }
+        }
     }
 
     [HarmonyPatch(typeof(Image), nameof(Image.sprite), MethodType.Setter)]
@@ -119,9 +225,17 @@ internal static class CustomTexturePatch
     {
         if (!KupoUIPRPlugin.EnableCustomTextures) return;
         if (value == null) return;
-        if (value.name.EndsWith("_Custom")) return;
+
+        bool isAlreadyCustom = value.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase);
 
         AssetAddressTracker.TryGetAddress(value, value.texture, out var assetAddress);
+
+        if (KupoUIPRPlugin.DiagnosticTextureTilingConfig != null && KupoUIPRPlugin.DiagnosticTextureTilingConfig.Value)
+        {
+            TryBuildTransformPath(__instance.transform, out var pathStr);
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[WrapModeDiag] UIImageSpritePrefix: Image='{__instance.name}' (path='{pathStr}'), sprite='{value.name}', typeBefore={__instance.type}, isAlreadyCustom={isAlreadyCustom}");
+        }
 
         // Add explicit trace for Bestiary image component
         if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
@@ -129,19 +243,22 @@ internal static class CustomTexturePatch
             KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch] Image.sprite setter prefix: name={__instance.name}, spriteName={value.name}, textureName={value.texture?.name}, address={assetAddress}");
         }
 
-        if (TryResolveMenuPortraitFromSpeakerPortraits(value, assetAddress, out var customSprite))
+        if (!isAlreadyCustom)
         {
-            value = customSprite;
-            __instance.preserveAspect = true;
-            return;
-        }
-
-        if (TextureResolver.TryCreateReplacementSprite(value, out var replacement, assetAddress, isUi: true))
-        {
-            value = replacement;
-            if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+            if (TryResolveMenuPortraitFromSpeakerPortraits(value, assetAddress, out var customSprite))
             {
-                KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Sprite replaced with custom sprite: {replacement.name}");
+                value = customSprite;
+                __instance.preserveAspect = true;
+                return;
+            }
+
+            if (TextureResolver.TryCreateReplacementSprite(value, out var replacement, assetAddress, isUi: true))
+            {
+                value = replacement;
+                if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Sprite replaced with custom sprite: {replacement.name}");
+                }
             }
         }
 
@@ -206,8 +323,9 @@ internal static class CustomTexturePatch
             }
             else
             {
-                // For the Bestiary/Library monster image, preserve aspect ratio and use Simple type
-                if (__instance.name == "Image")
+                // For the Bestiary/Library monster image, use Simple type unless the texture
+                // has a tiling wrap mode (in which case Tiled will be applied at the end).
+                if (__instance.name == "Image" && !TextureResolver.IsAnyAxisTiling(value?.texture))
                 {
                     __instance.preserveAspect = false; // Disable to allow custom aspect ratio!
                     __instance.type = UnityEngine.UI.Image.Type.Simple;
@@ -279,6 +397,22 @@ internal static class CustomTexturePatch
                     }
                 }
 
+            }
+        }
+
+        // Final override: if the texture has a tiling wrap mode, ensure the Image is Tiled.
+        // This runs last so no earlier metadata path can reset it back to Simple.
+        if (IsCustomTilingActive(value, assetAddress))
+        {
+            var oldType = __instance.type;
+            __instance.type = UnityEngine.UI.Image.Type.Tiled;
+            // preserveAspect is irrelevant (and misleading) for Tiled type — clear it.
+            __instance.preserveAspect = false;
+
+            if (KupoUIPRPlugin.DiagnosticTextureTilingConfig != null && KupoUIPRPlugin.DiagnosticTextureTilingConfig.Value)
+            {
+                KupoUIPRPlugin.PluginLog.LogInfo(
+                    $"[WrapModeDiag]   Final override set Image '{__instance.name}' type from {oldType} -> Tiled (texture='{value.texture.name}', wrapMode={value.texture.wrapMode}, u={value.texture.wrapModeU}, v={value.texture.wrapModeV})");
             }
         }
     }

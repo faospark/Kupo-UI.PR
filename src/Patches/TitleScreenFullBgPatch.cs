@@ -120,6 +120,10 @@ internal static class TitleScreenFullBgPatch
         rawImage.texture = tex;
         rawImage.color   = Color.white;
 
+        // Apply tiling uvRect if the texture's wrap mode requires it (per-axis aware).
+        var parentRt = parent.GetComponent<RectTransform>();
+        TextureResolver.ApplyRawImageTiling(rawImage, tex, null, parentRt);
+
         KupoUIPRPlugin.PluginLog.LogInfo(
             $"[TitleScreenFullBg] Injected '{FullBgObjectName}' ({tex.width}x{tex.height}) " +
             $"above '{bgTransform?.name ?? "background"}' under '{parent.name}'.");

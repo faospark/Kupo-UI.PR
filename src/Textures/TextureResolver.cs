@@ -51,7 +51,11 @@ internal static class TextureResolver
     private static readonly Regex RxPointFilter = new(@"""pointFilter""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxFilterMode = new(@"""filterMode""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxFilterType = new(@"""filterType""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex RxWrapMode = new(@"""wrapMode""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxWrapMode  = new(@"""(?:wrapMode|wrap_mode)""\s*:\s*""([^""]*)""",  RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxWrapModeU = new(@"""(?:wrapModeX|wrapModeU|wrap_mode_x|wrap_mode_u)""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxWrapModeV = new(@"""(?:wrapModeY|wrapModeV|wrap_mode_y|wrap_mode_v)""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxRepeatX   = new(@"""(?:repeatX|repeat_x)""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+    private static readonly Regex RxRepeatY   = new(@"""(?:repeatY|repeat_y)""\s*:\s*(true|false)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxPivot = new(@"""pivot""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxBorder = new(@"""border""\s*:\s*""([^""]*)""", RegexOptions.Compiled | RegexOptions.IgnoreCase);
     private static readonly Regex RxRectX = new(@"""rectX""\s*:\s*(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
@@ -228,7 +232,7 @@ internal static class TextureResolver
             }
 
             originalTexture.filterMode = ResolveFilterMode(path, metadata);
-            originalTexture.wrapMode = TextureWrapMode.Clamp;
+            ApplyWrapMode(originalTexture, path, metadata);
             originalTexture.Apply(true, false);
 
             if (!originalTexture.name.EndsWith("_Custom", StringComparison.OrdinalIgnoreCase))
@@ -348,6 +352,10 @@ internal static class TextureResolver
         if (metadataBorder.HasValue)
         {
             border = metadataBorder.Value;
+        }
+        else if (IsAnyAxisTiling(customTexture))
+        {
+            border = Vector4.zero;
         }
 
         var replacementPixelsPerUnit = CalculateReplacementPixelsPerUnit(original, rect, metadata, isUi);
@@ -530,7 +538,7 @@ internal static class TextureResolver
             }
 
             texture.filterMode = ResolveFilterMode(path, metadata);
-            texture.wrapMode = ResolveWrapMode(path, metadata);
+            ApplyWrapMode(texture, path, metadata);
             texture.name = textureName + "_Custom";
 
             TextureCache[cacheKey] = texture;
@@ -863,7 +871,9 @@ internal static class TextureResolver
                 PointFilter = MatchBool(RxPointFilter.Match(json)),
                 FilterMode = MatchString(RxFilterMode.Match(json)),
                 FilterType = MatchString(RxFilterType.Match(json)),
-                WrapMode = MatchString(RxWrapMode.Match(json)),
+                WrapMode  = MatchString(RxWrapMode.Match(json)),
+                WrapModeU = MatchString(RxWrapModeU.Match(json)) ?? (MatchBool(RxRepeatX.Match(json)) == true ? "Repeat" : (MatchBool(RxRepeatX.Match(json)) == false ? "Clamp" : null)),
+                WrapModeV = MatchString(RxWrapModeV.Match(json)) ?? (MatchBool(RxRepeatY.Match(json)) == true ? "Repeat" : (MatchBool(RxRepeatY.Match(json)) == false ? "Clamp" : null)),
                 Pivot = MatchString(RxPivot.Match(json)),
                 Border = MatchString(RxBorder.Match(json)),
                 RectX = MatchNullableInt(RxRectX.Match(json)),
@@ -990,33 +1000,135 @@ internal static class TextureResolver
         return ShouldUsePointFilter(texturePath) ? FilterMode.Point : FilterMode.Bilinear;
     }
 
+    private static TextureWrapMode ParseWrapModeString(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return TextureWrapMode.Clamp;
+        if (value.Equals("Repeat",     StringComparison.OrdinalIgnoreCase)) return TextureWrapMode.Repeat;
+        if (value.Equals("Mirror",     StringComparison.OrdinalIgnoreCase)) return TextureWrapMode.Mirror;
+        if (value.Equals("MirrorOnce", StringComparison.OrdinalIgnoreCase)) return TextureWrapMode.MirrorOnce;
+        if (value.Equals("Clamp",      StringComparison.OrdinalIgnoreCase)) return TextureWrapMode.Clamp;
+        return TextureWrapMode.Clamp;
+    }
+
     internal static TextureWrapMode ResolveWrapMode(string texturePath, TextureOverrideMetadata metadata)
     {
         if (metadata != null && !string.IsNullOrEmpty(metadata.WrapMode))
         {
-            var requestedWrap = metadata.WrapMode;
-            if (requestedWrap.Equals("Repeat", StringComparison.OrdinalIgnoreCase))
-            {
-                return TextureWrapMode.Repeat;
-            }
-
-            if (requestedWrap.Equals("Mirror", StringComparison.OrdinalIgnoreCase))
-            {
-                return TextureWrapMode.Mirror;
-            }
-
-            if (requestedWrap.Equals("MirrorOnce", StringComparison.OrdinalIgnoreCase))
-            {
-                return TextureWrapMode.MirrorOnce;
-            }
-
-            if (requestedWrap.Equals("Clamp", StringComparison.OrdinalIgnoreCase))
-            {
-                return TextureWrapMode.Clamp;
-            }
+            return ParseWrapModeString(metadata.WrapMode);
         }
 
         return TextureWrapMode.Clamp;
+    }
+
+    /// <summary>
+    /// Applies wrap mode(s) from metadata to <paramref name="texture"/>.
+    /// When <c>wrapModeX</c> or <c>wrapModeY</c> are set they control the U/V axes
+    /// independently. <c>wrapMode</c> provides the global fallback for any unspecified axis.
+    /// </summary>
+    internal static void ApplyWrapMode(Texture2D texture, string texturePath, TextureOverrideMetadata metadata)
+    {
+        if (texture == null) return;
+
+        var global = ResolveWrapMode(texturePath, metadata);
+
+        var hasU = metadata != null && !string.IsNullOrEmpty(metadata.WrapModeU);
+        var hasV = metadata != null && !string.IsNullOrEmpty(metadata.WrapModeV);
+
+        if (hasU || hasV)
+        {
+            // Per-axis: set U and V independently, defaulting each unset axis to the global value.
+            texture.wrapModeU = hasU ? ParseWrapModeString(metadata.WrapModeU) : global;
+            texture.wrapModeV = hasV ? ParseWrapModeString(metadata.WrapModeV) : global;
+        }
+        else
+        {
+            // Uniform wrap mode across both axes.
+            texture.wrapMode = global;
+        }
+
+        if (KupoUIPRPlugin.DiagnosticTextureTilingConfig != null && KupoUIPRPlugin.DiagnosticTextureTilingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[WrapModeDiag] ApplyWrapMode on '{texture.name}' (path='{texturePath}'): " +
+                $"wrapMode={texture.wrapMode}, wrapModeU={texture.wrapModeU}, wrapModeV={texture.wrapModeV}");
+        }
+    }
+
+    /// <summary>
+    /// Returns true if any axis (global or per-axis) has a tiling wrap mode (Repeat / Mirror / MirrorOnce),
+    /// based on metadata values.
+    /// </summary>
+    internal static bool IsAnyAxisTiling(TextureOverrideMetadata metadata)
+    {
+        if (metadata == null) return false;
+        static bool IsTiling(string s) => !string.IsNullOrEmpty(s) &&
+            !s.Equals("Clamp", StringComparison.OrdinalIgnoreCase);
+        return IsTiling(metadata.WrapMode) || IsTiling(metadata.WrapModeU) || IsTiling(metadata.WrapModeV);
+    }
+
+    /// <summary>
+    /// Returns true if any axis has a tiling wrap mode, based on the <see cref="Texture2D"/> properties.
+    /// </summary>
+    internal static bool IsAnyAxisTiling(Texture2D texture)
+    {
+        if (texture == null) return false;
+        static bool IsTiling(TextureWrapMode m) => m != TextureWrapMode.Clamp;
+        return IsTiling(texture.wrapMode) || IsTiling(texture.wrapModeU) || IsTiling(texture.wrapModeV);
+    }
+
+    /// <summary>
+    /// Sets <c>rawImage.uvRect</c> so the texture tiles correctly across the parent
+    /// <see cref="RectTransform"/>. Per-axis aware: only axes whose wrap mode is tiling
+    /// get a UV scale > 1; clamped axes keep a scale of 1.
+    /// Call this after both the texture and the RawImage have been set up.
+    /// </summary>
+    internal static void ApplyRawImageTiling(
+        UnityEngine.UI.RawImage rawImage,
+        Texture2D texture,
+        TextureOverrideMetadata metadata,
+        UnityEngine.RectTransform parentRt)
+    {
+        if (rawImage == null || texture == null || parentRt == null) return;
+        if (texture.width <= 0 || texture.height <= 0) return;
+
+        bool uTiles, vTiles;
+        if (metadata != null && (!string.IsNullOrEmpty(metadata.WrapModeU) || !string.IsNullOrEmpty(metadata.WrapModeV)))
+        {
+            // Per-axis specified.
+            static bool IsTiling(string s, string global) =>
+                !string.IsNullOrEmpty(s)
+                    ? !s.Equals("Clamp", StringComparison.OrdinalIgnoreCase)
+                    : (!string.IsNullOrEmpty(global) && !global.Equals("Clamp", StringComparison.OrdinalIgnoreCase));
+            var g = metadata.WrapMode;
+            uTiles = IsTiling(metadata.WrapModeU, g);
+            vTiles = IsTiling(metadata.WrapModeV, g);
+        }
+        else
+        {
+            bool anyTile = IsAnyAxisTiling(texture);
+            uTiles = anyTile;
+            vTiles = anyTile;
+        }
+
+        if (!uTiles && !vTiles) return;
+
+        var rect = parentRt.rect;
+        float uScale = uTiles && texture.width  > 0 ? rect.width  / texture.width  : 1f;
+        float vScale = vTiles && texture.height > 0 ? rect.height / texture.height : 1f;
+        rawImage.uvRect = new UnityEngine.Rect(0, 0, uScale, vScale);
+    }
+
+    /// <summary>
+    /// Convenience overload for <see cref="ApplyRawImageTiling(UnityEngine.UI.RawImage, Texture2D, TextureOverrideMetadata, UnityEngine.RectTransform)"/>
+    /// that automatically resolves parent RectTransform from <paramref name="rawImage"/>.
+    /// </summary>
+    internal static void ApplyRawImageTiling(
+        UnityEngine.UI.RawImage rawImage,
+        Texture2D texture)
+    {
+        if (rawImage == null || texture == null) return;
+        var rt = rawImage.rectTransform ?? rawImage.GetComponent<UnityEngine.RectTransform>();
+        ApplyRawImageTiling(rawImage, texture, null, rt);
     }
 
     /// <summary>
@@ -1349,13 +1461,15 @@ internal static class TextureResolver
                 ? metadata.FilterType
                 : "-";
         var point = metadata.PointFilter.HasValue ? metadata.PointFilter.Value.ToString() : "-";
-        var wrap = !string.IsNullOrEmpty(metadata.WrapMode) ? metadata.WrapMode : "-";
+        var wrap  = !string.IsNullOrEmpty(metadata.WrapMode)  ? metadata.WrapMode  : "-";
+        var wrapU = !string.IsNullOrEmpty(metadata.WrapModeU) ? metadata.WrapModeU : "-";
+        var wrapV = !string.IsNullOrEmpty(metadata.WrapModeV) ? metadata.WrapModeV : "-";
         var pivot = !string.IsNullOrEmpty(metadata.Pivot) ? metadata.Pivot : "-";
         var border = !string.IsNullOrEmpty(metadata.Border) ? metadata.Border : "-";
         var rectX = metadata.RectX.HasValue ? metadata.RectX.Value.ToString() : "-";
         var rectY = metadata.RectY.HasValue ? metadata.RectY.Value.ToString() : "-";
 
-        return $"w={width},h={height},ppu={ppu},mode={mode},point={point},wrap={wrap},pivot={pivot},border={border},rectX={rectX},rectY={rectY}";
+        return $"w={width},h={height},ppu={ppu},mode={mode},point={point},wrap={wrap},wrapX={wrapU},wrapY={wrapV},pivot={pivot},border={border},rectX={rectX},rectY={rectY}";
     }
 
     internal sealed class TextureOverrideMetadata
@@ -1366,7 +1480,11 @@ internal static class TextureResolver
         internal bool? PointFilter { get; set; }
         internal string FilterMode { get; set; }
         internal string FilterType { get; set; }
-        internal string WrapMode { get; set; }
+        internal string WrapMode  { get; set; }
+        /// <summary>Per-axis horizontal (U) wrap mode. Corresponds to JSON key <c>wrapModeX</c>. Falls back to <see cref="WrapMode"/> when absent.</summary>
+        internal string WrapModeU { get; set; }
+        /// <summary>Per-axis vertical (V) wrap mode. Corresponds to JSON key <c>wrapModeY</c>. Falls back to <see cref="WrapMode"/> when absent.</summary>
+        internal string WrapModeV { get; set; }
         /// <summary>Normalized pivot "x,y" (0-1 each). E.g. "0.5,0.5" = center, "0,0" = bottom-left.</summary>
         internal string Pivot { get; set; }
         /// <summary>9-slice border in pixels "left,bottom,right,top". E.g. "4,4,4,4".</summary>
@@ -1454,8 +1572,10 @@ internal static class TextureResolver
         }
 
         var dstTex = new Texture2D(targetW, targetH, TextureFormat.RGBA32, false);
-        dstTex.filterMode = srcTex.filterMode;
-        dstTex.wrapMode = srcTex.wrapMode;
+        dstTex.filterMode  = srcTex.filterMode;
+        dstTex.wrapMode    = srcTex.wrapMode;
+        dstTex.wrapModeU   = srcTex.wrapModeU;
+        dstTex.wrapModeV   = srcTex.wrapModeV;
         dstTex.SetPixels(dstPixels);
         dstTex.Apply(true, false);
         return dstTex;

@@ -56,6 +56,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> SpeakerPortraitsPaddingConfig { get; private set; } = null!;
     internal static ConfigEntry<string> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticBattleLoggingConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticTextureTilingConfig { get; private set; } = null!;
 
     /// <summary>
     /// Speaker ID → display name registrations loaded from the "speakers" block of SpeakerNames.json / speaker-names.json.
@@ -255,6 +256,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "BattleLogging",
             false,
             "If true, outputs detailed diagnostic logging for battle sprite resolution, dimensions, and mesh renderer hierarchy.");
+
+        DiagnosticTextureTilingConfig = Config.Bind(
+            "Z - Diagnostics",
+            "TextureTilingLogging",
+            false,
+            "If true, logs every step of the wrapMode / Image.type tiling pipeline so you can see exactly which path a texture takes and what type ends up on its Image component.");
 
         DisableMouseCursorConfig = Config.Bind(
             "Utility",

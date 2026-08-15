@@ -148,17 +148,10 @@ internal static class MainMenuBgPatch
         rawImage.texture = tex;
         rawImage.color = Color.white;
 
-        if (tex.wrapMode == TextureWrapMode.Repeat)
-        {
-            var parentRt = aspectParent.GetComponent<RectTransform>();
-            if (parentRt != null)
-            {
-                var parentRect = parentRt.rect;
-                float uScale = parentRect.width / tex.width;
-                float vScale = parentRect.height / tex.height;
-                rawImage.uvRect = new Rect(0, 0, uScale, vScale);
-            }
-        }
+        // Apply tiling uvRect if the texture wrap mode requires it (per-axis aware).
+        // ApplyWrapMode already set wrapModeU/wrapModeV on the texture — read them directly.
+        var parentRt = aspectParent.GetComponent<RectTransform>();
+        TextureResolver.ApplyRawImageTiling(rawImage, tex, null, parentRt);
 
         _bgObjectRef = go;
 
