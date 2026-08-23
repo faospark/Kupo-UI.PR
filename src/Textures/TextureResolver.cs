@@ -622,6 +622,8 @@ internal static class TextureResolver
         IndexLayer(Path.Combine(root, "04-UI-Cursors", _cursorsPack));
         IndexLayer(Path.Combine(root, "05-Button-Prompts", _buttonPromptsPack));
 
+        ModConflictDetector.Run(root, gameTag);
+
         watch.Stop();
         if (_verboseLogs)
         {
