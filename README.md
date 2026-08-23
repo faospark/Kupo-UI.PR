@@ -139,6 +139,8 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
 - Mouse cursor hider
 - Force VSync
 - Folder blocking (`block*` path prefix) and game-tag/language scoping (`FF1`–`FF6` folders & root JSON scopes)
+- **Startup Mod Loader**: logs all active mods found in `00-Mods/` by folder name at startup
+- **Texture Conflict Detection**: warns at startup when multiple mods (or a mod vs. `System/`) provide the same texture key or addressable path
 - Comprehensive developer/modder diagnostic logging modes (for textures, fonts, dialogue text, speaker names, and inline icons)
 - Soft dependency detection for `Memoria.FFPR`, `Magicite`, and `FFPR_Fix`
 
@@ -195,7 +197,7 @@ BepInEx/config/faospark.kupoui.pr.cfg
 
 | Section                 | Key                           | Default    | Description                                                                                                                            |
 | ----------------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via`fontconfig.json` under `Modules/Shared/`.                                                                  |
+| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/System/`.                                                                  |
 | `UI`                    | `DisableItemDimming`          | `false`    | Forces all item list icons and names to display at full color, ignoring the grey dim tint applied to unusable items.                   |
 | `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options:`Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.           |
 | `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                                       |
@@ -260,7 +262,7 @@ Recommended structure created automatically on first run:
     03-UI-BgColor/        ← UI background color packs
     04-UI-Cursors/        ← cursor texture packs
     05-Button-Prompts/    ← button prompt texture packs
-    Shared/               ← cross-game textures, speaker portraits, and custom font/text configurations (fontconfig.json, TextConfig-sample.json)
+    System/               ← cross-game textures, speaker portraits, and custom font/text configurations (fontconfig.json, TextConfig-sample.json)
       SpeakerPortraits/   ← portrait images resolved by speaker ID
       FF1/                ← FF1-specific textures (game-tag folder)
       FF2/
@@ -272,7 +274,10 @@ Recommended structure created automatically on first run:
 
 Within each numbered folder you can create named sub-folders (packs). The active pack for each category is selected via the corresponding config key (e.g. `UIThemesFolder = MyTheme` selects `01-UI-Themes/MyTheme/`). An empty value means no pack is selected for that category.
 
-The `Shared/` folder is auto-created on first run. Place textures that apply to all six games directly inside `Shared/`, or inside the matching game-tag sub-folder (e.g. `Shared/FF2/`) to target a specific game. Speaker portraits belong in `Shared/SpeakerPortraits/`.
+The `System/` folder is auto-created on first run. Place textures that apply to all six games directly inside `System/`, or inside the matching game-tag sub-folder (e.g. `System/FF2/`) to target a specific game. Speaker portraits belong in `System/SpeakerPortraits/`.
+
+> [!NOTE]
+> **Migrating from `Shared/`**: The `Shared/` folder has been renamed to `System/`. If an existing `Modules/Shared/` folder is detected on startup, the plugin will automatically copy its contents into `Modules/System/` and log a warning. Rename the folder manually to suppress this message on future runs.
 
 ### Lookup Priority
 
@@ -285,16 +290,16 @@ Priority is highest to lowest:
 5. `01-UI-Themes/<UIThemesFolder>`
 6. `00-Mods/`
 7. `00-Mods/<GameTag>/` (e.g. `00-Mods/FF2/`)
-8. `00-Mods/Shared/`
+8. `00-Mods/System/`
 9. `<GameTag>/` (root-level game-tag folder, if present)
-10. `Shared/<GameTag>/` (e.g. `Shared/FF2/`)
-11. `Shared/` (cross-game, lowest priority)
+10. `System/<GameTag>/` (e.g. `System/FF2/`)
+11. `System/` (cross-game, lowest priority)
 
 Use the file name **without extension** to match the in-game texture/sprite name (e.g. `window_frame.png` replaces the asset named `window_frame`).
 
 ### Ignoring / Game-Tag / Blocking Folders
 
-- **Category Folder Scoping**: For category folders (`01-UI-Themes`, `02-UI-Frames`, `03-UI-BgColor`, `04-UI-Cursors`, `05-Button-Prompts`), configuration `.json` files (`ObjectConfig.json`, `TextConfig.json`, `IconsConfig.json`, `SpeakerNames.json`, `MenuPortraitMap.json`) are **only** loaded from the specified active pack folder (e.g. `UIThemesFolder = MyTheme`). Inactive pack folders under these 5 categories are skipped, preventing unselected themes or frames from conflicting with mods in `00-Mods/` or `Shared/`.
+- **Category Folder Scoping**: For category folders (`01-UI-Themes`, `02-UI-Frames`, `03-UI-BgColor`, `04-UI-Cursors`, `05-Button-Prompts`), configuration `.json` files (`ObjectConfig.json`, `TextConfig.json`, `IconsConfig.json`, `SpeakerNames.json`, `MenuPortraitMap.json`) are **only** loaded from the specified active pack folder (e.g. `UIThemesFolder = MyTheme`). Inactive pack folders under these 5 categories are skipped, preventing unselected themes or frames from conflicting with mods in `00-Mods/` or `System/`.
 - **Blocked Folders**: If any directory/folder in a file's path starts with the word `block` (case-insensitive, e.g., `block-mod`, `blockUI`, `block_portraits`), the plugin will completely ignore and skip loading any files (textures, configs, portraits) from that folder and its subdirectories. Use this prefix to temporarily disable mods or assets without deleting them.
 - **Game-Tag Folders**: If a configuration file (`SpeakerNames.json` / `speaker-names.json`, `MenuPortraitMap.json`, `ObjectConfig.json`, `TextConfig.json`, `IconsConfig.json`) or portrait image is located under a game-tag sub-folder (e.g., `FF1`, `FF2`, `FF3`, `FF4`, `FF5`, `FF6`) that does not match the game currently running, it will be skipped entirely.
 
@@ -421,13 +426,34 @@ Controlled by `Z - Diagnostics.TextureLogger`. Categories:
 
 Set to `All` to enable all categories, or use a comma-separated list (e.g. `Discoveries,Resolutions`).
 
+### Mod Loader & Texture Conflict Detection
+
+At startup, the plugin automatically scans `00-Mods/` and logs a summary of every active mod:
+
+```
+[Info   :KupoUI.PR] [ModLoader] Loaded 2 mod(s) from 00-Mods: FF2 Pixel Keeper, DarkerUI
+```
+
+It then performs a cross-source texture conflict analysis and warns whenever multiple distinct sources (Mod A vs. Mod B, or a mod vs. `System/`) provide a texture that resolves to the exact same key:
+
+- **Loose files** (not under `GameAssets/`) are compared by normalized filename without extension.
+- **`GameAssets/` files** are compared only by their full addressable path key (e.g. `GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00`). This means multiple different character subfolders within the same mod never trigger false positives.
+
+```
+[Warning:KupoUI.PR] [ModLoader] Texture conflict detected for 'window_frame':
+[Warning:KupoUI.PR]   - [Mod 'DarkerUI'] 00-Mods\DarkerUI\window_frame.png
+[Warning:KupoUI.PR]   - [Mod 'FF2 Pixel Keeper'] 00-Mods\FF2 Pixel Keeper\window_frame.png
+```
+
+This check runs automatically at every startup and hot-reload, so you always see an up-to-date conflict report.
+
 ---
 
 ## ObjectConfig.json — Data-Driven GameObject Tweaks
 
-Manipulate Unity GameObjects at runtime (position, rotation, scale, active state, text properties) without writing C# — just drop an `ObjectConfig.json` file anywhere inside `Modules/` (`00-Mods/`, `Shared/`, or your active category pack folder).
+Manipulate Unity GameObjects at runtime (position, rotation, scale, active state, text properties) without writing C# — just drop an `ObjectConfig.json` file anywhere inside `Modules/` (`00-Mods/`, `System/`, or your active category pack folder).
 
-The plugin scans `ObjectConfig.json` files under `Modules/` on startup. Configuration files inside category folders (`01-UI-Themes`–`05-Button-Prompts`) are loaded **only** from the currently active pack folder. Files placed inside `Shared/FF1`–`FF6` sub-folders are filtered to the detected game, so only the matching game's rules are applied.
+The plugin scans `ObjectConfig.json` files under `Modules/` on startup. Configuration files inside category folders (`01-UI-Themes`–`05-Button-Prompts`) are loaded **only** from the currently active pack folder. Files placed inside `System/FF1`–`FF6` sub-folders are filtered to the detected game, so only the matching game's rules are applied.
 
 ### Folder Placement
 
@@ -442,7 +468,7 @@ The plugin scans `ObjectConfig.json` files under `Modules/` on startup. Configur
         ObjectConfig.json   ← picked up (only if UIThemesFolder = MyTheme)
       OtherTheme/
         ObjectConfig.json   ← skipped (not active theme)
-    Shared/
+    System/
       ObjectConfig.json     ← picked up (applies to all games)
       FF2/
         ObjectConfig.json   ← picked up only when running FF2
@@ -647,7 +673,7 @@ Values are case-insensitive. If the object has no corresponding component (`Text
 
 ## TextConfig.json — Data-Driven Text Customization
 
-Like `ObjectConfig.json`, you can place files named `TextConfig.json` under the `Modules/` directory (`00-Mods/`, `Shared/`, or inside your active category pack folder). They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
+Like `ObjectConfig.json`, you can place files named `TextConfig.json` under the `Modules/` directory (`00-Mods/`, `System/`, or inside your active category pack folder). They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
 
 This is highly useful for:
 - **Partial Re-translations**: Safely swap specific dialogue lines or interface text database-wide without needing full language localization files or bundle-packing.
@@ -755,7 +781,7 @@ You can define custom icon tags (e.g. `<IC_BAG>`, `<IC_ARMOR>`, `<IC_CUSTOM>`) i
 
 ### File Format
 
-Create `IconsConfig.json` inside the `Modules/Shared/` folder. The file maps the tag name to the filename of the PNG file located inside `Modules/Shared/Icons/`:
+Create `IconsConfig.json` inside the `Modules/System/` folder. The file maps the tag name to the filename of the PNG file located inside `Modules/System/Icons/`:
 
 ```json
 {
@@ -765,7 +791,7 @@ Create `IconsConfig.json` inside the `Modules/Shared/` folder. The file maps the
 }
 ```
 
-- **Sprites Location**: Save the referenced `.png` sprite files under `Modules/Shared/Icons/` (e.g., `Modules/Shared/Icons/bag.png`).
+- **Sprites Location**: Save the referenced `.png` sprite files under `Modules/System/Icons/` (e.g., `Modules/System/Icons/bag.png`).
 - **Sizing**: Sprites are rendered at `12x12` pixels in size.
 - **Vertical Alignment**: Icons are automatically offset vertically relative to the text line's baseline to align beautifully with the characters.
 
@@ -813,7 +839,7 @@ You can patch specific fields in the game's static database tables at runtime. C
 
 ### DatabaseConfig.json Structure
 
-Create `DatabaseConfig.json` inside your module directory (e.g. `Modules/Shared/` or `Modules/00-Mods/MyMod/`). The file contains a root scope with an optional `GameTag` and a `"MonsterParty"` array of override objects:
+Create `DatabaseConfig.json` inside your module directory (e.g. `Modules/System/` or `Modules/00-Mods/MyMod/`). The file contains a root scope with an optional `GameTag` and a `"MonsterParty"` array of override objects:
 
 ```json
 {
@@ -943,7 +969,7 @@ When either is activated, a new `MainMenuBgObject` `RawImage` GameObject is inje
 
 `UI-Dialog.EnableSpeakerPortraits` (default `true`) — Dynamically injects a speaker portrait image inside the message window during dialogue sequences.
 
-- **Portrait Directory Requirement**: Place portrait image files (`.png`, `.jpg`, `.dds`, etc.) inside a folder named `SpeakerPortraits/` (e.g., `Modules/Shared/SpeakerPortraits/` or `Modules/<ModFolder>/SpeakerPortraits/`). The `Modules/Shared/SpeakerPortraits/` directory is created automatically on first run. Portraits are resolved using the speaker ID (e.g., `SPEAKER_77.png`) or display name (e.g., `Cecil.png`).
+- **Portrait Directory Requirement**: Place portrait image files (`.png`, `.jpg`, `.dds`, etc.) inside a folder named `SpeakerPortraits/` (e.g., `Modules/System/SpeakerPortraits/` or `Modules/<ModFolder>/SpeakerPortraits/`). The `Modules/System/SpeakerPortraits/` directory is created automatically on first run. Portraits are resolved using the speaker ID (e.g., `SPEAKER_77.png`) or display name (e.g., `Cecil.png`).
 - `UI-Dialog.FlipSpeakerPortraits` (default `true`) — Flip all injected portraits horizontally.
 - `UI-Dialog.SpeakerPortraitsPadding` (default `0,0,0,0`) — Offset padding `left,top,right,bottom` in pixels to shrink and shift the injected portrait container.
 - `UI-Dialog.SpeakerPortraitsTextOffset` (default `0`) — Offset (in pixels) for the dialogue text box (`lastText`) when speaker portraits are active. Supports `X` or `X,Y` format (e.g., `-75` or `-75,10`). Positive X moves right, positive Y moves up.
@@ -962,7 +988,7 @@ In Final Fantasy 2, 4, and 6, character portraits are displayed in the main game
 
 ```
 <GameRoot>/Modules/
-  Shared/
+  System/
     SpeakerPortraits/
       MenuPortraitMap.json         ← recommended location
 ```
@@ -1015,7 +1041,7 @@ If no mapping is defined in `MenuPortraitMap.json`, the plugin automatically fal
 
 ```
 <GameRoot>/Modules/
-  Shared/
+  System/
     SpeakerPortraits/
       SpeakerNames.json         ← recommended filename and location
     FF2/
@@ -1153,7 +1179,7 @@ This identifies which `FontType` enum value corresponds to which language and de
 #### File Locations
 
 ```
-<GameRoot>/Modules/Shared/
+<GameRoot>/Modules/System/
   fontconfig.json         ← your active font configuration
   font-help.txt           ← auto-generated help guide (contains baseline defaults at the bottom)
 ```
