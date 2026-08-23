@@ -70,7 +70,7 @@ internal static class ModConflictDetector
                 continue;
             }
 
-            if (folderName.Equals("Shared", StringComparison.OrdinalIgnoreCase) || KnownGameTags.Contains(folderName))
+            if (folderName.Equals("System", StringComparison.OrdinalIgnoreCase) || KnownGameTags.Contains(folderName))
             {
                 continue;
             }
@@ -86,20 +86,20 @@ internal static class ModConflictDetector
         var nameKeyIndex = new Dictionary<string, List<TextureFileEntry>>(StringComparer.OrdinalIgnoreCase);
         var pathKeyIndex = new Dictionary<string, List<TextureFileEntry>>(StringComparer.OrdinalIgnoreCase);
 
-        // 1. Scan Shared layers
+        // 1. Scan System layers
         var sharedFolders = new[]
         {
-            Path.Combine(rootPath, "Shared"),
-            Path.Combine(rootPath, "Shared", currentGameTag),
+            Path.Combine(rootPath, "System"),
+            Path.Combine(rootPath, "System", currentGameTag),
             Path.Combine(rootPath, currentGameTag),
-            Path.Combine(rootPath, "00-Mods", "Shared"),
-            Path.Combine(rootPath, "00-Mods", "Shared", currentGameTag),
+            Path.Combine(rootPath, "00-Mods", "System"),
+            Path.Combine(rootPath, "00-Mods", "System", currentGameTag),
             Path.Combine(rootPath, "00-Mods", currentGameTag)
         };
 
         foreach (var folder in sharedFolders)
         {
-            ScanDirectoryForTextures("Shared", folder, rootPath, currentGameTag, nameKeyIndex, pathKeyIndex);
+            ScanDirectoryForTextures("System", folder, rootPath, currentGameTag, nameKeyIndex, pathKeyIndex);
         }
 
         // 2. Scan Mod folders & root in 00-Mods
@@ -120,7 +120,7 @@ internal static class ModConflictDetector
                     continue;
                 }
 
-                if (folderName.Equals("Shared", StringComparison.OrdinalIgnoreCase) || KnownGameTags.Contains(folderName))
+                if (folderName.Equals("System", StringComparison.OrdinalIgnoreCase) || KnownGameTags.Contains(folderName))
                 {
                     continue;
                 }
@@ -130,7 +130,7 @@ internal static class ModConflictDetector
             }
         }
 
-        // 3. Report Name Key Conflicts (only when textures come from multiple distinct sources e.g. Mod A vs Mod B, or Mod vs Shared)
+        // 3. Report Name Key Conflicts (only when textures come from multiple distinct sources e.g. Mod A vs Mod B, or Mod vs System)
         var reportedFileSets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var kvp in nameKeyIndex)

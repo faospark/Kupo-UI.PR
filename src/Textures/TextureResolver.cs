@@ -75,7 +75,7 @@ internal static class TextureResolver
 
     private static bool _initialized;
     private static bool _verboseLogs;
-    private static string _currentGameTag = "Shared";
+    private static string _currentGameTag = "Unknown";
     private static string _textureRootPath = string.Empty;
     private static string _uiFramesPack = "Default";
     private static string _uiThemesPack = "Default";
@@ -111,6 +111,7 @@ internal static class TextureResolver
         _cursorsPack = NormalizePackFolderName(cursorsPack);
         _buttonPromptsPack = NormalizePackFolderName(buttonPromptsPack);
 
+        MigrateSharedToSystem(_textureRootPath);
         EnsureFolderSkeleton(_textureRootPath);
         BuildIndex(_textureRootPath, _currentGameTag);
         SetupHotReloadWatcher();
@@ -578,14 +579,64 @@ internal static class TextureResolver
         Directory.CreateDirectory(Path.Combine(root, "04-UI-Cursors"));
         Directory.CreateDirectory(Path.Combine(root, "05-Button-Prompts"));
 
-        Directory.CreateDirectory(Path.Combine(root, "Shared"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "SpeakerPortraits"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF1"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF2"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF3"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF4"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF5"));
-        Directory.CreateDirectory(Path.Combine(root, "Shared", "FF6"));
+        Directory.CreateDirectory(Path.Combine(root, "System"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "SpeakerPortraits"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "FF1"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "FF2"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "FF3"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "FF4"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "FF5"));
+        Directory.CreateDirectory(Path.Combine(root, "System", "FF6"));
+    }
+
+    /// <summary>
+    /// One-time startup migration: if an old "Shared" folder exists and a "System" folder
+    /// does not yet exist (or is empty), copies all contents from Shared into System and
+    /// logs a warning so users know to rename the folder manually.
+    /// </summary>
+    private static void MigrateSharedToSystem(string root)
+    {
+        var oldPath = Path.Combine(root, "Shared");
+        var newPath = Path.Combine(root, "System");
+
+        if (!Directory.Exists(oldPath))
+        {
+            return;
+        }
+
+        KupoUIPRPlugin.PluginLog.LogWarning(
+            $"[TextureResolver] Detected legacy 'Shared' folder at '{oldPath}'. " +
+            $"The folder has been renamed to 'System'. Copying contents to '{newPath}' automatically. " +
+            $"Please rename your 'Shared' folder to 'System' to suppress this warning.");
+
+        try
+        {
+            CopyDirectoryRecursive(oldPath, newPath);
+        }
+        catch (Exception ex)
+        {
+            KupoUIPRPlugin.PluginLog.LogWarning(
+                $"[TextureResolver] Auto-migration from 'Shared' to 'System' failed: {ex.Message}");
+        }
+    }
+
+    private static void CopyDirectoryRecursive(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+
+        foreach (var file in Directory.GetFiles(sourceDir))
+        {
+            var destFile = Path.Combine(destDir, Path.GetFileName(file));
+            if (!File.Exists(destFile))
+            {
+                File.Copy(file, destFile);
+            }
+        }
+
+        foreach (var subDir in Directory.GetDirectories(sourceDir))
+        {
+            CopyDirectoryRecursive(subDir, Path.Combine(destDir, Path.GetFileName(subDir)));
+        }
     }
 
     private static void BuildIndex(string root, string gameTag)
@@ -603,11 +654,11 @@ internal static class TextureResolver
 
         var watch = Stopwatch.StartNew();
 
-        // Legacy layout support (lowest priority): Shared/FFx and 00-Mods/Shared/FFx.
-        IndexLayer(Path.Combine(root, "Shared"), excludeGameTags: true);
-        IndexLayer(Path.Combine(root, "Shared", gameTag));
+        // System layer (lowest priority): System/FFx and 00-Mods/System/FFx.
+        IndexLayer(Path.Combine(root, "System"), excludeGameTags: true);
+        IndexLayer(Path.Combine(root, "System", gameTag));
         IndexLayer(Path.Combine(root, gameTag));
-        IndexLayer(Path.Combine(root, "00-Mods", "Shared"));
+        IndexLayer(Path.Combine(root, "00-Mods", "System"));
         IndexLayer(Path.Combine(root, "00-Mods", gameTag));
 
         // New layout: general overrides.

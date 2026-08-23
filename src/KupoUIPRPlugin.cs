@@ -93,7 +93,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
             "FontSwap",
             "Enabled",
             false,
-            "If true, swaps default game fonts with custom fonts defined in Modules/Shared/fontconfig.json.");
+            "If true, swaps default game fonts with custom fonts defined in Modules/System/fontconfig.json.");
 
         SaveHighlightColorConfig = Config.Bind(
             "UI",
@@ -730,7 +730,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
 
     private void WriteTextConfigSample()
     {
-        var defaultDir = Path.Combine(ModulesRootPath, "Shared");
+        var defaultDir = Path.Combine(ModulesRootPath, "System");
         var samplePath = Path.Combine(defaultDir, "TextConfig-sample.json");
         try
         {

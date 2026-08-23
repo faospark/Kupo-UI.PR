@@ -115,7 +115,7 @@ internal static class SpeakerPortraitsPatch
                 {
                     return 30;
                 }
-                if (nextSegment.Equals("Shared", StringComparison.OrdinalIgnoreCase))
+                if (nextSegment.Equals("System", StringComparison.OrdinalIgnoreCase))
                 {
                     return 20;
                 }
@@ -133,7 +133,7 @@ internal static class SpeakerPortraitsPatch
             return 10;
         }
 
-        if (layer.Equals("Shared", StringComparison.OrdinalIgnoreCase))
+        if (layer.Equals("System", StringComparison.OrdinalIgnoreCase))
         {
             if (parts.Length > 1)
             {
@@ -248,11 +248,11 @@ internal static class SpeakerPortraitsPatch
     }
 
     /// <summary>
-    /// Auto-creates the default folder under {GameRoot}/Modules/Shared/SpeakerPortraits if none exist.
+    /// Auto-creates the default folder under {GameRoot}/Modules/System/SpeakerPortraits if none exist.
     /// </summary>
     private static string GetOrCreateDefaultFolder()
     {
-        string defaultPath = Path.Combine(KupoUIPRPlugin.ModulesRootPath, "Shared", "SpeakerPortraits");
+        string defaultPath = Path.Combine(KupoUIPRPlugin.ModulesRootPath, "System", "SpeakerPortraits");
         if (!Directory.Exists(defaultPath))
         {
             try

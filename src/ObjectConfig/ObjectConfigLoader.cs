@@ -11,7 +11,7 @@ namespace KupoUI.PR.ObjectConfig;
 /// Scans every <c>ObjectConfig.json</c> file found recursively under
 /// <c>&lt;GameRoot&gt;/Modules/</c> and exposes the merged list of
 /// <see cref="ObjectConfigEntry"/> objects.
-/// Files inside <c>Shared/FF1</c>–<c>FF6</c> sub-folders are filtered to the
+/// Files inside <c>System/FF1</c>–<c>FF6</c> sub-folders are filtered to the
 /// detected current game tag so only the matching game's rules are applied.
 /// </summary>
 internal static class ObjectConfigLoader
@@ -26,7 +26,7 @@ internal static class ObjectConfigLoader
     /// <summary>
     /// Discovers and parses all <c>ObjectConfig.json</c> files found anywhere
     /// under <paramref name="modulesRootPath"/>. Files inside
-    /// <c>Shared/FF1</c>–<c>FF6</c> sub-folders are filtered to the active game tag.
+    /// <c>System/FF1</c>–<c>FF6</c> sub-folders are filtered to the active game tag.
     /// Safe to call multiple times; previous entries are cleared on each call.
     /// </summary>
     /// <param name="modulesRootPath">

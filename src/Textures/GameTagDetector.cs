@@ -39,7 +39,7 @@ internal static class GameTagDetector
             return "FF1";
         }
 
-        return "Shared";
+        return "Unknown";
     }
 
     private static bool ContainsAny(string source, params string[] values)

@@ -7,7 +7,7 @@ namespace KupoUI.PR.TextConfig
 {
     /// <summary>
     /// Discovers and parses all <c>TextConfig.json</c> files under the <c>Modules/</c> folder recursively.
-    /// Filters to current active game folder if inside <c>Shared/FF1-FF6</c>.
+    /// Filters to current active game folder if inside <c>System/FF1-FF6</c>.
     /// </summary>
     internal static class TextConfigLoader
     {
