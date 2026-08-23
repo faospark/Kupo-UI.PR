@@ -57,6 +57,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<string> SpeakerPortraitsTextOffsetConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticBattleLoggingConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> DiagnosticTextureTilingConfig { get; private set; } = null!;
+    internal static ConfigEntry<bool> DiagnosticObjectReplacedLoggingConfig { get; private set; } = null!;
 
     /// <summary>
     /// Speaker ID → display name registrations loaded from the "speakers" block of SpeakerNames.json / speaker-names.json.
@@ -263,6 +264,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             false,
             "If true, logs every step of the wrapMode / Image.type tiling pipeline so you can see exactly which path a texture takes and what type ends up on its Image component.");
 
+        DiagnosticObjectReplacedLoggingConfig = Config.Bind(
+            "Z - Diagnostics",
+            "ObjectReplacedLogging",
+            false,
+            "If true, outputs detailed diagnostic logging for loaded ObjectConfig rules and object replacements.");
+
         DisableMouseCursorConfig = Config.Bind(
             "Utility",
             "DisableMouseCursor",
@@ -346,6 +353,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         Log.LogInfo($"IconLogging = {DiagnosticIconLoggingConfig.Value}");
         Log.LogInfo($"FontSwapEnabled = {FontSwapEnabledConfig.Value}");
         Log.LogInfo($"DiagnosticsLogFontMapping = {DiagnosticsLogFontMappingConfig.Value}");
+        Log.LogInfo($"ObjectReplacedLogging = {DiagnosticObjectReplacedLoggingConfig.Value}");
 
         Log.LogInfo($"EnableSpeakerPortraits = {EnableSpeakerPortraitsConfig.Value}");
         Log.LogInfo($"PortraitLogging = {DiagnosticPortraitLoggingConfig.Value}");
@@ -834,13 +842,13 @@ public sealed class KupoUIPRPlugin : BasePlugin
             var monsterAreaObj = UnityEngine.GameObject.Find("MonsterArea");
             var imageObj = monsterAreaObj != null ? monsterAreaObj.transform.Find("Image")?.gameObject : null;
 
-            if (imageObj != null)
+            if (imageObj != null && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
             {
                 var rt = imageObj.GetComponent<UnityEngine.RectTransform>();
                 var image = imageObj.GetComponent<UnityEngine.UI.Image>();
                 if (rt != null && image != null && image.sprite != null)
                 {
-                    PluginLog.LogWarning($"[BestiaryDiag] FrameUpdate: sizeDelta={rt.sizeDelta}, localScale={imageObj.transform.localScale}, anchoredPosition={rt.anchoredPosition}, sprite={image.sprite.name}, rect={image.sprite.rect}, active={imageObj.activeInHierarchy}");
+                    PluginLog.LogDebug($"[BestiaryDiag] FrameUpdate: sizeDelta={rt.sizeDelta}, localScale={imageObj.transform.localScale}, anchoredPosition={rt.anchoredPosition}, sprite={image.sprite.name}, rect={image.sprite.rect}, active={imageObj.activeInHierarchy}");
                 }
             }
         }

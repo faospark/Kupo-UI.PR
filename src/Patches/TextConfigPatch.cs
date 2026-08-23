@@ -1266,17 +1266,20 @@ namespace KupoUI.PR.Patches
 
             if (monsterAreaObj != null)
             {
-                // Print all children of MonsterArea for diagnostic purposes
-                for (int i = 0; i < monsterAreaObj.transform.childCount; i++)
+                if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                 {
-                    var child = monsterAreaObj.transform.GetChild(i);
-                    var childComps = child.GetComponents<UnityEngine.Component>();
-                    var compNames = new List<string>();
-                    foreach (var c in childComps)
+                    // Print all children of MonsterArea for diagnostic purposes
+                    for (int i = 0; i < monsterAreaObj.transform.childCount; i++)
                     {
-                        if (c != null) compNames.Add(c.GetType().FullName);
+                        var child = monsterAreaObj.transform.GetChild(i);
+                        var childComps = child.GetComponents<UnityEngine.Component>();
+                        var compNames = new List<string>();
+                        foreach (var c in childComps)
+                        {
+                            if (c != null) compNames.Add(c.GetType().FullName);
+                        }
+                        KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] Child {i}: {child.name} | active={child.gameObject.activeSelf} | scale={child.localScale} | comps={string.Join(", ", compNames)}");
                     }
-                    KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Child {i}: {child.name} | active={child.gameObject.activeSelf} | scale={child.localScale} | comps={string.Join(", ", compNames)}");
                 }
 
                 var imageTransform = monsterAreaObj.transform.Find("Image");
@@ -1285,7 +1288,7 @@ namespace KupoUI.PR.Patches
                     var image = imageTransform.GetComponent<UnityEngine.UI.Image>();
                     if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                     {
-                        KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Found Image component: imageObj={image != null}, sprite={image?.sprite?.name}, texture={image?.sprite?.texture?.name}");
+                        KupoUIPRPlugin.PluginLog.LogDebug($"[CustomTexturePatch]   Found Image component: imageObj={image != null}, sprite={image?.sprite?.name}, texture={image?.sprite?.texture?.name}");
                     }
 
                     if (image != null && image.sprite != null)

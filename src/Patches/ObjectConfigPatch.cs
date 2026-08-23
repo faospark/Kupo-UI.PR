@@ -131,29 +131,32 @@ internal static class ObjectConfigPatch
             }
         }
 
-        // Log a summary of every loaded rule so the user can verify parsing in the BepInEx log.
+        // Log a summary of loaded rules; output detailed list only if ObjectReplacedLogging is enabled.
         if (entries.Count > 0)
         {
             KupoUIPRPlugin.PluginLog.LogInfo($"[ObjectConfig] {entries.Count} rule(s) ready:");
-            foreach (var e in entries)
+            if (KupoUIPRPlugin.DiagnosticObjectReplacedLoggingConfig != null && KupoUIPRPlugin.DiagnosticObjectReplacedLoggingConfig.Value)
             {
-                KupoUIPRPlugin.PluginLog.LogInfo(
-                    $"[ObjectConfig]   name='{e.TargetObjectName}'"
-                    + (string.IsNullOrEmpty(e.SceneName)     ? "" : $" scene='{e.SceneName}'")
-                    + (string.IsNullOrEmpty(e.TargetPath)    ? "" : $" path='{e.TargetPath}'")
-                    + (e.Position.HasValue  ? $" pos=({e.Position.Value.X},{e.Position.Value.Y},{e.Position.Value.Z})"    : "")
-                    + (e.Rotation.HasValue  ? $" rot=({e.Rotation.Value.X},{e.Rotation.Value.Y},{e.Rotation.Value.Z})"    : "")
-                    + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
-                    + (e.Size.HasValue      ? $" size=({e.Size.Value.X},{e.Size.Value.Y})"                               : "")
-                    + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
-                    + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
-                    + (string.IsNullOrEmpty(e.ChildAlignment) ? "" : $" childAlignment={e.ChildAlignment}")
-                    + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
-                    + (e.Color.HasValue                      ? $" color=#{FormatColorToHex(e.Color.Value)}" : "")
-                    + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : "")
-                    + (e.DisableMask.HasValue                ? $" disableMask={e.DisableMask.Value}"         : "")
-                    + (e.IgnoreLayout.HasValue                ? $" ignoreLayout={e.IgnoreLayout.Value}"       : "")
-                    + (e.SiblingIndex.HasValue                ? $" siblingIndex={e.SiblingIndex.Value}"       : ""));
+                foreach (var e in entries)
+                {
+                    KupoUIPRPlugin.PluginLog.LogInfo(
+                        $"[ObjectConfig]   name='{e.TargetObjectName}'"
+                        + (string.IsNullOrEmpty(e.SceneName)     ? "" : $" scene='{e.SceneName}'")
+                        + (string.IsNullOrEmpty(e.TargetPath)    ? "" : $" path='{e.TargetPath}'")
+                        + (e.Position.HasValue  ? $" pos=({e.Position.Value.X},{e.Position.Value.Y},{e.Position.Value.Z})"    : "")
+                        + (e.Rotation.HasValue  ? $" rot=({e.Rotation.Value.X},{e.Rotation.Value.Y},{e.Rotation.Value.Z})"    : "")
+                        + (e.Scale.HasValue     ? $" scale=({e.Scale.Value.X},{e.Scale.Value.Y},{e.Scale.Value.Z})"           : "")
+                        + (e.Size.HasValue      ? $" size=({e.Size.Value.X},{e.Size.Value.Y})"                               : "")
+                        + (e.SetActive.HasValue              ? $" setActive={e.SetActive.Value}"             : "")
+                        + (string.IsNullOrEmpty(e.TextAlignment) ? "" : $" textAlignment={e.TextAlignment}")
+                        + (string.IsNullOrEmpty(e.ChildAlignment) ? "" : $" childAlignment={e.ChildAlignment}")
+                        + (e.TextColorWhite.HasValue             ? $" textColorWhite={e.TextColorWhite.Value}"   : "")
+                        + (e.Color.HasValue                      ? $" color=#{FormatColorToHex(e.Color.Value)}" : "")
+                        + (e.DisableShadow.HasValue              ? $" disableShadow={e.DisableShadow.Value}"     : "")
+                        + (e.DisableMask.HasValue                ? $" disableMask={e.DisableMask.Value}"         : "")
+                        + (e.IgnoreLayout.HasValue                ? $" ignoreLayout={e.IgnoreLayout.Value}"       : "")
+                        + (e.SiblingIndex.HasValue                ? $" siblingIndex={e.SiblingIndex.Value}"       : ""));
+                }
             }
         }
 
@@ -875,8 +878,16 @@ internal static class ObjectConfigPatch
             }
         }
 
-        KupoUIPRPlugin.PluginLog.LogDebug(
-            $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
+        if (KupoUIPRPlugin.DiagnosticObjectReplacedLoggingConfig != null && KupoUIPRPlugin.DiagnosticObjectReplacedLoggingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogInfo(
+                $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
+        }
+        else
+        {
+            KupoUIPRPlugin.PluginLog.LogDebug(
+                $"[ObjectConfig] Applied rule to '{go.name}' (from {System.IO.Path.GetFileName(entry.SourceFile)})");
+        }
     }
 
     // -------------------------------------------------------------------------

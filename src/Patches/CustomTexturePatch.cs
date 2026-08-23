@@ -240,7 +240,7 @@ internal static class CustomTexturePatch
         // Add explicit trace for Bestiary image component
         if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
         {
-            KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch] Image.sprite setter prefix: name={__instance.name}, spriteName={value.name}, textureName={value.texture?.name}, address={assetAddress}");
+            KupoUIPRPlugin.PluginLog.LogDebug($"[CustomTexturePatch] Image.sprite setter prefix: name={__instance.name}, spriteName={value.name}, textureName={value.texture?.name}, address={assetAddress}");
         }
 
         if (!isAlreadyCustom)
@@ -257,7 +257,7 @@ internal static class CustomTexturePatch
                 value = replacement;
                 if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                 {
-                    KupoUIPRPlugin.PluginLog.LogInfo($"[CustomTexturePatch]   Sprite replaced with custom sprite: {replacement.name}");
+                    KupoUIPRPlugin.PluginLog.LogDebug($"[CustomTexturePatch]   Sprite replaced with custom sprite: {replacement.name}");
                 }
             }
         }
@@ -267,14 +267,14 @@ internal static class CustomTexturePatch
         var metadata = GetMetadataForSprite(value, assetAddress);
         if (metadata != null)
         {
-            if (__instance.name == "Image")
+            if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
             {
                 var rt = __instance.rectTransform;
                 var parentRt = __instance.transform.parent != null ? __instance.transform.parent.GetComponent<UnityEngine.RectTransform>() : null;
 
-                KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Metadata found! targetSize={metadata.Width}x{metadata.Height}, offset=({metadata.OffsetX}, {metadata.OffsetY})");
-                KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   BEFORE: Image sizeDelta={rt?.sizeDelta}, localScale={__instance.transform.localScale}, anchoredPosition={rt?.anchoredPosition}");
-                KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   BEFORE: Parent sizeDelta={parentRt?.sizeDelta}, localScale={parentRt?.transform.localScale}, anchoredPosition={parentRt?.anchoredPosition}");
+                KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] Metadata found! targetSize={metadata.Width}x{metadata.Height}, offset=({metadata.OffsetX}, {metadata.OffsetY})");
+                KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   BEFORE: Image sizeDelta={rt?.sizeDelta}, localScale={__instance.transform.localScale}, anchoredPosition={rt?.anchoredPosition}");
+                KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   BEFORE: Parent sizeDelta={parentRt?.sizeDelta}, localScale={parentRt?.transform.localScale}, anchoredPosition={parentRt?.anchoredPosition}");
 
                 // Print components on this GameObject using ToString() for actual native types
                 var comps = __instance.GetComponents<UnityEngine.Component>();
@@ -282,7 +282,7 @@ internal static class CustomTexturePatch
                 {
                     if (c != null)
                     {
-                        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   Component on Image: {c.ToString()} (Type: {c.GetType().FullName})");
+                        KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   Component on Image: {c.ToString()} (Type: {c.GetType().FullName})");
                     }
                 }
 
@@ -299,7 +299,7 @@ internal static class CustomTexturePatch
                         {
                             if (c != null) compNames.Add(c.GetType().FullName);
                         }
-                        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Sibling Child {i}: {child.name} | active={child.gameObject.activeSelf} | scale={child.localScale} | comps={string.Join(", ", compNames)}");
+                        KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] Sibling Child {i}: {child.name} | active={child.gameObject.activeSelf} | scale={child.localScale} | comps={string.Join(", ", compNames)}");
                     }
                 }
 
@@ -311,7 +311,7 @@ internal static class CustomTexturePatch
                     {
                         if (pc != null)
                         {
-                            KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   Component on Parent ({__instance.transform.parent.name}): {pc.ToString()} (Type: {pc.GetType().FullName})");
+                            KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   Component on Parent ({__instance.transform.parent.name}): {pc.ToString()} (Type: {pc.GetType().FullName})");
                         }
                     }
                 }
@@ -336,7 +336,10 @@ internal static class CustomTexturePatch
                 if (fitter != null && fitter.enabled)
                 {
                     fitter.enabled = false;
-                    KupoUIPRPlugin.PluginLog.LogWarning("[BestiaryDiag]   Disabled AspectRatioFitter on Image component.");
+                    if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogDebug("[BestiaryDiag]   Disabled AspectRatioFitter on Image component.");
+                    }
                 }
 
                 // Disable LayoutElement if it is active
@@ -344,7 +347,10 @@ internal static class CustomTexturePatch
                 if (layoutElement != null && layoutElement.enabled)
                 {
                     layoutElement.enabled = false;
-                    KupoUIPRPlugin.PluginLog.LogWarning("[BestiaryDiag]   Disabled LayoutElement on Image component.");
+                    if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogDebug("[BestiaryDiag]   Disabled LayoutElement on Image component.");
+                    }
                 }
 
                 // Force localScale to (1, 1, 1) to bypass any game layout squishing
@@ -359,9 +365,9 @@ internal static class CustomTexturePatch
                     {
                         __instance.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetW);
                         __instance.rectTransform.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, targetH);
-                        if (__instance.name == "Image")
+                        if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                         {
-                            KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   Applied sizes to rectTransform: {targetW}x{targetH}");
+                            KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   Applied sizes to rectTransform: {targetW}x{targetH}");
                         }
                     }
                 }
@@ -373,31 +379,32 @@ internal static class CustomTexturePatch
                         float ox = metadata.ResolvedOffsetX ?? 0f;
                         float oy = metadata.ResolvedOffsetY ?? 0f;
                         __instance.rectTransform.anchoredPosition = new Vector2(ox, oy);
-                        if (__instance.name == "Image")
+                        if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                         {
-                            KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   Applied anchoredPosition to rectTransform: ({ox}, {oy})");
+                            KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   Applied anchoredPosition to rectTransform: ({ox}, {oy})");
                         }
                     }
                 }
 
-                if (__instance.name == "Image")
+                if (__instance.name == "Image" && KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                 {
                     var rt = __instance.rectTransform;
                     var parentRt = __instance.transform.parent != null ? __instance.transform.parent.GetComponent<UnityEngine.RectTransform>() : null;
-                    KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   AFTER: Image sizeDelta={rt?.sizeDelta}, localScale={__instance.transform.localScale}, anchoredPosition={rt?.anchoredPosition}");
-                    KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   AFTER: Parent sizeDelta={parentRt?.sizeDelta}, localScale={parentRt?.transform.localScale}, anchoredPosition={parentRt?.anchoredPosition}");
+                    KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   AFTER: Image sizeDelta={rt?.sizeDelta}, localScale={__instance.transform.localScale}, anchoredPosition={rt?.anchoredPosition}");
+                    KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   AFTER: Parent sizeDelta={parentRt?.sizeDelta}, localScale={parentRt?.transform.localScale}, anchoredPosition={parentRt?.anchoredPosition}");
 
                     // Print full hierarchy path and properties of all parents up to RootObject
                     var curr = __instance.transform;
                     while (curr != null)
                     {
                         var currRt = curr.GetComponent<UnityEngine.RectTransform>();
-                        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag]   Hie: {curr.name} | sizeDelta={currRt?.sizeDelta} | scale={curr.localScale} | pos={currRt?.anchoredPosition} | active={curr.gameObject.activeSelf}");
+                        KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag]   Hie: {curr.name} | sizeDelta={currRt?.sizeDelta} | scale={curr.localScale} | pos={currRt?.anchoredPosition} | active={curr.gameObject.activeSelf}");
                         curr = curr.parent;
                     }
                 }
 
             }
+
         }
 
         // Final override: if the texture has a tiling wrap mode, ensure the Image is Tiled.
@@ -633,7 +640,10 @@ internal static class CustomTexturePatch
     [HarmonyPostfix]
     private static void SetImagePostfix(LibraryInfoController __instance, Sprite imageSprite)
     {
-        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] SetImagePostfix called! sprite={imageSprite?.name}");
+        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] SetImagePostfix called! sprite={imageSprite?.name}");
+        }
         if (imageSprite == null) return;
         ApplyCustomSizingToMenuImage(__instance, imageSprite);
     }
@@ -645,7 +655,10 @@ internal static class CustomTexturePatch
         var image = (__instance.view != null) ? __instance.view.monsterImage : null;
         var sprite = (image != null) ? image.sprite : null;
         
-        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] UpdateViewPostfix called! view={__instance.view != null}, image={image != null}, sprite={sprite?.name}");
+        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] UpdateViewPostfix called! view={__instance.view != null}, image={image != null}, sprite={sprite?.name}");
+        }
 
         if (sprite != null)
         {
@@ -684,18 +697,27 @@ internal static class CustomTexturePatch
 
         // Retrieve metadata for this sprite name
         var metadata = GetMetadataForSprite(sprite, null);
-        KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] ApplyCustomSizingToMenuImage: sprite={sprite.name}, hasMetadata={metadata != null}");
+        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+        {
+            KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] ApplyCustomSizingToMenuImage: sprite={sprite.name}, hasMetadata={metadata != null}");
+        }
 
         if (metadata != null)
         {
-            KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] ApplyCustomSizingToMenuImage: target Image component found={image != null}");
+            if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+            {
+                KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] ApplyCustomSizingToMenuImage: target Image component found={image != null}");
+            }
 
             if (image != null && image.rectTransform != null)
             {
                 int targetW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : (int)sprite.rect.width);
                 int targetH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : (int)sprite.rect.height);
 
-                KupoUIPRPlugin.PluginLog.LogWarning($"[BestiaryDiag] Applying sizing to Bestiary Image: Sprite={sprite.name}, TargetSize={targetW}x{targetH}, Offset=({metadata.ResolvedOffsetX}, {metadata.ResolvedOffsetY})");
+                if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
+                {
+                    KupoUIPRPlugin.PluginLog.LogDebug($"[BestiaryDiag] Applying sizing to Bestiary Image: Sprite={sprite.name}, TargetSize={targetW}x{targetH}, Offset=({metadata.ResolvedOffsetX}, {metadata.ResolvedOffsetY})");
+                }
 
                 if (metadata.SpriteWidth > 0 || metadata.SpriteHeight > 0 || metadata.Width > 0 || metadata.Height > 0)
                 {
