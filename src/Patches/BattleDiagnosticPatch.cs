@@ -296,8 +296,9 @@ internal static class BattleDiagnosticPatch
                         _isRecallingSetSize = false;
                     }
                 }
-                // Apply offsets directly to the Mesh vertices
-                if (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue)
+                // Apply offsets via localPosition on the Mesh transform.
+                // Using localPosition instead of vertex mutation avoids stacking offsets
+                // across repeated SetSprite calls and preserves the game's own centering math.
                 {
                     Transform meshTransform = null;
                     var children = __instance.GetComponentsInChildren<Transform>(true);
@@ -312,31 +313,15 @@ internal static class BattleDiagnosticPatch
 
                     if (meshTransform != null)
                     {
-                        var filter = meshTransform.GetComponent<MeshFilter>();
-                        if (filter != null && filter.mesh != null)
+                        float ox = metadata.ResolvedOffsetX ?? 0f;
+                        float oy = metadata.ResolvedOffsetY ?? 0f;
+
+                        // Always reset first so repeated calls don't accumulate.
+                        meshTransform.localPosition = new Vector3(ox, oy, meshTransform.localPosition.z);
+
+                        if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
                         {
-                            float ox = metadata.ResolvedOffsetX ?? 0f;
-                            float oy = metadata.ResolvedOffsetY ?? 0f;
-                            
-                            var vertices = filter.mesh.vertices;
-                            for (int i = 0; i < vertices.Length; i++)
-                            {
-                                vertices[i] = new Vector3(vertices[i].x + ox, vertices[i].y + oy, vertices[i].z);
-                            }
-                            filter.mesh.vertices = vertices;
-                            filter.mesh.RecalculateBounds();
-                            
-                            if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
-                            {
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] Shifted {vertices.Length} mesh vertices by ({ox}, {oy}) for ptr={__instance.Pointer:X}");
-                            }
-                        }
-                        else
-                        {
-                            if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
-                            {
-                                KupoUIPRPlugin.PluginLog.LogWarning($"[BattleDiagnostic] MeshFilter or Mesh is null for ptr={__instance.Pointer:X}");
-                            }
+                            KupoUIPRPlugin.PluginLog.LogInfo($"[BattleDiagnostic] Set Mesh localPosition offset ({ox}, {oy}) for ptr={__instance.Pointer:X}");
                         }
                     }
                     else
