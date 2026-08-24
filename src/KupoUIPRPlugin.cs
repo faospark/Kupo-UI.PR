@@ -300,6 +300,12 @@ public sealed class KupoUIPRPlugin : BasePlugin
             true,
             "Experimental - If true, enables loading DDS textures (DXT1/DXT5 and uncompressed RGBA32).");
 
+        EnableCustomTexturesConfig = Config.Bind(
+            "Utility",
+            "EnableCustomTextures",
+            true,
+            "If false, completely disables custom texture patching. Useful for diagnosing conflicts with transition effects or other mods.");
+
         var (loggerEnabled, logDiscoveries, logResolutions, logMisses) = ResolveDiagnosticTextureLoggerConfig(DiagnosticTextureLoggerConfig.Value);
 
         IsTextureLoggerEnabled = loggerEnabled;
@@ -831,7 +837,8 @@ public sealed class KupoUIPRPlugin : BasePlugin
     internal static ConfigEntry<bool> EnableTextureHotReloadConfig { get; private set; } = null!;
     internal static ConfigEntry<int> TextureHotReloadDebounceMsConfig { get; private set; } = null!;
     internal static ConfigEntry<bool> EnableDDSTexturesConfig { get; private set; } = null!;
-    internal static bool EnableCustomTextures => true;
+    internal static ConfigEntry<bool> EnableCustomTexturesConfig { get; private set; } = null!;
+    internal static bool EnableCustomTextures => EnableCustomTexturesConfig?.Value ?? true;
 
     private int _frameCounter = 0;
     private void Update()

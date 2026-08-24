@@ -99,12 +99,16 @@ internal static class CustomTexturePatch
             return;
         }
 
-        if (TextureResolver.TryCreateReplacementSprite(value, out var replacement, assetAddress))
+        bool replaced = TextureResolver.TryCreateReplacementSprite(value, out var replacement, assetAddress);
+        if (replaced)
         {
             value = replacement;
         }
 
-        if (__instance != null && value != null && value.texture != null && TextureResolver.IsAnyAxisTiling(value.texture))
+        // Only switch to Tiled draw mode when we actually replaced the sprite with a custom
+        // tiling texture. Applying this to original game sprites mid-transition causes
+        // battle backgrounds to visually shift (tiled mode uses sprite.size, not transform scale).
+        if (replaced && __instance != null && value != null && value.texture != null && TextureResolver.IsAnyAxisTiling(value.texture))
         {
             __instance.drawMode = SpriteDrawMode.Tiled;
         }
@@ -323,9 +327,13 @@ internal static class CustomTexturePatch
             }
             else
             {
+                // Skip all destructive transform mutations while a transition animation is playing
+                // on this GameObject or any parent — mutations mid-transition cause visual shifts.
+                bool inTransition = IsTransitionActive(__instance.transform);
+
                 // For the Bestiary/Library monster image, use Simple type unless the texture
                 // has a tiling wrap mode (in which case Tiled will be applied at the end).
-                if (__instance.name == "Image" && !TextureResolver.IsAnyAxisTiling(value?.texture))
+                if (!inTransition && __instance.name == "Image" && !TextureResolver.IsAnyAxisTiling(value?.texture))
                 {
                     __instance.preserveAspect = false; // Disable to allow custom aspect ratio!
                     __instance.type = UnityEngine.UI.Image.Type.Simple;
@@ -333,7 +341,7 @@ internal static class CustomTexturePatch
 
                 // Disable AspectRatioFitter if it is active on this Image GameObject
                 var fitter = __instance.GetComponent<UnityEngine.UI.AspectRatioFitter>();
-                if (fitter != null && fitter.enabled)
+                if (!inTransition && fitter != null && fitter.enabled)
                 {
                     fitter.enabled = false;
                     if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
@@ -344,7 +352,7 @@ internal static class CustomTexturePatch
 
                 // Disable LayoutElement if it is active
                 var layoutElement = __instance.GetComponent<UnityEngine.UI.LayoutElement>();
-                if (layoutElement != null && layoutElement.enabled)
+                if (!inTransition && layoutElement != null && layoutElement.enabled)
                 {
                     layoutElement.enabled = false;
                     if (KupoUIPRPlugin.DiagnosticBattleLoggingConfig.Value)
@@ -353,13 +361,15 @@ internal static class CustomTexturePatch
                     }
                 }
 
-                // Force localScale to (1, 1, 1) to bypass any game layout squishing
-                __instance.transform.localScale = UnityEngine.Vector3.one;
+                // Force localScale to (1, 1, 1) to bypass any game layout squishing.
+                // Skipped during transitions to avoid snapping scale mid-animation.
+                if (!inTransition)
+                    __instance.transform.localScale = UnityEngine.Vector3.one;
 
                 int targetW = metadata.SpriteWidth > 0 ? metadata.SpriteWidth : (metadata.Width > 0 ? metadata.Width : (int)value.rect.width);
                 int targetH = metadata.SpriteHeight > 0 ? metadata.SpriteHeight : (metadata.Height > 0 ? metadata.Height : (int)value.rect.height);
 
-                if (metadata.SpriteWidth > 0 || metadata.SpriteHeight > 0 || metadata.Width > 0 || metadata.Height > 0)
+                if (!inTransition && (metadata.SpriteWidth > 0 || metadata.SpriteHeight > 0 || metadata.Width > 0 || metadata.Height > 0))
                 {
                     if (__instance.rectTransform != null)
                     {
@@ -372,7 +382,7 @@ internal static class CustomTexturePatch
                     }
                 }
 
-                if (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue)
+                if (!inTransition && (metadata.ResolvedOffsetX.HasValue || metadata.ResolvedOffsetY.HasValue))
                 {
                     if (__instance.rectTransform != null)
                     {
@@ -636,6 +646,26 @@ internal static class CustomTexturePatch
         return !string.IsNullOrEmpty(path);
     }
 
+    /// <summary>
+    /// Returns true if this transform or any parent has an Animator that is
+    /// currently in a transition on layer 0. Used to prevent transform mutations
+    /// from disrupting transition effects mid-animation.
+    /// </summary>
+    private static bool IsTransitionActive(Transform t)
+    {
+        // Unity transition/fade effects typically animate CanvasGroup.alpha.
+        // If any CanvasGroup in the hierarchy has an alpha that is strictly between
+        // 0 and 1, the element is mid-transition — skip destructive mutations.
+        while (t != null)
+        {
+            var cg = t.GetComponent<UnityEngine.CanvasGroup>();
+            if (cg != null && cg.alpha > 0f && cg.alpha < 1f)
+                return true;
+            t = t.parent;
+        }
+        return false;
+    }
+
     [HarmonyPatch(typeof(LibraryInfoController), nameof(LibraryInfoController.SetImage))]
     [HarmonyPostfix]
     private static void SetImagePostfix(LibraryInfoController __instance, Sprite imageSprite)
@@ -754,6 +784,9 @@ internal static class CustomTexturePatch
     {
         if (!KupoUIPRPlugin.EnableCustomTextures) return;
         if (__instance == null) return;
+
+        // Skip size override while a transition is animating to avoid visual shifts.
+        if (IsTransitionActive(__instance.transform)) return;
 
         if (__instance.name == "Image" && __instance.transform.parent != null && __instance.transform.parent.name == "MonsterArea")
         {
