@@ -14,11 +14,9 @@ namespace KupoUI.PR.Patches;
 [HarmonyPatch]
 internal static class SpeakerPortraitsPatch
 {
-    private class OriginalPosition
-    {
-        public Vector3 Value;
-    }
-    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MessageWindowView, OriginalPosition> _originalNewPageImagePositions = new();
+    // Keyed on the IL2CPP native pointer (IntPtr) rather than the managed wrapper so the
+    // lookup is always reliable. ConditionalWeakTable cannot track IL2CPP objects as keys.
+    private static readonly Dictionary<IntPtr, Vector3> _originalNewPageImagePositions = new();
 
     private static readonly Dictionary<string, Sprite> _portraitCache = new(StringComparer.OrdinalIgnoreCase);
     private static List<string> _cachedFolders;
@@ -568,11 +566,14 @@ internal static class SpeakerPortraitsPatch
         var newPageImage = view.transform.Find("message_root/message_root/icon_root/new_page_image");
         if (newPageImage == null) return;
 
+        var key = view.Pointer;
+
         if (active)
         {
-            if (!_originalNewPageImagePositions.TryGetValue(view, out _))
+            // Save the original position the first time we move it.
+            if (!_originalNewPageImagePositions.ContainsKey(key))
             {
-                _originalNewPageImagePositions.Add(view, new OriginalPosition { Value = newPageImage.localPosition });
+                _originalNewPageImagePositions[key] = newPageImage.localPosition;
             }
             newPageImage.localPosition = new Vector3(140f, 0f, 0f);
             if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
@@ -582,12 +583,26 @@ internal static class SpeakerPortraitsPatch
         }
         else
         {
-            if (_originalNewPageImagePositions.TryGetValue(view, out var orig))
+            if (_originalNewPageImagePositions.TryGetValue(key, out var orig))
             {
-                newPageImage.localPosition = orig.Value;
+                newPageImage.localPosition = orig;
                 if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
                 {
-                    KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Reset new_page_image position to {orig.Value}");
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[SpeakerPortraits]   Reset new_page_image position to {orig}");
+                }
+            }
+            else
+            {
+                // Fallback: no saved original found (view never had a portrait) — if
+                // position was moved by us, reset it to zero rather than leaving it
+                // stranded at (140, 0, 0).
+                if (newPageImage.localPosition == new Vector3(140f, 0f, 0f))
+                {
+                    newPageImage.localPosition = Vector3.zero;
+                    if (KupoUIPRPlugin.DiagnosticPortraitLoggingConfig.Value)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogInfo("[SpeakerPortraits]   Reset new_page_image to Vector3.zero (fallback — no saved original).");
+                    }
                 }
             }
         }
