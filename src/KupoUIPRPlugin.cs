@@ -334,7 +334,7 @@ public sealed class KupoUIPRPlugin : BasePlugin
         ObjectConfigPatch.Initialize(ModulesRootPath);
         TextConfigPatch.Initialize(ModulesRootPath);
         IconsConfigLoader.Initialize(ModulesRootPath);
-        DatabaseConfigPatch.Initialize(ModulesRootPath, harmony);
+        // DatabaseConfigPatch.Initialize(ModulesRootPath, harmony); // Kept dormant in codebase
         TextConfigPatch.PatchItemListContentData(harmony);
         TextConfigPatch.PatchShopListContentData(harmony);
         TextConfigPatch.PatchLibraryInfoContent(harmony);
