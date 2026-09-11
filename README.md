@@ -207,7 +207,7 @@ The custom texture system makes installing and developing UI and button prompt m
 ### Key Benefits
 
 - **Zero Bundle Editing**: You no longer need to unpack, edit, and repack the game's Unity `.bundle` files for UI elements.
-- **Drop-in Folders**: UI themes, custom frames, backgrounds, cursors, and button prompts can simply be placed inside a named folder under their respective category (e.g., `01-UI-Themes/MyDarkUI/` or `05-Button-Prompts/PlayStation/`).
+- **Drop-in Folders**: UI themes, custom frames, backgrounds, cursors, and button prompts can simply be placed inside a named folder under their respective category (e.g., `01-UI-Themes/Darker UI/` or `05-Button-Prompts/0 PS5/`).
 - **Asset Name Matching**: Simply name your custom asset files (`.png`, `.dds`, etc.) to match the internal name of the in-game texture or sprite you want to replace (e.g., naming your file `window_frame.png` will override the game's `window_frame` asset).
 - **Collision Prevention**: To resolve conflicts where different game assets share identical filenames (e.g., multiple `Default_00.png` portrait files across different character directories), KupoUI.PR supports **path-based overrides** using relative `GameAssets/` paths to target specific assets precisely.
 
@@ -251,7 +251,7 @@ Recommended structure created automatically on first run:
           MenuPortraitMap.json ← character portrait mapping for FF2
 ```
 
-Within each numbered folder you can create named sub-folders (packs). The active pack for each category is selected via the corresponding config key (e.g. `UIThemesFolder = MyTheme` selects `01-UI-Themes/MyTheme/`). An empty value means no pack is selected for that category.
+Within each numbered folder you can create named sub-folders (packs). The active pack for each category is selected via the corresponding config key (e.g. `UIThemesFolder = Darker UI` selects `01-UI-Themes/Darker UI/`). An empty value means no pack is selected for that category.
 
 The `System/` folder is auto-created on first run. Place textures that apply to all six games directly inside `System/`, or inside the matching game-tag sub-folder (e.g. `System/FF2/`) to target a specific game. Speaker portraits belong in `System/SpeakerPortraits/`.
 
@@ -419,12 +419,12 @@ The plugin scans `ObjectConfig.json` files under `Modules/` on startup. Configur
 <GameRoot>/
   Modules/
     00-Mods/
-      MyMod/
+      Amano Style TitleScreen/
         ObjectConfig.json   ← picked up
     01-UI-Themes/
-      MyTheme/
-        ObjectConfig.json   ← picked up (only if UIThemesFolder = MyTheme)
-      OtherTheme/
+      Darker UI/
+        ObjectConfig.json   ← picked up (only if UIThemesFolder = Darker UI)
+      Demake UI/
         ObjectConfig.json   ← skipped (not active theme)
     System/
       ObjectConfig.json     ← picked up (applies to all games)
@@ -985,11 +985,11 @@ Automatically preserves the aspect ratio of custom character portraits displayed
     FF2/
       SpeakerNames.json         ← game-specific (only used when running FF2)
   00-Mods/
-    MyMod/
+    Amano Style TitleScreen/
       SpeakerNames.json         ← mod-specific
   01-UI-Themes/
-    MyTheme/
-      SpeakerNames.json         ← inside a theme pack
+    Darker UI/
+      SpeakerNames.json         ← inside active theme pack
 ```
 
 Files are loaded in **alphabetical path order**. When multiple files define the same key, the **last file wins** — so a file deeper in the folder hierarchy or later alphabetically takes priority.
