@@ -21,12 +21,184 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
 
 - [KupoUI.PR](#kupouipr)
   - [Table of Contents](#table-of-contents)
-  - [Features](#features)
+  - [Core Engine Architecture](#core-engine-architecture)
   - [Build Requirements](#build-requirements)
   - [Install](#install)
     - [Linux \& Steam Deck Compatibility](#linux--steam-deck-compatibility)
   - [Configuration Reference](#configuration-reference)
-  - [Custom Texture System](#custom-texture-system)
+  - [1. 🎨 Texture \& Theme Engine](#1--texture--theme-engine)
+    - [Key Benefits](#key-benefits)
+    - [Folder Layout](#folder-layout)
+    - [Lookup Priority](#lookup-priority)
+    - [Ignoring / Game-Tag / Blocking Folders](#ignoring--game-tag--blocking-folders)
+    - [Path-Based Overrides](#path-based-overrides)
+    - [Prefabs \& Battle Background Support](#prefabs--battle-background-support)
+    - [Sidecar Metadata (.json)](#sidecar-metadata-json)
+    - [Texture Formats \& Filter Modes](#texture-formats--filter-modes)
+    - [Hot-Reload](#hot-reload)
+  - [2. 📐 GameObject \& Layout Engine (ObjectConfig.json)](#2--gameobject--layout-engine-objectconfigjson)
+    - [Folder Placement](#folder-placement)
+    - [File Format](#file-format)
+    - [Fields](#fields)
+    - [Supported Color Names](#supported-color-names)
+    - [When Rules Are Applied](#when-rules-are-applied)
+    - [Using `TargetPath` to Avoid Wrong Matches](#using-targetpath-to-avoid-wrong-matches)
+    - [Disabling a Mask on a Specific Object](#disabling-a-mask-on-a-specific-object)
+    - [Hiding an Object](#hiding-an-object)
+    - [Inserting Custom Image Objects (`NewImages`)](#inserting-custom-image-objects-newimages)
+    - [Text Alignment Values](#text-alignment-values)
+    - [Title Screen \& Main Menu Background Images](#title-screen--main-menu-background-images)
+  - [3. 💬 Dialogue \& Portrait Engine](#3--dialogue--portrait-engine)
+    - [Speaker Name Prefix](#speaker-name-prefix)
+    - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
+    - [Speaker Portraits](#speaker-portraits)
+    - [Menu Portraits Override (FF2, FF4, FF6)](#menu-portraits-override-ff2-ff4-ff6)
+      - [Menu Portrait Aspect Ratio Preservation](#menu-portrait-aspect-ratio-preservation)
+    - [Speaker Name Overrides](#speaker-name-overrides)
+    - [Dialogue Font Size](#dialogue-font-size)
+  - [4. 🔤 Font \& Typography Engine (fontconfig.json)](#4--font--typography-engine-fontconfigjson)
+    - [Phase 1 — Diagnostic Logging](#phase-1--diagnostic-logging)
+    - [Phase 2 — Custom Font Swap](#phase-2--custom-font-swap)
+      - [Supported System Fonts](#supported-system-fonts)
+      - [Note for Linux \& Steam Deck Users (via Proton)](#note-for-linux--steam-deck-users-via-proton)
+  - [5. 📝 Text \& Inline Icon Engine](#5--text--inline-icon-engine)
+    - [TextConfig.json — Data-Driven Text Customization](#textconfigjson--data-driven-text-customization)
+    - [IconsConfig.json — Custom Rich Text Inline Icons](#iconsconfigjson--custom-rich-text-inline-icons)
+    - [Language-Agnostic Icon Injection](#language-agnostic-icon-injection-eg-for-inventory-items)
+    - [Performance \& Texture Atlases](#performance--texture-atlases)
+    - [Disable Item Dimming](#disable-item-dimming)
+  - [6. 🛠️ Mod Loader \& Diagnostics Engine](#6--mod-loader--diagnostics-engine)
+    - [Startup Mod Loader \& Texture Conflict Detection](#startup-mod-loader--texture-conflict-detection)
+    - [UI Tweaks](#ui-tweaks)
+    - [Utility](#utility)
+    - [Developer Diagnostic Logging Modes](#developer-diagnostic-logging-modes)
+    - [Optional Dependencies](#optional-dependencies)
+
+---
+
+## Core Engine Architecture
+
+KupoUI.PR is structured as a suite of **6 Core Engines**:
+
+### 1. 🎨 Texture & Theme Engine
+- **5-Layer Priority Pipeline**: Swap UI themes, frames, bg colors, cursors, & button prompts cleanly.
+- **Prefabs & Addressables**: Replace battle backgrounds & prefab assets without bundle editing.
+- **Sidecar Metadata**: Fine-tune 9-slice borders, UV wrap modes (auto-tiling), scale, & PPU per image.
+- **Hot-Reload**: Live texture updates on disk save without restarting the game.
+
+### 2. 📐 GameObject & Layout Engine (`ObjectConfig.json`)
+- **Runtime UI Manipulation**: Move, rotate, scale, hide, or recolor any UI element in the game.
+- **Targeted Hierarchy Pathing**: Disambiguate duplicate UI elements via paths & sibling indexes.
+- **Custom Image Insertion**: Drop new UI images (`NewImages`) into existing screens without writing C#.
+- **Title & Menu Background Injection**: Inject full-screen title backgrounds (`TitlescreenFullBG`) & main menu backgrounds (`MainMenuBg`).
+
+### 3. 💬 Dialogue & Portrait Engine
+- **Dynamic Portrait Injection**: Inject speaker portraits into speech boxes with custom padding & offsets.
+- **Speaker Formatting**: Auto-prepend speaker names, UPPERCASE mode, line breaks, & word wrapping.
+- **Menu Portrait Remapper**: Custom portraits for FF2, FF4, & FF6 with aspect ratio preservation.
+
+### 4. 🔤 Font & Typography Engine (`fontconfig.json`)
+- **Custom Font Swap**: Use system-wide fonts (installed for all users) per language & UI role (`Main`, `Title`, `Battle`, `Number`).
+- **Typography Tuning**: Custom font scaling, line spacing, vertical offsets, & dialogue font size lock.
+
+### 5. 📝 Text & Inline Icon Engine (`TextConfig.json` & `IconsConfig.json`)
+- **Data-Driven Text Overrides**: Swap text by key, exact string match, or Regex search-and-replace.
+- **Rich Text Inline Icons**: Inject custom icon tags (`<IC_BAG>`) into text & items across all languages.
+- **Atlas Disk Caching**: Auto-packs icons into atlases & caches on disk for 60+ FPS scrolling.
+
+### 6. 🛠️ Mod Loader & Diagnostics Engine
+- **Mod Discovery & Conflict Detection**: Scans active mods in `00-Mods/` & alerts on texture conflicts.
+- **Developer Diagnostics**: Dedicated loggers to trace textures, battle sprites, fonts, dialogue keys, & UI logic.
+
+---
+
+## Build Requirements
+
+1. Install BepInEx IL2CPP (6.0-pre.2 or newer) into your FFPR game folder.
+2. Ensure interop assemblies are generated (`BepInEx/interop`).
+3. Build with `BepInExDir` pointing to that game's BepInEx folder.
+
+```powershell
+dotnet build .\KupoUI.PR.csproj -c Release
+```
+
+| IMPORTANT ! : This is just the repo for the DLL of KupoUI.PR . if you want to Experience Darker UI . You need to download the appropriate version from Nexus mods
+
+---
+
+## Install
+
+Copy the output DLL from:
+
+```
+bin/Release/net472/KupoUI.PR.dll
+```
+
+to:
+
+```
+BepInEx/plugins/
+```
+
+### Linux & Steam Deck Compatibility
+
+Since BepInEx uses a custom `winhttp.dll` to inject itself into the game, Proton will ignore it by default on Linux and Steam Deck. You must force Proton to load the local version:
+
+1. Right-click the game in your Steam Library and select **Properties...**.
+2. In the **General** tab, scroll down to the **Launch Options** section.
+3. Paste the following line:
+   ```bash
+   export WINEDLLOVERRIDES="winhttp=n,b"; %command%
+   ```
+
+---
+
+## Configuration Reference
+
+The config file is generated on first run at:
+
+```
+BepInEx/config/faospark.kupoui.pr.cfg
+```
+
+| Section                 | Key                           | Default    | Description                                                                                                                            |
+| ----------------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/System/` (supports `FontName`, `LineSpace`, `YOffset`, `FontSize`, `FontSizeMin`, and `FontSizeMax`). |
+| `UI`                    | `DisableItemDimming`          | `false`    | Forces all item list icons and names to display at full color, ignoring the grey dim tint applied to unusable items.                   |
+| `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options:`Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.           |
+| `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                                       |
+| `UI`                    | `TitleScreenBgColor`          | `original` | Title screen background color. Options:`original`, `white`, `black`, `navy`, `crimson`, `violet`.                                      |
+| `UI-Dialog`             | `DialogueFontSize`            | `Auto`     | Font size for dialogue text. Use an integer (e.g.`36`) or `Auto` to use the font's declared size.                                      |
+| `UI-Dialog`             | `MessageSpeakerPrefix`        | `true`     | Prepend speaker name to dialogue messages.                                                                                             |
+| `UI-Dialog`             | `SpeakerNameUppercase`        | `false`    | Transform speaker name to UPPERCASE before prepending.                                                                                 |
+| `UI-Dialog`             | `SpeakerNameNewLine`          | `false`    | If true, inserts a line break (new line) after the speaker prefix in dialogue boxes.                                                   |
+| `UI-Dialog`             | `DialogueTextWrap`            | `true`     | If true, forces built-in text wrapping on dialogue text boxes to prevent horizontal overflow.                                          |
+| `UI-Dialog`             | `DialogueLineLengthLimit`     | `0`        | If greater than 0, forces dialogue text to wrap at this maximum character count per line.                                              |
+| `UI-Dialog`             | `HideSpeakerTag`              | `true`     | Move the speaker tag bubble off-screen. May conflict with mods that use the bubble as portraits.                                       |
+| `UI-Dialog`             | `EnableSpeakerPortraits`      | `true`     | Dynamically inject speaker portraits during dialogue.                                                                                  |
+| `UI-Dialog`             | `FlipSpeakerPortraits`        | `true`     | Flip all injected speaker portraits horizontally.                                                                                      |
+| `UI-Dialog`             | `SpeakerPortraitsPadding`     | `0,0,0,0`  | Padding for speaker portraits in`left,top,right,bottom` pixels format (e.g. `10,15,0,20`).                                             |
+| `UI-Dialog`             | `SpeakerPortraitsTextOffset`  | `0`        | Offset (in pixels) for the dialogue text box when speaker portraits are active. Supports`X` or `X,Y` format (e.g., `-75` or `-75,10`). |
+| `UI and Customizations` | `UIThemesFolder`              | _(empty)_  | Folder under`Modules/01-UI-Themes/` for UI theme overrides.                                                                            |
+| `UI and Customizations` | `UiFramesFolder`              | _(empty)_  | Folder under`Modules/02-UI-Frames/` for UI frame overrides.                                                                            |
+| `UI and Customizations` | `UIBgColorFolder`             | _(empty)_  | Folder under`Modules/03-UI-BgColor/` for UI background overrides.                                                                      |
+| `UI and Customizations` | `CursorsFolder`               | _(empty)_  | Folder under`Modules/04-UI-Cursors/` for cursor overrides.                                                                             |
+| `UI and Customizations` | `ButtonPromptsFolder`         | _(empty)_  | Folder under`Modules/05-Button-Prompts/` for button prompt overrides.                                                                  |
+| `Utility`               | `DisableMouseCursor`          | `false`    | Hide the OS mouse cursor inside the game window.                                                                                       |
+| `Utility`               | `ForceVSync`                  | `false`    | Force VSync on and lock`targetFrameRate` to `-1`.                                                                                      |
+| `Utility`               | `EnableTextureHotReload`      | `false`    | Watch texture folders and rebuild index when files change.                                                                             |
+| `Utility`               | `TextureHotReloadDebounceMs`  | `350`      | Debounce window (ms) before rebuilding index after file changes.                                                                       |
+| `Utility`               | `EnableDDSTextures`           | `true`     | Enable DDS texture loading (DXT1/DXT5 and uncompressed RGBA32).                                                                        |
+| `Z - Diagnostics`       | `TextureLogger`               | `Off`      | Texture logger mode:`Off`, `Discoveries`, `Resolutions`, `Misses`, `All` (or comma-separated).                                         |
+| `Z - Diagnostics`       | `LogFontMapping`              | `false`    | Log`FontManager` font parameter and instance details to identify `FontType` mappings.                                                  |
+| `Z - Diagnostics`       | `MessageSpeakerPrefixLogging` | `false`    | Log speaker name replacements.                                                                                                         |
+| `Z - Diagnostics`       | `LogAllTexts`                 | `false`    | If true, logs all texts assigned to`UnityEngine.UI.Text` components to the console.                                                    |
+| `Z - Diagnostics`       | `IconLogging`                 | `false`    | If true, logs custom icon tag matches and sprite swaps to the console.                                                                 |
+| `Z - Diagnostics`       | `PortraitLogging`             | `true`     | Log portrait lifecycle and resolution details.                                                                                         |
+
+---
+
+## 1. 🎨 Texture & Theme Engine
     - [Key Benefits](#key-benefits)
     - [Folder Layout](#folder-layout)
     - [Lookup Priority](#lookup-priority)
@@ -449,7 +621,7 @@ This check runs automatically at every startup and hot-reload, so you always see
 
 ---
 
-## ObjectConfig.json — Data-Driven GameObject Tweaks
+## 2. 📐 GameObject & Layout Engine (ObjectConfig.json)
 
 Manipulate Unity GameObjects at runtime (position, rotation, scale, active state, text properties) without writing C# — just drop an `ObjectConfig.json` file anywhere inside `Modules/` (`00-Mods/`, `System/`, or your active category pack folder).
 
@@ -669,9 +841,79 @@ The image file path is resolved **relative to the `ObjectConfig.json` file** its
 
 Values are case-insensitive. If the object has no corresponding component (`Text` for `TextAlignment`, or `LayoutGroup` for `ChildAlignment`), or the value is unrecognized, a warning is written to the log and the field is skipped.
 
+### Title Screen & Main Menu Background Images
+
+#### Title Screen Background Color
+
+`UI.TitleScreenBgColor` — Controls the color of the title screen's solid background panel.
+
+Options: `original` (game default), `white`, `black`, `navy`, `crimson`, `violet`.
+
+The patch intercepts the `Graphic.color` setter and re-enforces the chosen color on every material update to prevent the game from overriding it.
+
+#### Title Screen Full Background Image
+
+Drop any supported image named `TitlescreenFullBG` into any mod folder to inject a custom full-screen background image on the title screen. No config entry is required — if the file is absent, nothing happens.
+
+```
+<GameRoot>/Modules/00-Mods/MyMod/TitlescreenFullBG.png
+```
+
+**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds`
+
+**How it works:**
+
+The patch watches for the title screen's internal `background` object at:
+
+```
+background_canvas/ui_root/backgrou_root/background
+```
+
+When that object activates, a new `fullbg` `RawImage` GameObject is injected as a sibling immediately above it, stretched to fill the parent rect:
+
+```
+background_canvas/ui_root/backgrou_root/
+  ├── background   ← original solid-color background (still tinted by TitleScreenBgColor)
+  └── fullbg       ← injected — renders on top, covers background
+```
+
+**Notes:**
+
+- The object is only created once per activation cycle — no duplicates on re-activation.
+- For best results, use an image sized to your target resolution (e.g. 1920×1080).
+
+##### Custom Title Logo Image Overrides
+When using custom full-screen background images, you may want to hide or override the game's built-in title logos. To do this, replace the following three texture files with completely transparent PNG files in your mod folder:
+- `TitleLogoImage`
+- `TitleLogoImage_EN`
+- `TitleLogoImage_ZH-CH`
+
+> [!NOTE]
+> The game's main title logos are tied directly to the fade-in animation timeline sequence on startup, making them extremely difficult to cleanly patch via Harmony. Replacing these files with transparent textures on disk is the recommended way to hide or override them.
+
+#### Main Menu Background Image
+
+Drop any supported image named `MainMenuBg` into any mod folder to inject a custom background image behind the main menu. No config entry is required — if the file is absent, nothing happens.
+
+```
+<GameRoot>/Modules/00-Mods/MyMod/MainMenuBg.png
+```
+
+**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds`
+
+**How it works:**
+
+The patch watches for the main menu's `menu_parent` container or `menu_base(Clone)` object under:
+
+```
+Canvas/aspect_parent/menu_parent
+```
+
+When either is activated, a new `MainMenuBgObject` `RawImage` GameObject is injected as a sibling of `menu_parent` immediately behind it (lower sibling index), stretched to fill the parent `aspect_parent` rect. The background automatically mirrors the active state of `menu_parent` and is cleaned up when `menu_parent` is destroyed.
+
 ---
 
-## TextConfig.json — Data-Driven Text Customization
+## 5. 📝 Text & Inline Icon Engine
 
 Like `ObjectConfig.json`, you can place files named `TextConfig.json` under the `Modules/` directory (`00-Mods/`, `System/`, or inside your active category pack folder). They are parsed additively at startup to override in-game menu texts, buttons, names, and dialogs.
 
@@ -831,118 +1073,13 @@ To solve this, **KupoUI.PR automatically packs all registered custom icons into 
 - **Smart Invalidation**: The index saves the exact file modification timestamps of all source icons. If you edit, add, or remove any icon or config file, the cache is automatically invalidated and rebuilt on the next startup. You can also delete the `.cache/` folder to force a clean rebuild.
 - **Seamless Fallback**: If atlas creation fails for any reason (e.g., Unity engine or platform constraint), the plugin gracefully falls back to using individual sprites.
 
----
+### Disable Item Dimming
 
-## DatabaseConfig.json — Data-Driven Database Customization
-
-You can patch specific fields in the game's static database tables at runtime. Currently, KupoUI.PR supports delta patching for the `monster_party` table (encounters database) to modify monster positions, encounter BGMs, battle backgrounds, and enemy layouts without replacing or corrupting the master files.
-
-### DatabaseConfig.json Structure
-
-Create `DatabaseConfig.json` inside your module directory (e.g. `Modules/System/` or `Modules/00-Mods/MyMod/`). The file contains a root scope with an optional `GameTag` and a `"MonsterParty"` array of override objects:
-
-```json
-{
-  "GameTag": "FF4",
-  "MonsterParty": [
-    {
-      "id": 1,
-      "battle_background_asset_id": 25,
-      "battle_bgm_asset_id": 3,
-      "monster1_x_position": 60,
-      "monster1_y_position": -15
-    }
-  ]
-}
-```
-
-- **id**: (Required) The unique ID of the encounter group row to patch (corresponds to the `id` column in `monster_party.csv`).
-- **Supported Fields**: You can specify any subset of the following parameters to overwrite in the game's memory at startup:
-  - `battle_background_asset_id`, `battle_bgm_asset_id`
-  - `appearance_production`, `script_name` (maps to `ScriptNameId` internally)
-  - `battle_pattern1` to `battle_pattern6`
-  - `not_escape`, `battle_flag_group_id`
-  - `get_value`, `get_ap`
-  - `monster1` to `monster9` (monster ID mapping)
-  - `monster1_x_position` to `monster9_x_position` (coordinate offsets, integers)
-  - `monster1_y_position` to `monster9_y_position` (coordinate offsets, integers)
-  - `monster1_group` to `monster9_group` (group target mapping)
+`UI.DisableItemDimming` (default `false`) — Forces all item list icons and text labels (in main menu item lists, battle item/info lists, and shop views) to display at full color, ignoring the gray dim tint applied by the game to unusable or un-equipable items.
 
 ---
 
-## Title Screen
-
-### Title Screen Background Color
-
-`UI.TitleScreenBgColor` — Controls the color of the title screen's solid background panel.
-
-Options: `original` (game default), `white`, `black`, `navy`, `crimson`, `violet`.
-
-The patch intercepts the `Graphic.color` setter and re-enforces the chosen color on every material update to prevent the game from overriding it.
-
-### Title Screen Full Background Image
-
-Drop any supported image named `TitlescreenFullBG` into any mod folder to inject a custom full-screen background image on the title screen. No config entry is required — if the file is absent, nothing happens.
-
-```
-<GameRoot>/Modules/00-Mods/MyMod/TitlescreenFullBG.png
-```
-
-**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds`
-
-**How it works:**
-
-The patch watches for the title screen's internal `background` object at:
-
-```
-background_canvas/ui_root/backgrou_root/background
-```
-
-When that object activates, a new `fullbg` `RawImage` GameObject is injected as a sibling immediately above it, stretched to fill the parent rect:
-
-```
-background_canvas/ui_root/backgrou_root/
-  ├── background   ← original solid-color background (still tinted by TitleScreenBgColor)
-  └── fullbg       ← injected — renders on top, covers background
-```
-
-**Notes:**
-
-- The object is only created once per activation cycle — no duplicates on re-activation.
-- For best results, use an image sized to your target resolution (e.g. 1920×1080).
-
-#### Custom Title Logo Image Overrides
-When using custom full-screen background images, you may want to hide or override the game's built-in title logos. To do this, replace the following three texture files with completely transparent PNG files in your mod folder:
-- `TitleLogoImage`
-- `TitleLogoImage_EN`
-- `TitleLogoImage_ZH-CH`
-
-> [!NOTE]
-> The game's main title logos are tied directly to the fade-in animation timeline sequence on startup, making them extremely difficult to cleanly patch via Harmony. Replacing these files with transparent textures on disk is the recommended way to hide or override them.
-
-### Main Menu Background Image
-
-Drop any supported image named `MainMenuBg` into any mod folder to inject a custom background image behind the main menu. No config entry is required — if the file is absent, nothing happens.
-
-```
-<GameRoot>/Modules/00-Mods/MyMod/MainMenuBg.png
-```
-
-**Supported formats:** `png`, `jpg`, `jpeg`, `tga`, `dds`
-
-**How it works:**
-
-The patch watches for the main menu's `menu_parent` container or `menu_base(Clone)` object under:
-
-```
-Canvas/aspect_parent/menu_parent
-```
-
-When either is activated, a new `MainMenuBgObject` `RawImage` GameObject is injected as a sibling of `menu_parent` immediately behind it (lower sibling index), stretched to fill the parent `aspect_parent` rect. The background automatically mirrors the active state of `menu_parent` and is cleaned up when `menu_parent` is destroyed.
-
----
-
-## Dialogue System
+## 3. 💬 Dialogue & Portrait Engine
 
 ### Speaker Name Prefix
 
@@ -1030,6 +1167,10 @@ If no mapping is defined in `MenuPortraitMap.json`, the plugin automatically fal
 1. The full speaker ID (e.g. `FA_FF4_P001.png`)
 2. The shorthand ID (e.g. `P001.png`)
 3. The display name override in `SpeakerNames.json` / `speaker-names.json` (if any exists for that ID)
+
+#### Menu Portrait Aspect Ratio Preservation
+
+Automatically preserves the aspect ratio of custom character portraits displayed on the main menu screen (by setting `preserveAspect = true` and bypassing the default `SetNativeSize` execution on the `/chara_rect/front/front_parent/charac_parent/chara_image` UI Image component). This ensures that custom high-resolution character portraits do not stretch or distort.
 
 ### Speaker Name Overrides
 
@@ -1156,7 +1297,7 @@ Portrait files are resolved using the **effective** speaker ID and name after ov
 
 ---
 
-## Font Diagnostic & Custom Font Swap
+## 4. 🔤 Font & Typography Engine (fontconfig.json)
 
 This plugin includes a two-phase font mapping and replacement utility.
 
@@ -1277,7 +1418,9 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 
 ---
 
-## UI Tweaks
+## 6. 🛠️ Mod Loader & Diagnostics Engine
+
+### UI Tweaks
 
 ### Scaled-Down Menu
 
@@ -1286,10 +1429,6 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 - `Canvas/aspect_parent/menu_parent/menu_base(Clone)`
 - `RootObject/sab_canvas/root/ui_root`
 
-### Disable Item Dimming
-
-`UI.DisableItemDimming` (default `false`) — Forces all item list icons and text labels (in main menu item lists, battle item/info lists, and shop views) to display at full color, ignoring the gray dim tint applied by the game to unusable or un-equipable items.
-
 ### Save Highlight Color
 
 `UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
@@ -1297,10 +1436,6 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 - **Options**: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.
 - **Disable Aliases**: You can also use `Disabled`, `Off`, or `None` to disable the highlight slot entirely.
 - **Fallback Behavior**: If an unrecognized value is set, the color defaults to `DarkNavy` to ensure deterministic rendering.
-
-### Menu Portrait Aspect Ratio Preservation
-
-Automatically preserves the aspect ratio of custom character portraits displayed on the main menu screen (by setting `preserveAspect = true` and bypassing the default `SetNativeSize` execution on the `/chara_rect/front/front_parent/charac_parent/chara_image` UI Image component). This ensures that custom high-resolution character portraits do not stretch or distort.
 
 ---
 
