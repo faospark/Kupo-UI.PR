@@ -227,6 +227,12 @@ internal static class ModConflictDetector
             {
                 return;
             }
+
+            if (sourceName.Equals("System", StringComparison.OrdinalIgnoreCase) &&
+                segment.Equals("SpeakerPortraits", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
         }
 
         var relativePath = filePath.Substring(rootPath.Length)

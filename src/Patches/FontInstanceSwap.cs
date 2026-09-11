@@ -21,39 +21,53 @@ namespace KupoUI.PR.Patches
 
             if (!FontResolver.TryGetFontConfig(type, language, out var configEntry)) return;
 
-            var fontName = configEntry.FontName;
-            if (string.IsNullOrEmpty(fontName) || string.Equals(fontName, "Arial", StringComparison.OrdinalIgnoreCase)) return;
+            if (configEntry.LineSpace.HasValue)
+            {
+                __result.LineSpace = configEntry.LineSpace.Value;
+            }
 
-            // Determine target font size: fallback to original font size, fallback to 32.
+            var fontName = configEntry.FontName;
+            bool isCustomFont = !string.IsNullOrEmpty(fontName) && !string.Equals(fontName, "Arial", StringComparison.OrdinalIgnoreCase);
+
+            // Determine target font size: config override > original font size > 32.
             int targetSize = 32;
-            if (__result.FontInstance != null && __result.FontInstance.fontSize > 0)
+            if (configEntry.FontSize.HasValue && configEntry.FontSize.Value > 0)
+            {
+                targetSize = configEntry.FontSize.Value;
+            }
+            else if (__result.FontInstance != null && __result.FontInstance.fontSize > 0)
             {
                 targetSize = __result.FontInstance.fontSize;
             }
 
-            var fontInstance = GetOrCreateFont(fontName, targetSize);
+            Font fontInstance = null;
+            if (isCustomFont)
+            {
+                fontInstance = GetOrCreateFont(fontName, targetSize);
+            }
+            else if (__result.FontInstance != null)
+            {
+                fontInstance = __result.FontInstance;
+            }
+
             if (fontInstance != null)
             {
-                // Overwrite the FontInstance property
+                // Overwrite the FontInstance property and store swapped config mapping
                 try
                 {
                     bool isNewSwap = __result.FontInstance == null || __result.FontInstance.Pointer != fontInstance.Pointer;
-                    if (isNewSwap)
+                    if (isNewSwap && isCustomFont)
                     {
                         __result.FontInstance = fontInstance;
                     }
 
                     float effectiveYOffset = configEntry.YOffset ?? 0f;
                     FontResolver.SwappedFontYOffsets[fontInstance.Pointer] = effectiveYOffset;
+                    FontResolver.SwappedFontConfigs[fontInstance.Pointer] = configEntry;
 
-                    if (configEntry.LineSpace.HasValue)
+                    if (isNewSwap && isCustomFont)
                     {
-                        __result.LineSpace = configEntry.LineSpace.Value;
-                    }
-
-                    if (isNewSwap)
-                    {
-                        KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] GetFont Postfix: FontType={type} (Language={language ?? "Default"}) swapped to '{fontName}' at size {targetSize} (LineSpace={__result.LineSpace})");
+                        KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] GetFont Postfix: FontType={type} (Language={language ?? "Default"}) swapped to '{fontName}' at size {targetSize} (LineSpace={__result.LineSpace}, FontSize={configEntry.FontSize}, FontSizeMin={configEntry.FontSizeMin}, FontSizeMax={configEntry.FontSizeMax})");
                     }
                 }
                 catch (Exception ex)
@@ -62,46 +76,49 @@ namespace KupoUI.PR.Patches
                 }
 
                 // Overwrite the key in FontManager's cacheFontList dictionary
-                try
+                if (isCustomFont)
                 {
-                    var cache = __instance.cacheFontList;
-                    if (cache != null && !string.IsNullOrEmpty(__result.FontName))
+                    try
                     {
-                        bool needsUpdate = true;
-                        if (cache.TryGetValue(__result.FontName, out var existingFont))
+                        var cache = __instance.cacheFontList;
+                        if (cache != null && !string.IsNullOrEmpty(__result.FontName))
                         {
-                            if (existingFont != null && existingFont.Pointer == fontInstance.Pointer)
+                            bool needsUpdate = true;
+                            if (cache.TryGetValue(__result.FontName, out var existingFont))
                             {
-                                needsUpdate = false;
-                            }
-                        }
-
-                        if (needsUpdate)
-                        {
-                            // Log keys for diagnostics on actual change
-                            if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)
-                            {
-                                var keys = new System.Collections.Generic.List<string>();
-                                var enumerator = cache.Keys.GetEnumerator();
-                                while (enumerator.MoveNext())
+                                if (existingFont != null && existingFont.Pointer == fontInstance.Pointer)
                                 {
-                                    keys.Add(enumerator.Current);
+                                    needsUpdate = false;
                                 }
-                                KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Current cacheFontList keys: {string.Join(", ", keys)}");
                             }
 
-                            if (cache.ContainsKey(__result.FontName))
+                            if (needsUpdate)
                             {
-                                cache.Remove(__result.FontName);
+                                // Log keys for diagnostics on actual change
+                                if (KupoUIPRPlugin.DiagnosticsLogFontMappingConfig.Value)
+                                {
+                                    var keys = new System.Collections.Generic.List<string>();
+                                    var enumerator = cache.Keys.GetEnumerator();
+                                    while (enumerator.MoveNext())
+                                    {
+                                        keys.Add(enumerator.Current);
+                                    }
+                                    KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Current cacheFontList keys: {string.Join(", ", keys)}");
+                                }
+
+                                if (cache.ContainsKey(__result.FontName))
+                                {
+                                    cache.Remove(__result.FontName);
+                                }
+                                cache.Add(__result.FontName, fontInstance);
+                                KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Updated cacheFontList key '{__result.FontName}' -> '{fontName}'");
                             }
-                            cache.Add(__result.FontName, fontInstance);
-                            KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Updated cacheFontList key '{__result.FontName}' -> '{fontName}'");
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    KupoUIPRPlugin.PluginLog.LogError($"[FontSwap] Failed to update cacheFontList: {ex}");
+                    catch (Exception ex)
+                    {
+                        KupoUIPRPlugin.PluginLog.LogError($"[FontSwap] Failed to update cacheFontList: {ex}");
+                    }
                 }
             }
         }
@@ -140,6 +157,43 @@ namespace KupoUI.PR.Patches
     [HarmonyPatch(typeof(Text), "OnPopulateMesh")]
     class Text_OnPopulateMesh_Patch
     {
+        [HarmonyPrefix]
+        static void Prefix(Text __instance)
+        {
+            if (__instance == null) return;
+            if (!KupoUIPRPlugin.FontSwapEnabledConfig.Value) return;
+
+            var font = __instance.font;
+            if (font == null) return;
+
+            if (FontResolver.SwappedFontConfigs.TryGetValue(font.Pointer, out var configEntry))
+            {
+                if (configEntry.FontSize.HasValue && configEntry.FontSize.Value > 0)
+                {
+                    if (__instance.fontSize != configEntry.FontSize.Value)
+                    {
+                        __instance.fontSize = configEntry.FontSize.Value;
+                    }
+                }
+
+                if (configEntry.FontSizeMin.HasValue && configEntry.FontSizeMin.Value > 0)
+                {
+                    if (__instance.resizeTextMinSize != configEntry.FontSizeMin.Value)
+                    {
+                        __instance.resizeTextMinSize = configEntry.FontSizeMin.Value;
+                    }
+                }
+
+                if (configEntry.FontSizeMax.HasValue && configEntry.FontSizeMax.Value > 0)
+                {
+                    if (__instance.resizeTextMaxSize != configEntry.FontSizeMax.Value)
+                    {
+                        __instance.resizeTextMaxSize = configEntry.FontSizeMax.Value;
+                    }
+                }
+            }
+        }
+
         [HarmonyPostfix]
         static void Postfix(Text __instance, VertexHelper toFill)
         {

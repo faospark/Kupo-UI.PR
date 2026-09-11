@@ -197,7 +197,7 @@ BepInEx/config/faospark.kupoui.pr.cfg
 
 | Section                 | Key                           | Default    | Description                                                                                                                            |
 | ----------------------- | ----------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/System/`.                                                                  |
+| `FontSwap`              | `Enabled`                     | `false`    | Enable custom font swap via `fontconfig.json` under `Modules/System/` (supports `FontName`, `LineSpace`, `YOffset`, `FontSize`, `FontSizeMin`, and `FontSizeMax`). |
 | `UI`                    | `DisableItemDimming`          | `false`    | Forces all item list icons and names to display at full color, ignoring the grey dim tint applied to unusable items.                   |
 | `UI`                    | `SaveHighlightColor`          | `Disable`  | Save slot highlight color. Options:`Original`, `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.           |
 | `UI`                    | `ScaledDownMenu`              | `true`     | Shrinks the in-game menu by 10%.                                                                                                       |

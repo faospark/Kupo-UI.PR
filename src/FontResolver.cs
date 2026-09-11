@@ -12,6 +12,9 @@ namespace KupoUI.PR
         public string FontName { get; set; } = "";
         public float? LineSpace { get; set; }
         public float? YOffset { get; set; }
+        public int? FontSize { get; set; }
+        public int? FontSizeMin { get; set; }
+        public int? FontSizeMax { get; set; }
     }
 
     internal static class FontResolver
@@ -22,6 +25,7 @@ namespace KupoUI.PR
         internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, string> FontParameterLanguages { get; } = new();
         internal static Dictionary<string, UnityEngine.Font> LoadedFonts { get; } = new(StringComparer.OrdinalIgnoreCase);
         internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, float> SwappedFontYOffsets { get; } = new();
+        internal static System.Collections.Concurrent.ConcurrentDictionary<IntPtr, FontConfigEntry> SwappedFontConfigs { get; } = new();
 
         internal static void Initialize(string modulesRootPath)
         {
@@ -38,6 +42,9 @@ namespace KupoUI.PR
                 var nameMatch = Regex.Match(objStr, "\"FontName\"\\s*:\\s*\"([^\"]+)\"", RegexOptions.IgnoreCase);
                 var spaceMatch = Regex.Match(objStr, "\"LineSpace\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
                 var yOffsetMatch = Regex.Match(objStr, "\"YOffset\"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+                var fontSizeMatch = Regex.Match(objStr, "\"FontSize\"\\s*:\\s*(\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+                var fontSizeMinMatch = Regex.Match(objStr, "\"FontSizeMin\"\\s*:\\s*(\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
+                var fontSizeMaxMatch = Regex.Match(objStr, "\"FontSizeMax\"\\s*:\\s*(\\d+(?:\\.\\d+)?)", RegexOptions.IgnoreCase);
 
                 var fontName = nameMatch.Success ? nameMatch.Groups[1].Value : "";
 
@@ -53,13 +60,34 @@ namespace KupoUI.PR
                     yOffset = parsedYOffset;
                 }
 
-                if (!string.IsNullOrEmpty(fontName))
+                int? fontSize = null;
+                if (fontSizeMatch.Success && float.TryParse(fontSizeMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedFontSize))
+                {
+                    fontSize = (int)Math.Round(parsedFontSize);
+                }
+
+                int? fontSizeMin = null;
+                if (fontSizeMinMatch.Success && float.TryParse(fontSizeMinMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedFontSizeMin))
+                {
+                    fontSizeMin = (int)Math.Round(parsedFontSizeMin);
+                }
+
+                int? fontSizeMax = null;
+                if (fontSizeMaxMatch.Success && float.TryParse(fontSizeMaxMatch.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var parsedFontSizeMax))
+                {
+                    fontSizeMax = (int)Math.Round(parsedFontSizeMax);
+                }
+
+                if (!string.IsNullOrEmpty(fontName) || space.HasValue || yOffset.HasValue || fontSize.HasValue || fontSizeMin.HasValue || fontSizeMax.HasValue)
                 {
                     return new FontConfigEntry
                     {
                         FontName = fontName,
                         LineSpace = space,
-                        YOffset = yOffset
+                        YOffset = yOffset,
+                        FontSize = fontSize,
+                        FontSizeMin = fontSizeMin,
+                        FontSizeMax = fontSizeMax
                     };
                 }
             }
@@ -111,6 +139,7 @@ namespace KupoUI.PR
             FontConfigMapping.Clear();
             LoadedFonts.Clear();
             SwappedFontYOffsets.Clear();
+            SwappedFontConfigs.Clear();
 
             var fontsDir = Path.Combine(_modulesRootPath, "System");
             var configPath = Path.Combine(fontsDir, "fontconfig.json");
@@ -296,6 +325,9 @@ How to Customize:
    - Set ""FontName"" to the desired system font family name (e.g. ""Segoe UI"").
    - Adjust ""LineSpace"" (decimal factor, e.g. 0.85) if needed.
    - Adjust ""YOffset"" (floating point pixels, e.g. 2.0 to move text up, -1.5 to move down) if needed.
+   - Adjust ""FontSize"" (integer pixel font size, e.g. 24) if needed.
+   - Adjust ""FontSizeMin"" (integer minimum font size for auto-scaled text, e.g. 12) if needed.
+   - Adjust ""FontSizeMax"" (integer maximum font size for auto-scaled text, e.g. 36) if needed.
 5. Restart the game to apply changes.
 
 Understanding Language Blocks 
@@ -335,8 +367,8 @@ Not every font FONT* has to be edited
 Example fontconfig.json (Limited Scope Override):
 {
   ""En"": {
-    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  },
-    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85  }
+    ""Font01"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85, ""YOffset"": 4, ""FontSize"": 26, ""FontSizeMin"": 14, ""FontSizeMax"": 32 },
+    ""Font07"": { ""FontName"": ""Segoe UI"", ""LineSpace"": 0.85, ""YOffset"": 4, ""FontSize"": 26, ""FontSizeMin"": 14, ""FontSizeMax"": 32 }
   }
 }
 The example above replaced the horrible font used for the English langauge of the game. 
@@ -411,7 +443,7 @@ BASELINE TEMPLATE DEFAULT VALUES (Copy keys/blocks from here into fontconfig.jso
                 {
                     FontConfigMapping[(fontType, lang)] = entry;
                     var langStr = lang.HasValue ? lang.Value.ToString() : "Global";
-                    KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> name='{entry.FontName}' (LineSpace={entry.LineSpace})");
+                    KupoUIPRPlugin.PluginLog.LogInfo($"[FontSwap] Loaded config ({langStr}) via {sourceContext}: {fontType} -> name='{entry.FontName}' (LineSpace={entry.LineSpace}, YOffset={entry.YOffset}, FontSize={entry.FontSize}, FontSizeMin={entry.FontSizeMin}, FontSizeMax={entry.FontSizeMax})");
                 }
 
                 // Cache enum arrays once
