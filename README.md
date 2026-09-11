@@ -224,20 +224,31 @@ Recommended structure created automatically on first run:
 ```
 <GameRoot>/
   Modules/
-    00-Mods/              ← general shared overrides and custom mods
+    .cache/               ← auto-generated texture atlas cache
+    00-Mods/              ← active custom mods
+      Amano Style TitleScreen/
+        ObjectConfig.json
+        TitleLogoImage.png
+        TitleLogoImage_EN.png
+      FF2 DFFOO Portraits/
+        SpeakerPortraits/
+          SPEAKER_01.png   ← Firion
+          SPEAKER_02.png   ← Maria
+          SPEAKER_03.png   ← Guy
+      FF2 Pixel Keeper/
+      FF2 Total Hell/
     01-UI-Themes/         ← full UI theme packs
     02-UI-Frames/         ← UI frame texture packs
     03-UI-BgColor/        ← UI background color packs
     04-UI-Cursors/        ← cursor texture packs
     05-Button-Prompts/    ← button prompt texture packs
-    System/               ← cross-game textures, speaker portraits, and custom font/text configurations (fontconfig.json, TextConfig-sample.json)
-      SpeakerPortraits/   ← portrait images resolved by speaker ID
-      FF1/                ← FF1-specific textures (game-tag folder)
+    System/               ← cross-game fonts & global configurations
+      fontconfig.json     ← custom font mapping
+      TextConfig-sample.json
+      Icons/              ← custom inline text icons
       FF2/
-      FF3/
-      FF4/
-      FF5/
-      FF6/
+        SpeakerPortraits/
+          MenuPortraitMap.json ← character portrait mapping for FF2
 ```
 
 Within each numbered folder you can create named sub-folders (packs). The active pack for each category is selected via the corresponding config key (e.g. `UIThemesFolder = MyTheme` selects `01-UI-Themes/MyTheme/`). An empty value means no pack is selected for that category.
@@ -427,23 +438,17 @@ The plugin scans `ObjectConfig.json` files under `Modules/` on startup. Configur
 {
   "objects": [
     {
-      "TargetObjectName": "menu_base(Clone)",
-      "TargetPath": "Canvas/aspect_parent/menu_parent/menu_base(Clone)",
-      "SceneName": "Title",
-      "Position": { "x": 0, "y": -50, "z": 0 },
-      "Rotation": { "x": 0, "y": 0, "z": 0 },
-      "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 },
-      "Size": { "x": 300, "y": 100 },
-      "SetActive": true,
-      "TextAlignment": "MiddleCenter",
-      "FontSize": 24,
-      "ResizeTextForBestFit": true,
-      "ResizeTextMaxSize": 36,
-      "ResizeTextMinSize": 12,
+      "TargetObjectName": "main_menu",
+      "TargetPath": "RootObject/menu_canvas/ui_root/notch_root/title(Clone)/content_root/menu/main_menu",
+      "Position": { "x": -730, "y": 580, "z": 0 },
+      "Scale": { "x": 0.9, "y": 0.9, "z": 1.0 }
+    },
+    {
+      "TargetObjectName": "last_text",
+      "TargetPath": "RootObject/menu_canvas/ui_root/notch_root/title(Clone)/content_root/start/last_text",
+      "FontSize": 40,
       "TextColorWhite": true,
-      "Color": "#FF5500",
-      "DisableShadow": true,
-      "DisableMask": true
+      "DisableShadow": true
     }
   ]
 }
@@ -926,9 +931,11 @@ Inside `MenuPortraitMap.json`, define key-value pairs where the key is the menu 
 
 ```json
 {
-  "Assets/GameAssets/Serial/Res/Chara/Face/FA_FF4_P001/Default_00": "Cecil",
-  "FA_FF4_P002": "SPEAKER_05",
-  "P003": "Rydia"
+  "FA_FF2_P001": "SPEAKER_01",
+  "FA_FF2_P002": "SPEAKER_02",
+  "FA_FF2_P003": "SPEAKER_03",
+  "FA_FF2_P004": "SPEAKER_07",
+  "FA_FF2_P005": "SPEAKER_23"
 }
 ```
 
@@ -1124,16 +1131,10 @@ The mapping file supports both **simple string values** and **object-based value
 ```json
 {
   "En": {
-    "Font01": { "FontName": "Segoe UI", "LineSpace": 1.0, "YOffset": 4.0 },
-    "Font02": { "FontName": "Arial", "LineSpace": 1.2, "YOffset": 2.0 },
-    "Default": { "FontName": "Arial", "LineSpace": 1.2 }
-  },
-  "Ja": {
-    "Font01": {
-      "FontName": "FOT-NewRodinPro-DB",
-      "LineSpace": 0.73,
-      "YOffset": 1.5
-    }
+    "Font01": { "FontName": "Dissidia", "LineSpace": 0.90, "YOffset": 4 },
+    "Font07": { "FontName": "Dissidia", "LineSpace": 0.90, "YOffset": 4 },
+    "Font08": { "FontName": "pix Chicago", "FontSize": 26, "LineSpace": 1.2, "YOffset": 4 },
+    "Font10": { "FontName": "pix Chicago", "FontSize": 26, "LineSpace": 1.2, "YOffset": 4 }
   }
 }
 ```
