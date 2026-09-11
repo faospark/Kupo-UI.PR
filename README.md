@@ -47,6 +47,8 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
     - [Hiding an Object](#hiding-an-object)
     - [Inserting Custom Image Objects (`NewImages`)](#inserting-custom-image-objects-newimages)
     - [Text Alignment Values](#text-alignment-values)
+    - [Scaled-Down Menu](#scaled-down-menu)
+    - [Save Highlight Color](#save-highlight-color)
     - [Title Screen \& Main Menu Background Images](#title-screen--main-menu-background-images)
   - [3. 💬 Dialogue \& Portrait Engine](#3--dialogue--portrait-engine)
     - [Speaker Name Prefix](#speaker-name-prefix)
@@ -67,10 +69,9 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
     - [Language-Agnostic Icon Injection](#language-agnostic-icon-injection-eg-for-inventory-items)
     - [Performance \& Texture Atlases](#performance--texture-atlases)
     - [Disable Item Dimming](#disable-item-dimming)
-  - [6. 🛠️ Mod Loader \& Diagnostics Engine](#6--mod-loader--diagnostics-engine)
+  - [6. 🛠️ Logging \& Utility Engine](#6--logging--utility-engine)
     - [Startup Mod Loader \& Texture Conflict Detection](#startup-mod-loader--texture-conflict-detection)
-    - [UI Tweaks](#ui-tweaks)
-    - [Utility](#utility)
+    - [Utility Settings](#utility-settings)
     - [Developer Diagnostic Logging Modes](#developer-diagnostic-logging-modes)
     - [Optional Dependencies](#optional-dependencies)
 
@@ -90,7 +91,7 @@ KupoUI.PR is structured as a suite of **6 Core Engines**:
 - **Runtime UI Manipulation**: Move, rotate, scale, hide, or recolor any UI element in the game.
 - **Targeted Hierarchy Pathing**: Disambiguate duplicate UI elements via paths & sibling indexes.
 - **Custom Image Insertion**: Drop new UI images (`NewImages`) into existing screens without writing C#.
-- **Title & Menu Background Injection**: Inject full-screen title backgrounds (`TitlescreenFullBG`) & main menu backgrounds (`MainMenuBg`).
+- **Layout Tweaks & Backgrounds**: Scaled-down in-game menu (10% shrink), custom save slot highlight colors, & full-screen title/main menu background images (`TitlescreenFullBG`, `MainMenuBg`).
 
 ### 3. 💬 Dialogue & Portrait Engine
 - **Dynamic Portrait Injection**: Inject speaker portraits into speech boxes with custom padding & offsets.
@@ -104,11 +105,12 @@ KupoUI.PR is structured as a suite of **6 Core Engines**:
 ### 5. 📝 Text & Inline Icon Engine (`TextConfig.json` & `IconsConfig.json`)
 - **Data-Driven Text Overrides**: Swap text by key, exact string match, or Regex search-and-replace.
 - **Rich Text Inline Icons**: Inject custom icon tags (`<IC_BAG>`) into text & items across all languages.
-- **Atlas Disk Caching**: Auto-packs icons into atlases & caches on disk for 60+ FPS scrolling.
+- **Atlas Disk Caching & Full Color**: Auto-packs icons into atlases, caches on disk, & option to disable item dimming.
 
-### 6. 🛠️ Mod Loader & Diagnostics Engine
+### 6. 🛠️ Logging & Utility Engine
+- **Utility Settings**: Disable mouse cursor, force VSync, DDS textures, & texture hot-reload.
 - **Mod Discovery & Conflict Detection**: Scans active mods in `00-Mods/` & alerts on texture conflicts.
-- **Developer Diagnostics**: Dedicated loggers to trace textures, battle sprites, fonts, dialogue keys, & UI logic.
+- **Developer Diagnostics**: Dedicated loggers to trace textures, battle sprites, fonts, dialogue keys, inline icons, & UI logic.
 
 ---
 
@@ -194,93 +196,6 @@ BepInEx/config/faospark.kupoui.pr.cfg
 | `Z - Diagnostics`       | `MessageSpeakerPrefixLogging` | `false`    | Log speaker name replacements.                                                                                                         |
 | `Z - Diagnostics`       | `LogAllTexts`                 | `false`    | If true, logs all texts assigned to`UnityEngine.UI.Text` components to the console.                                                    |
 | `Z - Diagnostics`       | `IconLogging`                 | `false`    | If true, logs custom icon tag matches and sprite swaps to the console.                                                                 |
-| `Z - Diagnostics`       | `PortraitLogging`             | `true`     | Log portrait lifecycle and resolution details.                                                                                         |
-
----
-
-## 1. 🎨 Texture & Theme Engine
-    - [Key Benefits](#key-benefits)
-    - [Folder Layout](#folder-layout)
-    - [Lookup Priority](#lookup-priority)
-    - [Ignoring / Game-Tag / Blocking Folders](#ignoring--game-tag--blocking-folders)
-    - [Path-Based Overrides](#path-based-overrides)
-    - [Prefabs \& Battle Background Support](#prefabs--battle-background-support)
-    - [Sidecar Metadata (.json)](#sidecar-metadata-json)
-    - [Texture Formats \& Filter Modes](#texture-formats--filter-modes)
-    - [Hot-Reload](#hot-reload)
-    - [Texture Logger](#texture-logger)
-  - [ObjectConfig.json — Data-Driven GameObject Tweaks](#objectconfigjson--data-driven-gameobject-tweaks)
-    - [Folder Placement](#folder-placement)
-    - [File Format](#file-format)
-    - [Fields](#fields)
-    - [Supported Color Names](#supported-color-names)
-      - [Standard Colors](#standard-colors)
-      - [Native Game Colors](#native-game-colors)
-    - [When Rules Are Applied](#when-rules-are-applied)
-    - [Using `TargetPath` to Avoid Wrong Matches](#using-targetpath-to-avoid-wrong-matches)
-    - [Disabling a Mask on a Specific Object](#disabling-a-mask-on-a-specific-object)
-    - [Hiding an Object](#hiding-an-object)
-    - [Inserting Custom Image Objects](#inserting-custom-image-objects)
-      - [Fields inside `NewImages`](#fields-inside-newimages)
-    - [Text Alignment Values](#text-alignment-values)
-  - [TextConfig.json — Data-Driven Text Customization](#textconfigjson--data-driven-text-customization)
-    - [File Format](#file-format-1)
-      - [Object Fields](#object-fields)
-      - [Example `TextConfig.json`](#example-textconfigjson)
-      - [How to Find Text Paths and Keys (Diagnostics)](#how-to-find-text-paths-and-keys-diagnostics)
-    - [Language \& Game Scoping](#language--game-scoping)
-  - [IconsConfig.json — Custom Rich Text Inline Icons](#iconsconfigjson--custom-rich-text-inline-icons)
-    - [File Format](#file-format-2)
-    - [Language-Agnostic Icon Injection (e.g. for Inventory Items)](#language-agnostic-icon-injection-eg-for-inventory-items)
-    - [Performance \& Texture Atlases](#performance--texture-atlases)
-  - [DatabaseConfig.json — Data-Driven Database Customization](#databaseconfigjson--data-driven-database-customization)
-    - [DatabaseConfig.json Structure](#databaseconfigjson-structure)
-  - [Title Screen](#title-screen)
-    - [Title Screen Background Color](#title-screen-background-color)
-    - [Title Screen Full Background Image](#title-screen-full-background-image)
-    - [Main Menu Background Image](#main-menu-background-image)
-  - [Dialogue System](#dialogue-system)
-    - [Speaker Name Prefix](#speaker-name-prefix)
-    - [Hide Speaker Tag Bubble](#hide-speaker-tag-bubble)
-    - [Speaker Portraits](#speaker-portraits)
-    - [Menu Portraits Override (FF2, FF4, FF6)](#menu-portraits-override-ff2-ff4-ff6)
-      - [File Location](#file-location)
-      - [Mapping Format](#mapping-format)
-      - [Language \& Game Scoping](#language--game-scoping-1)
-      - [Zero-Config Fallback (No JSON mapping needed)](#zero-config-fallback-no-json-mapping-needed)
-    - [Speaker Name Overrides](#speaker-name-overrides)
-      - [File Location](#file-location-1)
-      - [File Format](#file-format-3)
-      - [Language \& Game Scoping](#language--game-scoping-2)
-      - [`speakers` — Register speaker IDs](#speakers--register-speaker-ids)
-      - [`messageOverrides` — Override by dialogue key](#messageoverrides--override-by-dialogue-key)
-      - [Priority order](#priority-order)
-      - [How to find a speaker ID or dialogue key](#how-to-find-a-speaker-id-or-dialogue-key)
-      - [Portrait images](#portrait-images)
-    - [Dialogue Font Size](#dialogue-font-size)
-  - [Font Diagnostic \& Custom Font Swap](#font-diagnostic--custom-font-swap)
-    - [Phase 1 — Diagnostic Logging](#phase-1--diagnostic-logging)
-    - [Phase 2 — Custom Font Swap](#phase-2--custom-font-swap)
-      - [File Locations](#file-locations)
-      - [Configuration File Format](#configuration-file-format)
-      - [Language-Specific Configuration Styles](#language-specific-configuration-styles)
-        - [Style A — Root-Level Language Specifier (single-language mods)](#style-a--root-level-language-specifier-single-language-mods)
-        - [Style B — Nested Language Blocks (multi-language mods)](#style-b--nested-language-blocks-multi-language-mods)
-        - [Style C — Flat Key Suffixes](#style-c--flat-key-suffixes)
-      - [Fallback Lookup Order](#fallback-lookup-order)
-      - [Supported Languages](#supported-languages)
-      - [Enabling the Swap](#enabling-the-swap)
-        - [Note for Linux \& Steam Deck Users (via Proton)](#note-for-linux--steam-deck-users-via-proton)
-  - [UI Tweaks](#ui-tweaks)
-    - [Scaled-Down Menu](#scaled-down-menu)
-    - [Disable Item Dimming](#disable-item-dimming)
-    - [Save Highlight Color](#save-highlight-color)
-    - [Menu Portrait Aspect Ratio Preservation](#menu-portrait-aspect-ratio-preservation)
-  - [Utility](#utility)
-    - [Disable Mouse Cursor](#disable-mouse-cursor)
-    - [Force VSync](#force-vsync)
-  - [Optional Dependencies](#optional-dependencies)
-
 ---
 
 ## Features
@@ -595,30 +510,6 @@ Controlled by `Z - Diagnostics.TextureLogger`. Categories:
 
 Set to `All` to enable all categories, or use a comma-separated list (e.g. `Discoveries,Resolutions`).
 
-### Mod Loader & Texture Conflict Detection
-
-At startup, the plugin automatically scans `00-Mods/` and logs a summary of every active mod:
-
-```
-[Info   :KupoUI.PR] [ModLoader] Loaded 2 mod(s) from 00-Mods: FF2 Pixel Keeper, DarkerUI
-```
-
-It then performs a cross-source texture conflict analysis and warns whenever multiple distinct sources (Mod A vs. Mod B, or a mod vs. `System/`) provide a texture that resolves to the exact same key:
-
-- **Loose files** (not under `GameAssets/`) are compared by normalized filename without extension.
-- **`GameAssets/` files** are compared only by their full addressable path key (e.g. `GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00`). This means multiple different character subfolders within the same mod never trigger false positives.
-
-```
-[Warning:KupoUI.PR] [ModLoader] Texture conflict detected for 'window_frame':
-[Warning:KupoUI.PR]   - [Mod 'DarkerUI'] 00-Mods\DarkerUI\window_frame.png
-[Warning:KupoUI.PR]   - [Mod 'FF2 Pixel Keeper'] 00-Mods\FF2 Pixel Keeper\window_frame.png
-```
-
-This check runs automatically at every startup and hot-reload, so you always see an up-to-date conflict report.
-
-> [!NOTE]
-> **System Speaker Portraits Exclusion**: Bundled base speaker portraits located under `System/` (such as `System/FF2/SpeakerPortraits/` or `System/SpeakerPortraits/`) are intentionally excluded from texture conflict detection. Because mods placed in `00-Mods/` are designed to override default system portraits, this exclusion prevents false-positive conflict warning logs while ensuring genuine mod-vs-mod conflicts (e.g. Mod A vs Mod B) are still highlighted.
-
 ---
 
 ## 2. 📐 GameObject & Layout Engine (ObjectConfig.json)
@@ -840,6 +731,21 @@ The image file path is resolved **relative to the `ObjectConfig.json` file** its
 | `LowerRight`   | Bottom-right corner                |
 
 Values are case-insensitive. If the object has no corresponding component (`Text` for `TextAlignment`, or `LayoutGroup` for `ChildAlignment`), or the value is unrecognized, a warning is written to the log and the field is skipped.
+
+### Scaled-Down Menu
+
+`UI.ScaledDownMenu` (default `true`) — Shrinks the in-game menu by 10% by setting `localScale` to `(0.9, 0.9, 1.0)` on:
+
+- `Canvas/aspect_parent/menu_parent/menu_base(Clone)`
+- `RootObject/sab_canvas/root/ui_root`
+
+### Save Highlight Color
+
+`UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
+
+- **Options**: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.
+- **Disable Aliases**: You can also use `Disabled`, `Off`, or `None` to disable the highlight slot entirely.
+- **Fallback Behavior**: If an unrecognized value is set, the color defaults to `DarkNavy` to ensure deterministic rendering.
 
 ### Title Screen & Main Menu Background Images
 
@@ -1418,36 +1324,51 @@ To use custom system fonts when running the game on Linux or Steam Deck via Prot
 
 ---
 
-## 6. 🛠️ Mod Loader & Diagnostics Engine
+## 6. 🛠️ Logging & Utility Engine
 
-### UI Tweaks
+### Startup Mod Loader & Texture Conflict Detection
 
-### Scaled-Down Menu
+At startup, the plugin automatically scans `00-Mods/` and logs a summary of every active mod:
 
-`UI.ScaledDownMenu` (default `true`) — Shrinks the in-game menu by 10% by setting `localScale` to `(0.9, 0.9, 1.0)` on:
+```
+[Info   :KupoUI.PR] [ModLoader] Loaded 2 mod(s) from 00-Mods: FF2 Pixel Keeper, DarkerUI
+```
 
-- `Canvas/aspect_parent/menu_parent/menu_base(Clone)`
-- `RootObject/sab_canvas/root/ui_root`
+It then performs a cross-source texture conflict analysis and warns whenever multiple distinct sources (Mod A vs. Mod B, or a mod vs. `System/`) provide a texture that resolves to the exact same key:
 
-### Save Highlight Color
+- **Loose files** (not under `GameAssets/`) are compared by normalized filename without extension.
+- **`GameAssets/` files** are compared only by their full addressable path key (e.g. `GameAssets/Serial/Res/Chara/Face/FA_FF2_P001/Default_00`). This means multiple different character subfolders within the same mod never trigger false positives.
 
-`UI.SaveHighlightColor` (default `Disable`) — Overrides the Quick Save and Auto Save slot highlight color.
+```
+[Warning:KupoUI.PR] [ModLoader] Texture conflict detected for 'window_frame':
+[Warning:KupoUI.PR]   - [Mod 'DarkerUI'] 00-Mods\DarkerUI\window_frame.png
+[Warning:KupoUI.PR]   - [Mod 'FF2 Pixel Keeper'] 00-Mods\FF2 Pixel Keeper\window_frame.png
+```
 
-- **Options**: `Original` (game default), `DarkNavy`, `DarkGreen`, `DarkViolet`, `DarkYellow`, `DarkOrange`, `Disable`.
-- **Disable Aliases**: You can also use `Disabled`, `Off`, or `None` to disable the highlight slot entirely.
-- **Fallback Behavior**: If an unrecognized value is set, the color defaults to `DarkNavy` to ensure deterministic rendering.
+This check runs automatically at every startup and hot-reload, so you always see an up-to-date conflict report.
 
----
+> [!NOTE]
+> **System Speaker Portraits Exclusion**: Bundled base speaker portraits located under `System/` (such as `System/FF2/SpeakerPortraits/` or `System/SpeakerPortraits/`) are intentionally excluded from texture conflict detection. Because mods placed in `00-Mods/` are designed to override default system portraits, this exclusion prevents false-positive conflict warning logs while ensuring genuine mod-vs-mod conflicts (e.g. Mod A vs Mod B) are still highlighted.
 
-## Utility
+### Utility Settings
 
-### Disable Mouse Cursor
+#### Disable Mouse Cursor
 
 `Utility.DisableMouseCursor` (default `false`) — Hides the OS mouse cursor inside the game window using the Unity `Cursor` API.
 
-### Force VSync
+#### Force VSync
 
 `Utility.ForceVSync` (default `false`) — Forces `QualitySettings.vSyncCount = 1` and `Application.targetFrameRate = -1` on startup, and intercepts any game writes that would override these values.
+
+### Developer Diagnostic Logging Modes
+
+Dedicated diagnostic toggles available under `Z - Diagnostics` in the configuration file (`BepInEx/config/faospark.kupoui.pr.cfg`):
+- `TextureLogger`: Texture discovery (`Discoveries`), resolution (`Resolutions`), and miss (`Misses`) logging modes.
+- `LogFontMapping`: Log font parameter and instance details to identify `FontType` mappings.
+- `MessageSpeakerPrefixLogging`: Log dialogue speaker name replacements and matches.
+- `LogAllTexts`: Log all assigned `UnityEngine.UI.Text` strings to trace UI paths and keys.
+- `IconLogging`: Log inline custom rich text icon matches and sprite swaps.
+- `PortraitLogging`: Log speaker portrait lifecycle and resolution details.
 
 ---
 
