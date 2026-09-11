@@ -113,36 +113,33 @@ This framework is not intended to replace Magicite, Memoria, or FFPRFix. While t
 
 ## Features
 
-- BepInEx IL2CPP plugin structure (`BasePlugin`) with Harmony runtime patching (`PatchAll`)
-- Layered custom texture system with pack-folder selection and hot-reload
-- Path-based (`GameAssets/…`) texture overrides to resolve same-name collisions across bundles
-- Support for nested textures inside Unity `.prefab` assets (enabling **battle background replacement/modding**)
-- Optional sidecar JSON metadata per texture (size, pivot, border, filter, flip, etc.)
-- DDS texture support (DXT1, DXT5, uncompressed RGBA32)
-- Data-driven GameObject tweaks and custom image insertion (`NewImages`) via `ObjectConfig.json` (no C# required)
-- Data-driven menu and UI text customization/localization via `TextConfig.json` (no C# required)
-- Custom rich text inline icons via `IconsConfig.json` with automatic texture atlas packing & disk caching
-- Data-driven database table overrides (e.g., coordinates, BGMs, flags) via `DatabaseConfig.json` (no C# required)
-- Custom full-screen title background image injection (`TitlescreenFullBG`)
-- Custom main menu background image injection (`MainMenuBg`)
-- Configurable title screen background color
-- Speaker name prepended to dialogue messages (with configurable formatting, line wrapping, and length limits)
-- Speaker name overrides and per-dialogue-key speaker assignments via `SpeakerNames.json` / `speaker-names.json`
-- Speaker tag bubble hider
-- Dynamic speaker portrait injection for dialogues
-- Menu portrait overrides via `MenuPortraitMap.json` (for FF2, FF4, FF6) with aspect ratio preservation
-- Configurable dialogue font size
-- Custom font swap via `fontconfig.json` with per-language and per-FontType granularity
-- Scaled-down in-game menu (10% shrink)
-- Disable item dimming (forces unusable item icons/names to remain at full color)
-- Save slot highlight color override
-- Mouse cursor hider
-- Force VSync
-- Folder blocking (`block*` path prefix) and game-tag/language scoping (`FF1`–`FF6` folders & root JSON scopes)
-- **Startup Mod Loader**: logs all active mods found in `00-Mods/` by folder name at startup
-- **Texture Conflict Detection**: warns at startup when multiple mods (or a mod vs. `System/`) provide the same texture key or addressable path
-- Comprehensive developer/modder diagnostic logging modes (for textures, fonts, dialogue text, speaker names, and inline icons)
-- Soft dependency detection for `Memoria.FFPR`, `Magicite`, and `FFPR_Fix`
+- **BepInEx IL2CPP Architecture**: Built on BepInEx 6 IL2CPP (`BasePlugin`) using Harmony runtime patching (`PatchAll`).
+- **5-Layer Modular Custom Texture Pipeline**: Layered texture override system supporting custom pack selection across 5 distinct categories (`01-UI-Themes`, `02-UI-Frames`, `03-UI-BgColor`, `04-UI-Cursors`, `05-Button-Prompts`), prioritized over `00-Mods` and `System` base assets.
+- **Automatic Texture Hot-Reloading**: File System Watcher monitors `Modules/` with configurable debouncing (`TextureHotReloadDebounceMs`, default 350ms) to reload textures live without restarting the game.
+- **Path-Based (`GameAssets/…`) Addressable Overrides**: Address-aware texture resolution to prevent filename collisions across different Unity bundles.
+- **Prefab & Battle Background Support**: Supports overriding nested textures inside Unity `.prefab` containers without bundle editing (enabling full battle background modding).
+- **Independent UV Wrap Modes & Auto-Tiling**: Per-axis U/V wrap mode overrides (`wrapModeU`/`wrapModeV`, `wrapModeX`/`wrapModeY`, `repeatX`/`repeatY`) with automatic `UnityEngine.UI.Image` `Image.type` conversion (`Tiled`/`Sliced`) and `uvRect` recalculations.
+- **Sidecar JSON Texture Metadata**: Optional `.json` sidecar files per texture to customize size, pivot, 9-slice borders, filter mode (`Point`, `Bilinear`, `Trilinear`), horizontal flip, aspect preservation, scale, and render offsets.
+- **DDS Texture Support**: Supports DXT1, DXT5, and uncompressed RGBA32 DDS textures alongside PNG, JPG, and TGA.
+- **Data-Driven GameObject Tweaks (`ObjectConfig.json`)**: Manipulate Unity GameObjects at runtime (position, euler rotation, scale, size, active state, text/child alignment, font size, best-fit bounds, text/graphic colors, sibling layout index, component disabling for shadows/masks/layout groups/size fitters) with parent-matching and index-based pathing (`TargetPath`).
+- **Custom Image Insertion (`NewImages`)**: Instantiate new UI images with sidecar 9-slicing and metadata directly into existing GameObject hierarchies without writing C#.
+- **Data-Driven Text & Menu Customization (`TextConfig.json`)**: Override menu labels, button text, and localization entries by database key, exact string match, or regex patterns (`regex` and `replacement`) with component scoping and color overrides.
+- **Custom Rich Text Inline Icons (`IconsConfig.json`)**: Custom icon tags (e.g. `<IC_BAG>`) with language-agnostic icon-only injection, automatic startup texture atlas packing (point vs bilinear), and on-disk binary/PNG caching (`Modules/.cache/`).
+- **Data-Driven Database Overrides (`DatabaseConfig.json`)**: Runtime delta patching for static SQLite/CSV database tables (e.g. `monster_party` encounter positions, BGMs, backgrounds, and flags).
+- **Custom Title Screen & Main Menu Backgrounds**: Inject full-screen title background images (`TitlescreenFullBG`) and main menu background images (`MainMenuBg`) with configurable solid title screen background colors (`UI.TitleScreenBgColor`).
+- **Advanced Dialogue & Speaker System**:
+  - Prepend speaker names to dialogue lines with UPPERCASE formatting (`SpeakerNameUppercase`), custom line wrapping (`DialogueTextWrap`), line length limits (`DialogueLineLengthLimit`), and speaker prefix line breaks (`SpeakerNameNewLine`).
+  - Speaker tag bubble hider (`HideSpeakerTag`).
+  - Dynamic speaker portrait injection with configurable pixel padding (`SpeakerPortraitsPadding`), text box offsets (`SpeakerPortraitsTextOffset`), and horizontal flipping.
+  - Per-dialogue key speaker and portrait overrides via `SpeakerNames.json` / `speaker-names.json`.
+- **Menu Portrait Overrides (`MenuPortraitMap.json`)**: Remap main menu character portraits for FF2, FF4, and FF6 with aspect ratio preservation.
+- **Dialogue Font Size Enforcement**: Force fixed font sizes on dialogue windows (`DialogueFontSize`).
+- **Custom Font Swap (`fontconfig.json`)**: Load custom TrueType (`.ttf`) and OpenType (`.otf`) fonts from disk via `FontManager.CreateFontParameter` with per-language scoping, per-`FontType` override (`Main`, `Title`, `Number`, `Battle`), font size scaling (`sizeScale`), and line spacing (`lineSpacing`).
+- **UI Tweaks**: Scaled-down in-game menu (10% shrink), item dimming disabler (forces full color on unusable items), customizable save slot highlight colors, mouse cursor hider, and forced VSync.
+- **Folder Scoping & Blocking**: Skip blocked folders (`block*` path prefix) and enforce game-tag (`FF1`–`FF6`) / language scoping across all asset folders and JSON configurations.
+- **Startup Mod Loader & Texture Conflict Detection**: Summarizes active mods in `00-Mods/` at boot and detects cross-source texture conflicts (automatically excluding bundled system speaker portraits in `System/` to avoid false positives).
+- **Comprehensive Diagnostic Logging Modes**: Dedicated diagnostic toggles for textures (`TextureLogger`), battle sprites (`BattleLogging`), wrapMode tiling (`TextureTilingLogging`), GameObject replacements (`ObjectReplacedLogging`), font mappings (`LogFontMapping`), speaker name replacements (`MessageSpeakerPrefixLogging`), all UI text (`LogAllTexts`), inline icons (`IconLogging`), and speaker portraits (`PortraitLogging`).
+- **Soft Dependency Detection**: Checks for `Memoria.FFPR`, `Magicite`, and `FFPR_Fix` at runtime without hard dependencies.
 
 ---
 
@@ -446,6 +443,9 @@ It then performs a cross-source texture conflict analysis and warns whenever mul
 ```
 
 This check runs automatically at every startup and hot-reload, so you always see an up-to-date conflict report.
+
+> [!NOTE]
+> **System Speaker Portraits Exclusion**: Bundled base speaker portraits located under `System/` (such as `System/FF2/SpeakerPortraits/` or `System/SpeakerPortraits/`) are intentionally excluded from texture conflict detection. Because mods placed in `00-Mods/` are designed to override default system portraits, this exclusion prevents false-positive conflict warning logs while ensuring genuine mod-vs-mod conflicts (e.g. Mod A vs Mod B) are still highlighted.
 
 ---
 
